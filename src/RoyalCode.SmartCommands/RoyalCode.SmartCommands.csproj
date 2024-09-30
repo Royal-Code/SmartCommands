@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+
+		<Version>0.1.0</Version>
+		<AssemblyVersion>0.1.0</AssemblyVersion>
+		<FileVersion>0.1.0</FileVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="RoyalCode.SmartProblems" Version="$(SmartProblemsVer)" />
+		<PackageReference Include="RoyalCode.SmartValidations" Version="$(SmartValidationsVer)"/>
+	</ItemGroup>
+
+</Project>

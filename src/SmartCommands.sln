@@ -1,0 +1,60 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RoyalCode.SmartCommands", "RoyalCode.SmartCommands\RoyalCode.SmartCommands.csproj", "{6E656C7E-EF82-4EE8-BBCD-33B1DE51B666}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RoyalCode.SmartCommands.Demo", "RoyalCode.SmartCommands.Demo\RoyalCode.SmartCommands.Demo.csproj", "{B13A29E3-8C35-421F-B21C-644ECC7B065D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RoyalCode.SmartCommands.Generators", "RoyalCode.SmartCommands.Generators\RoyalCode.SmartCommands.Generators.csproj", "{534560D5-52CE-4700-8D27-8CC4104C45B8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RoyalCode.SmartCommands.Tests", "RoyalCode.SmartCommands.Tests\RoyalCode.SmartCommands.Tests.csproj", "{38FCC9CF-C33B-431E-A81C-DD996331637A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".Items", ".Items", "{A1FA5B28-9CA6-4FE6-8BB9-B6394D5D801D}"
+	ProjectSection(SolutionItems) = preProject
+		Directory.Build.props = Directory.Build.props
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libs", "Libs", "{E04FC64D-9C28-4377-8F4D-428FDDAAAB99}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Demo", "Demo", "{08D65C6E-1D70-49CC-8384-E051EC19E866}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{4F1FF377-9816-4FBD-9AB2-BC588DD2CFBA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6E656C7E-EF82-4EE8-BBCD-33B1DE51B666}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6E656C7E-EF82-4EE8-BBCD-33B1DE51B666}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6E656C7E-EF82-4EE8-BBCD-33B1DE51B666}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6E656C7E-EF82-4EE8-BBCD-33B1DE51B666}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B13A29E3-8C35-421F-B21C-644ECC7B065D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B13A29E3-8C35-421F-B21C-644ECC7B065D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B13A29E3-8C35-421F-B21C-644ECC7B065D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B13A29E3-8C35-421F-B21C-644ECC7B065D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{534560D5-52CE-4700-8D27-8CC4104C45B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{534560D5-52CE-4700-8D27-8CC4104C45B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{534560D5-52CE-4700-8D27-8CC4104C45B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{534560D5-52CE-4700-8D27-8CC4104C45B8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{38FCC9CF-C33B-431E-A81C-DD996331637A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{38FCC9CF-C33B-431E-A81C-DD996331637A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{38FCC9CF-C33B-431E-A81C-DD996331637A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{38FCC9CF-C33B-431E-A81C-DD996331637A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6E656C7E-EF82-4EE8-BBCD-33B1DE51B666} = {E04FC64D-9C28-4377-8F4D-428FDDAAAB99}
+		{B13A29E3-8C35-421F-B21C-644ECC7B065D} = {08D65C6E-1D70-49CC-8384-E051EC19E866}
+		{534560D5-52CE-4700-8D27-8CC4104C45B8} = {E04FC64D-9C28-4377-8F4D-428FDDAAAB99}
+		{38FCC9CF-C33B-431E-A81C-DD996331637A} = {4F1FF377-9816-4FBD-9AB2-BC588DD2CFBA}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CF9BC81C-4207-433A-A60F-C5345F9D646A}
+	EndGlobalSection
+EndGlobal

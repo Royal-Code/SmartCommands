@@ -1,0 +1,20 @@
+<Project>
+	<PropertyGroup>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+	<PropertyGroup>
+		<Authors>Royal Code</Authors>
+		<Copyright>Royal Code Copyright ©  2024</Copyright>
+		<RepositoryUrl>https://github.com/Royal-Code/SmartCommands</RepositoryUrl>
+		<RepositoryType>Git</RepositoryType>
+		<Configurations>Debug;Release</Configurations>
+		<PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
+	</PropertyGroup>
+	<PropertyGroup>
+		<SmartProblemsVer>1.0.0-preview-1.4</SmartProblemsVer>
+		<SmartValidationsVer>1.0.0-preview-0.2</SmartValidationsVer>
+		<WorkContextVer>1.0.0-preview-7.0</WorkContextVer>
+	</PropertyGroup>
+</Project>

@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+
+		<IncludeBuildOutput>false</IncludeBuildOutput>
+		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+
+		<Version>0.1.0</Version>
+		<AssemblyVersion>0.1.0</AssemblyVersion>
+		<FileVersion>0.1.0</FileVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<AdditionalFiles Include="../AnalyzerReleases.Shipped.md" />
+		<AdditionalFiles Include="../AnalyzerReleases.Unshipped.md" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" PrivateAssets="all" />
+	</ItemGroup>
+
+	<Target BeforeTargets="Build" Name="Generator">
+		<!-- Package items -->
+		<ItemGroup>
+			<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+			<Analyzer Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
+		</ItemGroup>
+	</Target>
+
+	<ItemGroup>
+		<!-- Package items -->
+		<None Include="Generator.props" Pack="true" PackagePath="build" Visible="false" />
+	</ItemGroup>
+</Project>
