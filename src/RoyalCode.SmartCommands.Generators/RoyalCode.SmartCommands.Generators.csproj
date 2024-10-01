@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net8.0</TargetFramework>
+		<TargetFramework>netstandard2.0</TargetFramework>
 
 		<IncludeBuildOutput>false</IncludeBuildOutput>
 		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
@@ -11,6 +11,8 @@
 		<Version>0.1.0</Version>
 		<AssemblyVersion>0.1.0</AssemblyVersion>
 		<FileVersion>0.1.0</FileVersion>
+
+		<NoWarn>$(NoWarn);NU5128</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -33,6 +35,6 @@
 
 	<ItemGroup>
 		<!-- Package items -->
-		<None Include="Generator.props" Pack="true" PackagePath="build" Visible="false" />
+		<None Include="RoyalCode.SmartCommands.Generators.props" Pack="true" PackagePath="build" Visible="false" />
 	</ItemGroup>
 </Project>

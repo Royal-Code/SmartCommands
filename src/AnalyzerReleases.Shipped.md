@@ -16,4 +16,3 @@ RCCMD008 | Usage   | Error    | CMD008_CancellationToken_require_async_method, [
 RCCMD009 | Usage   | Error    | CMD006_EditEntity_requires_WithUnitOfWork, [Documentation](https://google.com)
 RCCMD010 | Usage   | Error    | CMD010_EditEntity_requires_FirstParameter, [Documentation](https://google.com)
 RCCMD011 | Usage   | Error    | CMD011_WithParameters_cant_be_entity_or_context, [Documentation](https://google.com)
-RCCAH001 | Usage   | Error    | CAH001_Handler_method_not_found, [Documentation](https://google.com)

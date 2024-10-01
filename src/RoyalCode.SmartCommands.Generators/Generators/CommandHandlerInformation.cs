@@ -56,9 +56,10 @@ public sealed class CommandHandlerInformation : IGenerator, IEquatable<CommandHa
         partialModelGenerator?.Generate(spc);
     }
 
-    public bool Equals(CommandHandlerInformation other)
+    public bool Equals(CommandHandlerInformation? other)
     {
-        return Equals(ModelType, other.ModelType) &&
+        return other is not null &&
+               Equals(ModelType, other.ModelType) &&
                HasWithValidateModel == other.HasWithValidateModel &&
                HasWithDecorators == other.HasWithDecorators &&
                MethodName == other.MethodName &&

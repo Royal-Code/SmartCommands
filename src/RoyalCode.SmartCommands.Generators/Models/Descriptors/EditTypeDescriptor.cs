@@ -46,7 +46,7 @@ public sealed class EditTypeDescriptor : IEquatable<EditTypeDescriptor>
             Equals(Parameter, other.Parameter);
     }
 
-    public override bool Equals(object obj)
+    public override bool Equals(object? obj)
     {
         return obj is EditTypeDescriptor descriptor && Equals(descriptor);
     }
