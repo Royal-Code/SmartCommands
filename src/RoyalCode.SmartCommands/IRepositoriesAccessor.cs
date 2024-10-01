@@ -47,5 +47,6 @@ public interface IRepositoriesAccessor<out T>
     /// <returns>
     ///     A value task for possible asynchronous scenarios.
     /// </returns>
-    public ValueTask AddEntityAsync<TEntity>(TEntity entity, CancellationToken ct);
+    public ValueTask AddEntityAsync<TEntity>(TEntity entity, CancellationToken ct)
+        where TEntity : class;
 }

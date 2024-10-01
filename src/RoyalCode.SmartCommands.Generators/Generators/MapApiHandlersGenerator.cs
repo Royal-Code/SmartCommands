@@ -54,16 +54,17 @@ public static class MapApiHandlersGenerator
         // para cada grupo, deve ser criado uma classe como, por exemplo: MapMeuGrupoApi
         foreach (var group in commandGroup)
         {
-            var groupName = group.Key?.ToPascalCase() ?? left.ClassType.Name;
-            var className = groupName.EndsWith("Api")
-                ? groupName
-                : $"{groupName}Api";
+            var groupName = group.Key ?? left.ClassType.Name;
+            var safeGroupName = groupName.ToPascalCase();
+            var className = safeGroupName.EndsWith("Api")
+                ? safeGroupName
+                : $"{safeGroupName}Api";
 
             // a classe terá um método estático que mapeará os handlers
             var (classGenerator, methodGenerator) = CreateGroupClassAndMethod(
                 className: $"Map{className}",
                 classNamespace: left.ClassType.Namespaces[0],
-                methodName: $"Map{groupName}Group");
+                methodName: $"Map{safeGroupName}Group");
 
             // comando que cria o group
             // deve gerar algo como: var group = builder.MapGroup("MyGroup")
@@ -323,7 +324,7 @@ public static class MapApiHandlersGenerator
     private static TypeDescriptor DiscoveryReturnType(CommandHandlerInformation commandInfo, MapInformation mapInfo)
     {
         TypeDescriptor typeDescriptor;
-        string ns = "RoyalCode.SmartProblems.HttpResults";
+        const string ns = "RoyalCode.SmartProblems.HttpResults";
         if (mapInfo.HttpMethod == "Delete")
         {
             typeDescriptor = new TypeDescriptor("NoContentMatch", [ns]);
@@ -337,7 +338,23 @@ public static class MapApiHandlersGenerator
         // tenta obter o tipo de retorno
         bool hasValueType = commandInfo.MethodReturnType.HasValueType(out var valueType);
 
-        // verifica se há MapResponseValuesInformation
+        if (hasValueType)
+        {
+            if (mapInfo.MapIdResultValue)
+            {
+                // quando há MapIdResultValue, então retornará CreatedMatch<TId>
+                // todo: incluir a propriedade do Id no mapInfo e atribuir o tipo a var valueType
+            }
+            else if (mapInfo.ResponseValues is not null)
+            {
+                // quando há MapResponseValuesInformation, então retornará CreatedMatch<T>
+                // onde o T será o tipo Response gerado
+                //
+                valueType = new TypeDescriptor($"{commandInfo.ModelType.Name}Response", [commandInfo.Namespace]);
+            }
+        }
+
+        // verifica se deve retornar CreatedMatch ou OkMatch
         if (mapInfo.CreatedInformation is not null)
         {
             // se tipo de valor, então retornará CreatedMatch<T>
@@ -369,7 +386,7 @@ public static class MapApiHandlersGenerator
         classGenerator.Modifiers.Static();
         classGenerator.Modifiers.Partial();
 
-        var endpointRouteBuilder = new TypeDescriptor("IEndpointRouteBuilder", ["Microsoft.AspNetCore.Routing"]);
+        var endpointRouteBuilder = new TypeDescriptor("IEndpointRouteBuilder", ["Microsoft.AspNetCore.Routing", "Microsoft.AspNetCore.Builder", "Microsoft.AspNetCore.Http"]);
         var routeGroupBuilder = new TypeDescriptor("RouteGroupBuilder", ["Microsoft.AspNetCore.Routing"]);
 
         var mapMethod = new MethodGenerator(methodName, routeGroupBuilder);

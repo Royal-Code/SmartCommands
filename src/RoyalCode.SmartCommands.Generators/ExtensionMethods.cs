@@ -372,7 +372,18 @@ public static class ExtensionMethods
         if (string.IsNullOrEmpty(value))
             return value;
 
-        return char.ToUpperInvariant(value[0]) + value.Substring(1);
+        // exemplo, "my-group-name" -> "MyGroupName"
+
+        // separa as palavras pelo hífen
+        var words = value.Split('-');
+        // converte a primeira letra de cada palavra para maiúscula
+        for (var i = 0; i < words.Length; i++)
+        {
+            words[i] = char.ToUpperInvariant(words[i][0]) + words[i].Substring(1);
+        }
+
+        // junta as palavras
+        return string.Join("", words);
     }
 
     // método para remover aspas duplas (") de ums string que representa um literal

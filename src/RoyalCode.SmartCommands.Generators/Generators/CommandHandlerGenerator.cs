@@ -478,10 +478,10 @@ public static class CommandHandlerGenerator
             if (arguments is not null && arguments.Value.Count > 0)
             {
                 // o primeiro parâmetro é a route pattern
-                var routePattern = arguments.Value[0].Expression.ToString();
+                var routePattern = arguments.Value[0].Expression.ToString().RemoveQuotes();
                 // pode haver outros parâmetros vindos do (params string[])
                 var propertiesNames = arguments.Value.Count > 1
-                    ? arguments.Value.Skip(1).Select(a => a.Expression.ToString()).ToArray()
+                    ? arguments.Value.Skip(1).Select(a => a.Expression.ToString().RemoveQuotes()).ToArray()
                     : [];
 
                 createdInformation = new MapCreatedInformation(routePattern, propertiesNames);
