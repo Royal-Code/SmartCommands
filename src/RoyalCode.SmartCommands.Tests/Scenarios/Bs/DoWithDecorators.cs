@@ -1,6 +1,6 @@
 ﻿using RoyalCode.SmartProblems;
 
-namespace Coreum.NewCommands.Tests.Scenarios.Bs;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.Bs;
 
 public class DoWithDecorators
 {

@@ -1,8 +1,7 @@
-﻿
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Coreum.NewCommands.Generators.Models.Descriptors;
+namespace RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
 public sealed class EditTypeDescriptor : IEquatable<EditTypeDescriptor>
 {

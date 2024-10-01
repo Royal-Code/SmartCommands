@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Coreum.NewCommands;
+namespace RoyalCode.SmartCommands;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public class MapCreatedRouteAttribute : Attribute

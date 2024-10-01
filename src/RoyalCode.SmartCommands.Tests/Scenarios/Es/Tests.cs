@@ -1,7 +1,7 @@
 ﻿using FluentAssertions;
 using Microsoft.CodeAnalysis;
 
-namespace Coreum.NewCommands.Tests.Scenarios.Es;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.Es;
 
 public class Tests
 {

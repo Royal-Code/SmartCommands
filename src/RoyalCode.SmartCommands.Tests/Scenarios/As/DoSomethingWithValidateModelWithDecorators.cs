@@ -1,8 +1,8 @@
-﻿using RoyalCode.SmartProblems;
+﻿using System.Diagnostics.CodeAnalysis;
+using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
-using System.Diagnostics.CodeAnalysis;
 
-namespace Coreum.NewCommands.Tests.Scenarios.As;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.As;
 
 public class DoSomethingWithValidateModelWithDecorators
 {

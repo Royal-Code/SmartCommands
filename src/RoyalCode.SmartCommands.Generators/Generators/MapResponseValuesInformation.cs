@@ -1,6 +1,6 @@
-using Coreum.NewCommands.Generators.Models.Descriptors;
+using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
-namespace Coreum.NewCommands.Generators.Generators;
+namespace RoyalCode.SmartCommands.Generators.Generators;
 
 public sealed class MapResponseValuesInformation : IEquatable<MapResponseValuesInformation>
 {

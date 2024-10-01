@@ -1,4 +1,4 @@
-﻿namespace Coreum.NewCommands.Generators.Models;
+﻿namespace RoyalCode.SmartCommands.Generators.Models;
 
 public abstract class ValueNode
 {

@@ -1,7 +1,7 @@
 ﻿using FluentAssertions;
 using Microsoft.CodeAnalysis;
 
-namespace Coreum.NewCommands.Tests.Scenarios.As;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.As;
 
 public class TestWithValidateModelWithDecorators
 {
@@ -25,8 +25,8 @@ file static class Code
 
     public const string Command =
 """
-using Coreum.NewCommands;
-using Coreum.NewCommands.Tests.Scenarios.As;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Tests.Scenarios.As;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 using System.Diagnostics.CodeAnalysis;
@@ -53,7 +53,7 @@ public class DoSomethingWithValidateModelWithDecorators
 
     public const string Interface =
 """
-using Coreum.NewCommands.Tests.Scenarios.As;
+using RoyalCode.SmartCommands.Tests.Scenarios.As;
 using RoyalCode.SmartProblems;
 
 namespace Tests.Scenarios.As;
@@ -67,8 +67,8 @@ public interface IDoSomethingWithValidateModelWithDecoratorsHandler
 
     public const string Handler =
 """
-using Coreum.NewCommands;
-using Coreum.NewCommands.Tests.Scenarios.As;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Tests.Scenarios.As;
 using RoyalCode.SmartProblems;
 using Tests.Scenarios.As;
 

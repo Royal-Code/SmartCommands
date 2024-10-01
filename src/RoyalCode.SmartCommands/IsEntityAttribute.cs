@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace Coreum.NewCommands;
+namespace RoyalCode.SmartCommands;
 
 [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property, Inherited = false)]
 [Conditional("COMPILE_TIME_ONLY")]

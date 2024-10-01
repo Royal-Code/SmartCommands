@@ -1,8 +1,8 @@
-﻿using RoyalCode.SmartProblems;
+﻿using System.Diagnostics.CodeAnalysis;
+using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
-using System.Diagnostics.CodeAnalysis;
 
-namespace Coreum.NewCommands.Tests.Scenarios.Fs;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.Fs;
 
 public partial class EditSomeSync
 {
@@ -61,7 +61,7 @@ public static class EditSomeSyncCode
 {
     public const string Command =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
@@ -104,7 +104,7 @@ public interface IEditSomeSyncHandler
 
     public const string Handler =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using Tests.Scenarios.Fs;
 

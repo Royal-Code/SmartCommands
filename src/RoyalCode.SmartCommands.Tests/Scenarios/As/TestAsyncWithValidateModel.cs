@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
 
-namespace Coreum.NewCommands.Tests.Scenarios.As;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.As;
 
 public class TestAsyncWithValidateModel
 {
@@ -24,8 +24,8 @@ file static class Code
 {
     public const string Command =
 """
-using Coreum.NewCommands;
-using Coreum.NewCommands.Tests.Scenarios.As;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Tests.Scenarios.As;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
@@ -50,7 +50,7 @@ public class DoSomethingAsyncWithValidateModel
     
     public const string Interface =
 """
-using Coreum.NewCommands.Tests.Scenarios.As;
+using RoyalCode.SmartCommands.Tests.Scenarios.As;
 using RoyalCode.SmartProblems;
 
 namespace Tests.Scenarios.As;
@@ -64,7 +64,7 @@ public interface IDoSomethingAsyncWithValidateModelHandler
     
     public const string Handler =
 """
-using Coreum.NewCommands.Tests.Scenarios.As;
+using RoyalCode.SmartCommands.Tests.Scenarios.As;
 using RoyalCode.SmartProblems;
 using Tests.Scenarios.As;
 

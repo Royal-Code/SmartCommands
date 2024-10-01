@@ -1,5 +1,5 @@
 ﻿
-namespace Coreum.NewCommands.Generators.Models.Descriptors;
+namespace RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
 public sealed class IdPropertyBoundToEntityParameter : IEquatable<IdPropertyBoundToEntityParameter>
 {

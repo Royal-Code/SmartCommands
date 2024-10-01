@@ -1,6 +1,6 @@
 ﻿using RoyalCode.SmartProblems;
 
-namespace Coreum.NewCommands.Tests.Scenarios.Gs;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.Gs;
 
 public class DoWithParameters
 {
@@ -30,7 +30,7 @@ public static class DoWithParametersCode
 {
     public const string Command =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 

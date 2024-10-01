@@ -2,7 +2,7 @@ using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using RoyalCode.SmartProblems;
 
-namespace Coreum.NewCommands.Tests.Scenarios.Cs;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.Cs;
 
 public class DoAsyncWithDecoratorsTest
 {
@@ -59,7 +59,7 @@ file static class Code
 {
     public const string Command =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 
 namespace Tests.Scenarios.As;
@@ -88,7 +88,7 @@ public interface IDoSomethingAsyncWithDecoratorsHandler
 
     public const string Handler =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using Tests.Scenarios.As;
 

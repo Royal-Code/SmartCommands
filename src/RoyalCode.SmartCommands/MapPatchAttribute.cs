@@ -1,7 +1,6 @@
-﻿using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
-namespace Coreum.NewCommands;
+namespace RoyalCode.SmartCommands;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public class MapPatchAttribute : Attribute

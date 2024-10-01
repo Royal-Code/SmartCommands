@@ -1,6 +1,6 @@
 using RoyalCode.Entities;
 
-namespace Coreum.NewCommands.Tests.Scenarios.Fs;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.Fs;
 
 public class Some : IEntity<int>
 {

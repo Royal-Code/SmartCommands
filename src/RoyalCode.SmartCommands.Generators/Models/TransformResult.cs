@@ -1,6 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 
-namespace Coreum.NewCommands.Generators.Models;
+namespace RoyalCode.SmartCommands.Generators.Models;
 
 #pragma warning disable S4035 // IEquatable
 #pragma warning disable S2328 // GetHashCode

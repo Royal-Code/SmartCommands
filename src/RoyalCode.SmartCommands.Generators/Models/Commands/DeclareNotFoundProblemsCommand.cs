@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace Coreum.NewCommands.Generators.Models.Commands;
+namespace RoyalCode.SmartCommands.Generators.Models.Commands;
 
 public class DeclareNotFoundProblemsCommand : GeneratorNode
 {

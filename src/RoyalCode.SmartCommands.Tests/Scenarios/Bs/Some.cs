@@ -1,4 +1,4 @@
-﻿namespace Coreum.NewCommands.Tests.Scenarios.Bs;
+﻿namespace RoyalCode.SmartCommands.Tests.Scenarios.Bs;
 
 
 public record Some(string Name)

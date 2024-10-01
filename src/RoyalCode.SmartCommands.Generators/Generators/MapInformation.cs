@@ -1,5 +1,5 @@
 ﻿
-namespace Coreum.NewCommands.Generators.Generators;
+namespace RoyalCode.SmartCommands.Generators.Generators;
 
 public sealed class MapInformation : IEquatable<MapInformation>
 {

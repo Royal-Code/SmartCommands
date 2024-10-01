@@ -1,11 +1,11 @@
 using System.Diagnostics.CodeAnalysis;
-using Coreum.NewCommands.Tests.Models;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 using RuleSet = RoyalCode.SmartValidations.RuleSet;
 
-namespace Coreum.NewCommands.Tests.Generators;
+namespace RoyalCode.SmartCommands.Tests.Generators;
 
 public class GenerateFindEntitiesTests
 {
@@ -95,12 +95,12 @@ public static class CreateMovieCode
 {
     public const string Command =
 """
-using Coreum.NewCommands;
-using Coreum.NewCommands.Tests.Models;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
-namespace Coreum.NewCommands.Tests.FindEntities;
+namespace RoyalCode.SmartCommands.Tests.FindEntities;
 
 public class CreateMovie
 {
@@ -135,10 +135,10 @@ public class CreateMovie
 
     public const string Interface =
 """
-using Coreum.NewCommands.Tests.Models;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 
-namespace Coreum.NewCommands.Tests.FindEntities;
+namespace RoyalCode.SmartCommands.Tests.FindEntities;
 
 public interface ICreateMovieHandler
 {
@@ -149,12 +149,12 @@ public interface ICreateMovieHandler
 
     public const string Handler =
 """
-using Coreum.NewCommands;
-using Coreum.NewCommands.Tests.FindEntities;
-using Coreum.NewCommands.Tests.Models;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Tests.FindEntities;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 
-namespace Coreum.NewCommands.Tests.FindEntities.Internals;
+namespace RoyalCode.SmartCommands.Tests.FindEntities.Internals;
 
 public class CreateMovieHandler : ICreateMovieHandler
 {
@@ -271,12 +271,12 @@ public static class CreateMovieWithGenreCode
 {
     public const string Command =
 """
-using Coreum.NewCommands;
-using Coreum.NewCommands.Tests.Models;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
-namespace Coreum.NewCommands.Tests.FindEntities;
+namespace RoyalCode.SmartCommands.Tests.FindEntities;
 
 public class CreateMovieWithGenre
 {
@@ -317,10 +317,10 @@ public class CreateMovieWithGenre
 
     public const string Interface =
 """
-using Coreum.NewCommands.Tests.Models;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 
-namespace Coreum.NewCommands.Tests.FindEntities;
+namespace RoyalCode.SmartCommands.Tests.FindEntities;
 
 public interface ICreateMovieWithGenreHandler
 {
@@ -331,12 +331,12 @@ public interface ICreateMovieWithGenreHandler
 
     public const string Handler =
 """
-using Coreum.NewCommands;
-using Coreum.NewCommands.Tests.FindEntities;
-using Coreum.NewCommands.Tests.Models;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Tests.FindEntities;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 
-namespace Coreum.NewCommands.Tests.FindEntities.Internals;
+namespace RoyalCode.SmartCommands.Tests.FindEntities.Internals;
 
 public class CreateMovieWithGenreHandler : ICreateMovieWithGenreHandler
 {
@@ -477,13 +477,13 @@ public static class CreateMovieFullCode
 {
     public const string Command =
 """
-using Coreum.NewCommands;
-using Coreum.NewCommands.Tests.Models;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 using System.Collections.Generic;
 
-namespace Coreum.NewCommands.Tests.FindEntities;
+namespace RoyalCode.SmartCommands.Tests.FindEntities;
 
 public class CreateMovieFull
 {
@@ -530,10 +530,10 @@ public class CreateMovieFull
 
     public const string Interface =
 """
-using Coreum.NewCommands.Tests.Models;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 
-namespace Coreum.NewCommands.Tests.FindEntities;
+namespace RoyalCode.SmartCommands.Tests.FindEntities;
 
 public interface ICreateMovieFullHandler
 {
@@ -544,12 +544,12 @@ public interface ICreateMovieFullHandler
 
     public const string Handler =
 """
-using Coreum.NewCommands;
-using Coreum.NewCommands.Tests.FindEntities;
-using Coreum.NewCommands.Tests.Models;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Tests.FindEntities;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 
-namespace Coreum.NewCommands.Tests.FindEntities.Internals;
+namespace RoyalCode.SmartCommands.Tests.FindEntities.Internals;
 
 public class CreateMovieFullHandler : ICreateMovieFullHandler
 {

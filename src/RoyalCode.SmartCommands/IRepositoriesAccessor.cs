@@ -1,6 +1,6 @@
 using RoyalCode.SmartValidations.Entities;
 
-namespace Coreum.NewCommands;
+namespace RoyalCode.SmartCommands;
 
 /// <summary>
 /// <para>

@@ -1,16 +1,16 @@
 ﻿using System.Text;
-using Coreum.NewCommands.Generators.Models;
-using Coreum.NewCommands.Generators.Models.Commands;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis;
-using Coreum.NewCommands.Generators.Models.Descriptors;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.SmartCommands.Generators.Models;
+using RoyalCode.SmartCommands.Generators.Models.Commands;
+using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
-namespace Coreum.NewCommands.Generators.Generators;
+namespace RoyalCode.SmartCommands.Generators.Generators;
 
 public static class MapApiHandlersGenerator
 {
-    public const string AddHandlersServicesAttributeName = "Coreum.NewCommands.MapApiHandlersAttribute";
+    public const string AddHandlersServicesAttributeName = "RoyalCode.SmartCommands.MapApiHandlersAttribute";
 
     public static bool Predicate(SyntaxNode node, CancellationToken token) => node is ClassDeclarationSyntax;
 

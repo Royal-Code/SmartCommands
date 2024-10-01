@@ -1,4 +1,4 @@
-namespace Coreum.NewCommands.Tests.Scenarios.As;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.As;
 
 public class DoSomethingAsyncWithDecorators
 {

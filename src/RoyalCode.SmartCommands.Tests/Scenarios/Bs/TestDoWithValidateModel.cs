@@ -1,7 +1,7 @@
 ﻿using FluentAssertions;
 using Microsoft.CodeAnalysis;
 
-namespace Coreum.NewCommands.Tests.Scenarios.Bs;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.Bs;
 
 public class TestDoWithValidateModel
 {
@@ -24,7 +24,7 @@ file static class Code
 {
     public const string Command =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 
 namespace Tests.Scenarios.As;

@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
-namespace Coreum.NewCommands.Tests.Scenarios.Ds;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.Ds;
 
 public class DoSomethingWithDecoratorsSyncWithResultSome
 {
@@ -62,7 +62,7 @@ public static class DoSomethingWithDecoratorsSyncWithResultSomeCode
 {
     public const string Command =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
@@ -105,7 +105,7 @@ public interface IDoSomethingWithDecoratorsSyncWithResultSomeHandler
 
     public const string Handler =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using Tests.Scenarios.Ds;
 

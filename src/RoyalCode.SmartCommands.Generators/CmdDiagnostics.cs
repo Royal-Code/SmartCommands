@@ -1,6 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 
-namespace Coreum.NewCommands.Generators;
+namespace RoyalCode.SmartCommands.Generators;
 
 internal static class CmdDiagnostics
 {

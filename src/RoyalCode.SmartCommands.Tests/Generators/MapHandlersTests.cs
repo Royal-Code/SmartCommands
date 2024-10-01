@@ -6,7 +6,7 @@ using RoyalCode.Entities;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.HttpResults;
 
-namespace Coreum.NewCommands.Tests.Generators;
+namespace RoyalCode.SmartCommands.Tests.Generators;
 
 // My code
 public class My : Entity<int> 

@@ -1,4 +1,4 @@
-﻿namespace Coreum.NewCommands;
+﻿namespace RoyalCode.SmartCommands;
 
 public class Mediator<TModel, TResult>
 {

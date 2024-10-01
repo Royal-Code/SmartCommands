@@ -1,8 +1,8 @@
-﻿using Coreum.NewCommands.Generators.Models;
-using Coreum.NewCommands.Generators.Models.Descriptors;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
+using RoyalCode.SmartCommands.Generators.Models;
+using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
-namespace Coreum.NewCommands.Generators.Generators;
+namespace RoyalCode.SmartCommands.Generators.Generators;
 
 
 public sealed class CommandHandlerInformation : IGenerator, IEquatable<CommandHandlerInformation>

@@ -1,9 +1,9 @@
-﻿using RoyalCode.SmartProblems;
+﻿using System.Diagnostics.CodeAnalysis;
+using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 using RoyalCode.WorkContext.Abstractions;
-using System.Diagnostics.CodeAnalysis;
 
-namespace Coreum.NewCommands.Tests.Models;
+namespace RoyalCode.SmartCommands.Tests.Models;
 
 public partial class CriarProduto
 {

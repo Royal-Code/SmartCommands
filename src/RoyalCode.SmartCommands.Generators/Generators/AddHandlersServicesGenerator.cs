@@ -1,15 +1,15 @@
-﻿using Coreum.NewCommands.Generators.Models;
-using Coreum.NewCommands.Generators.Models.Commands;
-using Coreum.NewCommands.Generators.Models.Descriptors;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.SmartCommands.Generators.Models;
+using RoyalCode.SmartCommands.Generators.Models.Commands;
+using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
-namespace Coreum.NewCommands.Generators.Generators;
+namespace RoyalCode.SmartCommands.Generators.Generators;
 
 public static class AddHandlersServicesGenerator
 {
-    public const string AddHandlersServicesAttributeName = "Coreum.NewCommands.AddHandlersServicesAttribute";
+    public const string AddHandlersServicesAttributeName = "RoyalCode.SmartCommands.AddHandlersServicesAttribute";
 
     public static bool Predicate(SyntaxNode node, CancellationToken token) => node is ClassDeclarationSyntax;
 

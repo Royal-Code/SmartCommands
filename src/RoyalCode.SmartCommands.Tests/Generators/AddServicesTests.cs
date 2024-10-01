@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using RoyalCode.SmartProblems;
 
-namespace Coreum.NewCommands.Tests.Generators;
+namespace RoyalCode.SmartCommands.Tests.Generators;
 
 public class AddServicesTests
 {
@@ -67,7 +67,7 @@ file static class Code
 {
     public const string Command =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 

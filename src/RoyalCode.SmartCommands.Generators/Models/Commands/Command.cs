@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Coreum.NewCommands.Generators.Models.Commands;
+namespace RoyalCode.SmartCommands.Generators.Models.Commands;
 
 public sealed class Command : GeneratorNode
 {

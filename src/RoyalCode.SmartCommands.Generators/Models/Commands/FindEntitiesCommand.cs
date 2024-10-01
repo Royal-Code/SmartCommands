@@ -1,7 +1,7 @@
 using System.Text;
-using Coreum.NewCommands.Generators.Models.Descriptors;
+using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
-namespace Coreum.NewCommands.Generators.Models.Commands;
+namespace RoyalCode.SmartCommands.Generators.Models.Commands;
 
 public class FindEntitiesCommand: GeneratorNode
 {

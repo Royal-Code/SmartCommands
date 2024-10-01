@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace Coreum.NewCommands.Tests.Scenarios.Gs;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.Gs;
 
 public class AppDbContext : DbContext
 {

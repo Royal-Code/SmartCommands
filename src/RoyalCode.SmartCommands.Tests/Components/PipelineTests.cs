@@ -1,10 +1,10 @@
-﻿using Coreum.NewCommands.Tests.Models;
+﻿using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
-using System.Text;
 
-namespace Coreum.NewCommands.Tests.Components;
+namespace RoyalCode.SmartCommands.Tests.Components;
 
 public class PipelineTests
 {

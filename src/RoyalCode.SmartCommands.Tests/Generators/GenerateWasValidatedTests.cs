@@ -1,7 +1,7 @@
 ﻿using FluentAssertions;
 using Microsoft.CodeAnalysis;
 
-namespace Coreum.NewCommands.Tests.Generators;
+namespace RoyalCode.SmartCommands.Tests.Generators;
 
 public class GenerateWasValidatedTests
 {
@@ -27,14 +27,14 @@ file static class Code
 {
     public const string MyCommand =
 """
-using Coreum.NewCommands;
-using Coreum.NewCommands.Tests.Models;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 using RoyalCode.WorkContext.Abstractions;
 using System.Diagnostics.CodeAnalysis;
 
-namespace NewCommands.Tests;
+namespace RoyalCode.SmartCommands.Tests;
 
 public partial class MyCommand
 {
@@ -64,7 +64,7 @@ public partial class MyCommand
 """
 using RoyalCode.SmartProblems;
 
-namespace NewCommands.Tests;
+namespace RoyalCode.SmartCommands.Tests;
 
 public interface IMyCommandHandler
 {
@@ -75,12 +75,12 @@ public interface IMyCommandHandler
 
     public const string MyCommandHandler =
 """
-using Coreum.NewCommands;
-using NewCommands.Tests;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Tests;
 using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext.Abstractions;
 
-namespace NewCommands.Tests.Internals;
+namespace RoyalCode.SmartCommands.Tests.Internals;
 
 public class MyCommandHandler : IMyCommandHandler
 {
@@ -119,7 +119,7 @@ public class MyCommandHandler : IMyCommandHandler
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
-namespace NewCommands.Tests;
+namespace RoyalCode.SmartCommands.Tests;
 
 public partial class MyCommand
 {

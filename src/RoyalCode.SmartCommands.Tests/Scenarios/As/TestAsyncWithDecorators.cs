@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
 
-namespace Coreum.NewCommands.Tests.Scenarios.As;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.As;
 
 public class TestAsyncWithDecorators
 {
@@ -24,8 +24,8 @@ file static class Code
 {
     public const string Command =
 """
-using Coreum.NewCommands;
-using Coreum.NewCommands.Tests.Scenarios.As;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Tests.Scenarios.As;
 
 namespace Tests.Scenarios.As;
 
@@ -40,7 +40,7 @@ public class DoSomethingAsyncWithDecorators
     
     public const string Interface =
 """
-using Coreum.NewCommands.Tests.Scenarios.As;
+using RoyalCode.SmartCommands.Tests.Scenarios.As;
 
 namespace Tests.Scenarios.As;
 
@@ -53,8 +53,8 @@ public interface IDoSomethingAsyncWithDecoratorsHandler
     
     public const string Handler =
 """
-using Coreum.NewCommands;
-using Coreum.NewCommands.Tests.Scenarios.As;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Tests.Scenarios.As;
 using Tests.Scenarios.As;
 
 namespace Tests.Scenarios.As.Internals;

@@ -1,10 +1,10 @@
-﻿using Coreum.NewCommands.Generators.Generators;
-using Microsoft.CodeAnalysis.CSharp;
+﻿using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
-using System.Collections.Immutable;
-using Coreum.NewCommands.Tests.Models;
+using Microsoft.CodeAnalysis.CSharp;
+using RoyalCode.SmartCommands.Generators.Generators;
+using RoyalCode.SmartCommands.Tests.Models;
 
-namespace Coreum.NewCommands.Tests;
+namespace RoyalCode.SmartCommands.Tests;
 
 internal static class Util
 {
@@ -48,7 +48,7 @@ file static class Code
 {
     public const string Command =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
@@ -66,7 +66,7 @@ namespace Tests.Scenarios.Ds;
     
     public const string Handler =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using Tests.Scenarios.Ds;
 

@@ -1,6 +1,6 @@
 using RoyalCode.SmartProblems;
 
-namespace Coreum.NewCommands;
+namespace RoyalCode.SmartCommands;
 
 /// <summary>
 /// <para>

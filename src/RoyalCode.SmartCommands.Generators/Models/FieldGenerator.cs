@@ -1,7 +1,7 @@
 ﻿using System.Text;
-using Coreum.NewCommands.Generators.Models.Descriptors;
+using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
-namespace Coreum.NewCommands.Generators.Models;
+namespace RoyalCode.SmartCommands.Generators.Models;
 
 public class FieldGenerator : GeneratorNode
 {

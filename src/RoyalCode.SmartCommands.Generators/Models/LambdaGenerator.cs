@@ -1,7 +1,6 @@
-﻿using Microsoft.CodeAnalysis;
-using System.Text;
+﻿using System.Text;
 
-namespace Coreum.NewCommands.Generators.Models;
+namespace RoyalCode.SmartCommands.Generators.Models;
 
 public class LambdaGenerator : GeneratorNode
 {

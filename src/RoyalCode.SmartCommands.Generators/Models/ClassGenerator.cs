@@ -1,7 +1,7 @@
-﻿using Microsoft.CodeAnalysis;
-using System.Text;
+﻿using System.Text;
+using Microsoft.CodeAnalysis;
 
-namespace Coreum.NewCommands.Generators.Models;
+namespace RoyalCode.SmartCommands.Generators.Models;
 
 public class ClassGenerator : IGenerator
 {

@@ -33,6 +33,6 @@
 		<!-- Exclude the output of source generators from the compilation -->
 		<Compile Remove="$(CompilerGeneratedFilesOutputPath)/**/*.cs" />
 		<None Include="Generated/**" Visible="true" />
-		<Compile Remove="Generated\Coreum.NewCommands.Generators\**" />
+		<Compile Remove="Generated\RoyalCode.SmartCommands.Generators\**" />
 	</ItemGroup>
 </Project>

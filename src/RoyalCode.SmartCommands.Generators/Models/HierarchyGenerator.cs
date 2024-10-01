@@ -1,7 +1,6 @@
-using Microsoft.CodeAnalysis;
 using System.Text;
 
-namespace Coreum.NewCommands.Generators.Models;
+namespace RoyalCode.SmartCommands.Generators.Models;
 
 #pragma warning disable S2376 // Set method
 

@@ -1,7 +1,6 @@
-﻿using Microsoft.CodeAnalysis;
-using System.Text;
+﻿using System.Text;
 
-namespace Coreum.NewCommands.Generators.Models.Commands;
+namespace RoyalCode.SmartCommands.Generators.Models.Commands;
 
 public class ValidateHasProblemsCommand : GeneratorNode
 {

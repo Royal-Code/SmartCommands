@@ -1,4 +1,4 @@
-﻿namespace Coreum.NewCommands;
+﻿namespace RoyalCode.SmartCommands;
 
 public interface IDecorator<TModel, TResult>
 {

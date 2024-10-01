@@ -1,7 +1,7 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Coreum.NewCommands.Generators.Models.Descriptors;
+namespace RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
 public sealed class PropertyDescriptor : IEquatable<PropertyDescriptor>
 {

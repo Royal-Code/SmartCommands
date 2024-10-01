@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
-namespace Coreum.NewCommands.Tests.Scenarios.Ds;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.Ds;
 
 /// <summary>
 /// Cenários síncronos sem decoradores
@@ -58,7 +58,7 @@ public static class DoSomethingSyncWithResultCode
 {
     public const string Command =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
@@ -101,7 +101,7 @@ public interface IDoSomethingSyncWithResultHandler
 
     public const string Handler =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using Tests.Scenarios.Ds;
 

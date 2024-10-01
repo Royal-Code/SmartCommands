@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace Coreum.NewCommands.Tests.Models;
+namespace RoyalCode.SmartCommands.Tests.Models;
 
 public class CineDbContext : DbContext
 {

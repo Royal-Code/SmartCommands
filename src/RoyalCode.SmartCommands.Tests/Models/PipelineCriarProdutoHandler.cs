@@ -1,7 +1,7 @@
 ﻿using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext.Abstractions;
 
-namespace Coreum.NewCommands.Tests.Models;
+namespace RoyalCode.SmartCommands.Tests.Models;
 
 public interface IPipelineCriarProdutoHandler
 {

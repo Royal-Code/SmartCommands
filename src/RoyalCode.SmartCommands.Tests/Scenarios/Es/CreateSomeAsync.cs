@@ -1,8 +1,8 @@
-﻿using RoyalCode.SmartProblems;
+﻿using System.Diagnostics.CodeAnalysis;
+using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
-using System.Diagnostics.CodeAnalysis;
 
-namespace Coreum.NewCommands.Tests.Scenarios.Es;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.Es;
 
 public partial class CreateSomeAsync
 {
@@ -58,7 +58,7 @@ public static class CreateSomeAsyncCode
 {
     public const string Command =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
@@ -101,7 +101,7 @@ public interface ICreateSomeAsyncHandler
 
     public const string Handler =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using Tests.Scenarios.Es;
 

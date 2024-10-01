@@ -1,7 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Coreum.NewCommands.Generators.Models.Descriptors;
+namespace RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
 #pragma warning disable S3358 // Ternary operators should not be nested
 

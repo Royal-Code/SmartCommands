@@ -1,7 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Coreum.NewCommands.Generators;
+namespace RoyalCode.SmartCommands.Generators;
 
 internal static class CommandHelpers
 {

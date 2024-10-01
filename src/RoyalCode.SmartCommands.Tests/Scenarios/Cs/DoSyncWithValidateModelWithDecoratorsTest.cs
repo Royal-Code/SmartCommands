@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis;
 using RoyalCode.SmartProblems;
 using RuleSet = RoyalCode.SmartValidations.RuleSet;
 
-namespace Coreum.NewCommands.Tests.Scenarios.Cs;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.Cs;
 
 public class DoSyncWithValidateModelWithDecoratorsTest
 {
@@ -74,7 +74,7 @@ file static class Code
 {
     public const string Command =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 
 namespace Tests.Scenarios.As;
@@ -111,7 +111,7 @@ public interface IDoSomethingSyncWithValidateModelWithDecoratorsHandler
 
     public const string Handler =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using Tests.Scenarios.As;
 

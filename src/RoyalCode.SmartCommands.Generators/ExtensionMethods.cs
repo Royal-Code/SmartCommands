@@ -1,9 +1,9 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using Microsoft.CodeAnalysis;
-using Coreum.NewCommands.Generators.Models.Descriptors;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
-namespace Coreum.NewCommands.Generators;
+namespace RoyalCode.SmartCommands.Generators;
 
 #pragma warning disable S3267 // loop can be simplified
 

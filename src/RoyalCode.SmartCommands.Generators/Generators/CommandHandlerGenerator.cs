@@ -1,20 +1,19 @@
-﻿using Coreum.NewCommands.Generators.Models;
-using Coreum.NewCommands.Generators.Models.Commands;
-using Coreum.NewCommands.Generators.Models.Descriptors;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Reflection;
+using RoyalCode.SmartCommands.Generators.Models;
+using RoyalCode.SmartCommands.Generators.Models.Commands;
+using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
-namespace Coreum.NewCommands.Generators.Generators;
+namespace RoyalCode.SmartCommands.Generators.Generators;
 
 //#pragma warning disable S125 // remover blocos de código comentados
 
 public static class CommandHandlerGenerator
 {
-    public const string CommandAttributeName = "Coreum.NewCommands.CommandAttribute";
+    public const string CommandAttributeName = "RoyalCode.SmartCommands.CommandAttribute";
 
-    private const string CommandNamespace = "Coreum.NewCommands";
+    private const string CommandNamespace = "RoyalCode.SmartCommands";
     private const string WithValidateModelAttributeName = "WithValidateModel";
     private const string WithDecoratorsAttributeName = "WithDecorators";
     private const string WithUnitOfWorkAttributeName = "WithUnitOfWork";

@@ -1,6 +1,6 @@
 ﻿using RoyalCode.Entities;
 
-namespace Coreum.NewCommands.Tests.Models;
+namespace RoyalCode.SmartCommands.Tests.Models;
 
 public class Review : Entity<int>
 {

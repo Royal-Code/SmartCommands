@@ -1,6 +1,6 @@
 using RoyalCode.SmartProblems;
 
-namespace Coreum.NewCommands.Tests.Scenarios.Gs;
+namespace RoyalCode.SmartCommands.Tests.Scenarios.Gs;
 
 public class DoWithTwoParameters
 {
@@ -47,7 +47,7 @@ public static class DoWithTwoParametersCode
 {
     public const string Command =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
@@ -81,7 +81,7 @@ public interface IDoWithTwoParametersHandler
 
     public const string Handler =
 """
-using Coreum.NewCommands;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using Tests.Scenarios.Gs;
 
