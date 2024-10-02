@@ -343,7 +343,7 @@ public static class MapApiHandlersGenerator
             if (mapInfo.MapIdResultValue)
             {
                 // quando há MapIdResultValue, então retornará CreatedMatch<TId>
-                // todo: incluir a propriedade do Id no mapInfo e atribuir o tipo a var valueType
+                valueType = mapInfo.IdResultValueType;
             }
             else if (mapInfo.ResponseValues is not null)
             {

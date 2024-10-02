@@ -1,4 +1,6 @@
 ﻿
+using RoyalCode.SmartCommands.Generators.Models.Descriptors;
+
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
 public sealed class MapInformation : IEquatable<MapInformation>
@@ -20,7 +22,9 @@ public sealed class MapInformation : IEquatable<MapInformation>
 
     public MapCreatedInformation? CreatedInformation { get; set; }
 
-    public bool MapIdResultValue { get; set; }
+    public TypeDescriptor? IdResultValueType { get; set; }
+
+    public bool MapIdResultValue => IdResultValueType is not null;
 
     public MapResponseValuesInformation? ResponseValues { get; set; }
 
@@ -33,7 +37,7 @@ public sealed class MapInformation : IEquatable<MapInformation>
             Description == other.Description &&
             GroupName == other.GroupName &&
             Equals(CreatedInformation, other.CreatedInformation) &&
-            MapIdResultValue == other.MapIdResultValue &&
+            Equals(IdResultValueType, other.IdResultValueType) &&
             Equals(ResponseValues, other.ResponseValues);
     }
 
@@ -51,7 +55,7 @@ public sealed class MapInformation : IEquatable<MapInformation>
         hashCode = hashCode * -1521134295 + Description?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + GroupName?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + CreatedInformation?.GetHashCode() ?? 0;
-        hashCode = hashCode * -1521134295 + MapIdResultValue.GetHashCode();
+        hashCode = hashCode * -1521134295 + IdResultValueType?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + ResponseValues?.GetHashCode() ?? 0;
         return hashCode;
     }

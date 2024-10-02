@@ -4,6 +4,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using RoyalCode.SmartCommands.Generators.Models;
 using RoyalCode.SmartCommands.Generators.Models.Commands;
 using RoyalCode.SmartCommands.Generators.Models.Descriptors;
+using System.Reflection;
+using System.Xml.Linq;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
@@ -424,15 +426,14 @@ public static class CommandHandlerGenerator
 
     private static MapInformation? ReadMap(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel)
     {
-        AttributeSyntax? attr = null;
         string? httpMethod = null;
         string? description = null;
         string? groupName = null;
         MapCreatedInformation? createdInformation = null;
-        bool hasMapIdResultValue = false;
+        TypeDescriptor? idResultValueType = null;
         MapResponseValuesInformation? responseValues = null;
 
-        if (classDeclaration.TryGetAttribute(MapPostAttributeName, out attr))
+        if (classDeclaration.TryGetAttribute(MapPostAttributeName, out var attr))
         {
             httpMethod = "Post";
         }
@@ -489,7 +490,23 @@ public static class CommandHandlerGenerator
         }
 
         // tenta obter MapIdResultValue
-        hasMapIdResultValue = classDeclaration.TryGetAttribute(MapIdResultValueAttributeName, out _);
+        var hasMapIdResultValue = classDeclaration.TryGetAttribute(MapIdResultValueAttributeName, out _);
+        if (hasMapIdResultValue)
+        {
+            // quando há o attribute MapIdResultValue, deve obter a propriedade e o tipo dela.
+            var idProperty = classDeclaration.Members
+                .OfType<PropertyDeclarationSyntax>()
+                .FirstOrDefault(p => p.Identifier.Text == "Id");
+
+            if (idProperty is not null)
+            {
+                idResultValueType = TypeDescriptor.Create(idProperty.Type!, semanticModel);
+            }
+            else
+            {
+                // se não achar a propriedade, deveria gerar um diagnostico.
+            }
+        }
 
         // tenta obter MapResponseValues e seus parâmetros
         if (classDeclaration.TryGetAttribute(MapResponseValuesAttributeName, out var resultValueAttr))
@@ -529,7 +546,7 @@ public static class CommandHandlerGenerator
             Description = description,
             GroupName = groupName,
             CreatedInformation = createdInformation,
-            MapIdResultValue = hasMapIdResultValue,
+            IdResultValueType = idResultValueType,
             ResponseValues = responseValues
         };
     }
