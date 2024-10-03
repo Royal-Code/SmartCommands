@@ -25,7 +25,13 @@ public abstract class TransformationGeneratorBase : ITransformationGenerator
 
     protected bool EqualErrors(TransformationGeneratorBase other)
     {
-        return Errors?.SequenceEqual(other.Errors) ?? other is null;
+        if (Errors is null)
+            return other.Errors is null;
+
+        if (other.Errors is null)
+            return false;
+
+        return Errors.SequenceEqual(other.Errors);
     }
 }
 
@@ -52,6 +58,12 @@ public abstract class TransformationGeneratorBase<TModel> : ITransformationGener
 
     protected bool EqualErrors(TransformationGeneratorBase<TModel> other)
     {
-        return Errors?.SequenceEqual(other.Errors) ?? other is null;
+        if (Errors is null)
+            return other.Errors is null;
+
+        if (other.Errors is null)
+            return false;
+
+        return Errors.SequenceEqual(other.Errors);
     }
 }

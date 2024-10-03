@@ -405,8 +405,11 @@ public static class CommandHandlerGenerator
         if (hasWithValidateModel || hasUow || hasFindEntities)
             handlerReturnType = handlerReturnType.MustBeResult();
 
-        // lê atributo Map... da classe
-        var mapInformation = ReadMap(classDeclaration, context.SemanticModel);
+
+        methodReturnType.HasValueType(out var returnValueType);
+
+        // lê atributo Map... da classe do comando
+        var mapInformation = ReadMap(classDeclaration, method.ReturnType, context.SemanticModel);
 
         // se map não for nulo, e tiver o MapIdResultValue, deve ser validado se o tipo retornado tem o campo Id
         if (mapInformation is not null &&
@@ -446,7 +449,10 @@ public static class CommandHandlerGenerator
         return info;
     }
 
-    private static MapInformation? ReadMap(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel)
+    private static MapInformation? ReadMap(
+        ClassDeclarationSyntax classDeclaration,
+        TypeSyntax? returnType,
+        SemanticModel semanticModel)
     {
         string? httpMethod = null;
         string? description = null;
@@ -488,7 +494,7 @@ public static class CommandHandlerGenerator
 
         // tenta obter a descrição também
         if (classDeclaration.TryGetAttribute("Description", out var descAttr) && descAttr!.ArgumentList?.Arguments.Count is 1)
-            description = descAttr.ArgumentList.Arguments[1].Expression.ToString();
+            description = descAttr.ArgumentList.Arguments[0].Expression.ToString();
 
         // tenta obter o MapGroup attribute
         if (classDeclaration.TryGetAttribute(MapGroupAttributeName, out var groupAttr) && groupAttr!.ArgumentList?.Arguments.Count is 1)
@@ -515,6 +521,11 @@ public static class CommandHandlerGenerator
         var hasMapIdResultValue = classDeclaration.TryGetAttribute(MapIdResultValueAttributeName, out _);
         if (hasMapIdResultValue)
         {
+            // TODO: trocar o classDeclaration pois deve ser olhado para a tipo retornado no comando
+            // extrair o return value type do returnType
+            // returnValueType
+
+
             // quando há o attribute MapIdResultValue, deve obter a propriedade e o tipo dela.
             var idProperty = classDeclaration.Members
                 .OfType<PropertyDeclarationSyntax>()
