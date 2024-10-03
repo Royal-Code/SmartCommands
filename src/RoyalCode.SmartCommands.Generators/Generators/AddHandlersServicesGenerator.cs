@@ -13,11 +13,13 @@ public static class AddHandlersServicesGenerator
 
     public static bool Predicate(SyntaxNode node, CancellationToken token) => node is ClassDeclarationSyntax;
 
-    public static TransformResult<AddHandlersServicesInformation> TransformAddServices(
+    public static AddHandlersServicesInformation TransformAddServices(
         GeneratorAttributeSyntaxContext context,
         CancellationToken token)
     {
         var classSyntax = (ClassDeclarationSyntax)context.TargetNode;
+
+        var errors = new List<Diagnostic>();
 
         if (!classSyntax.Modifiers.Any(SyntaxKind.PartialKeyword))
         {
@@ -25,7 +27,7 @@ public static class AddHandlersServicesGenerator
                     location: classSyntax.Identifier.GetLocation(),
                     "The class with AddHandlersServicesAttribute must be partial");
 
-            return diagnostic;
+            errors.Add(diagnostic);
         }
 
         if (!classSyntax.Modifiers.Any(SyntaxKind.StaticKeyword))
@@ -34,7 +36,7 @@ public static class AddHandlersServicesGenerator
                 location: classSyntax.Identifier.GetLocation(),
                 "The class with AddHandlersServicesAttribute must be static");
 
-            return diagnostic;
+            errors.Add(diagnostic);
         }
 
         if (!classSyntax.TryGetAttribute("AddHandlersServices", out var attr)
@@ -44,7 +46,7 @@ public static class AddHandlersServicesGenerator
                     location: classSyntax.Identifier.GetLocation(),
                     "Problem finding attribute for class with AddHandlersServicesAttribute");
 
-            return diagnostic;
+            errors.Add(diagnostic);
         }
 
         var titleExpression = attr?.ArgumentList?.Arguments[0].Expression;
@@ -55,14 +57,14 @@ public static class AddHandlersServicesGenerator
                     location: classSyntax.Identifier.GetLocation(),
                     "The title for AddHandlersServicesAttribute must be a literal string");
 
-            return diagnostic;
+            errors.Add(diagnostic);
         }
 
-        var title = titleExpression.ToString();
+        var title = titleExpression?.ToString() ?? "";
         title = title.Substring(1, title.Length - 2);
 
         var handlerType = new TypeDescriptor(classSyntax.Identifier.Text, [classSyntax.GetNamespace()]);
-        return new AddHandlersServicesInformation(handlerType, title);
+        return new AddHandlersServicesInformation(handlerType, title, errors);
     }
 
     public static void Generate(

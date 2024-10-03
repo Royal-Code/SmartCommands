@@ -1,10 +1,11 @@
 using System.Text;
 using Microsoft.CodeAnalysis;
+using RoyalCode.SmartCommands.Generators.Generators;
 using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
 namespace RoyalCode.SmartCommands.Generators.Models;
 
-public class PocoGenerator: IGenerator
+public class PocoGenerator: ITransformationGenerator
 {
     private readonly UsingsGenerator usings = new();
     private readonly GeneratorNodeList properties = new();

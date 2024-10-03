@@ -101,4 +101,20 @@ internal static class CmdDiagnostics
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor MultiplesMapApiHandlers = new(
+        id: "RCCMD012",
+        title: "Only one MapApiHandlersAttribute should be used per project, and there is more than one",
+        messageFormat: "Only one MapApiHandlersAttribute should be used per project, and there is more than one",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidMapApiHandlers = new(
+        id: "RCCMD013",
+        title: "Invalid use of MapApiHandlersAttribute",
+        messageFormat: "Invalid use of MapApiHandlersAttribute: {0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

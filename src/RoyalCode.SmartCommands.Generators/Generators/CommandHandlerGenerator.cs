@@ -44,7 +44,7 @@ public static class CommandHandlerGenerator
 
     public static bool Predicate(SyntaxNode node, CancellationToken token) => node is MethodDeclarationSyntax;
 
-    public static TransformResult<CommandHandlerInformation> Transform(
+    public static CommandHandlerInformation Transform(
         GeneratorAttributeSyntaxContext context,
         CancellationToken token)
     {
@@ -58,8 +58,11 @@ public static class CommandHandlerGenerator
                 location: method.Identifier.GetLocation(),
                 "The method does not have a class declaration");
 
-            return diagnostic;
+            return new CommandHandlerInformation(diagnostic);
         }
+
+        // lista de erros
+        var errors = new List<Diagnostic>();
 
         // nem o método nem a classe pode ter argumentos genéricos
         if (method.TypeParameterList is not null || classDeclaration.TypeParameterList is not null)
@@ -68,7 +71,7 @@ public static class CommandHandlerGenerator
                 location: method.Identifier.GetLocation(),
                 "Neither the method nor the class can have generic arguments");
 
-            return diagnostic;
+            errors.Add(diagnostic);
         }
 
         // lista dos parâmetros de ProblemCategory que o comando pode produzir
@@ -85,7 +88,6 @@ public static class CommandHandlerGenerator
                 produceProblems.AddRange(problemsProduced);
         }
 
-
         MethodDeclarationSyntax? hasProblemsMethod = null;
 
         // Verifica se o método possui o atributo WithValidateModel
@@ -96,7 +98,12 @@ public static class CommandHandlerGenerator
                 withValidateModelAttr,
                 out hasProblemsMethod,
                 out var error))
-            return error!;
+        {
+            // quando há erros, não deve considerar o atributo, além de adicionar o diagnostic
+            // isso não gerará o código de validação e mostrará o erro na saída.
+            errors.Add(error!);
+            hasWithValidateModel = false;
+        }
 
         // se tem hasProblemsMethod, verifica se tem o attribute ProduceProblems
         if (hasProblemsMethod is not null )
@@ -120,7 +127,12 @@ public static class CommandHandlerGenerator
 
         // se tem WithDecorators, deve retornar algum tipo de dado (não pode ser Task ou void).
         if (hasWithDecorators && !method.ValidateReturnType(out error))
-            return error!;
+        {
+            // quando há erros, não deve considerar o atributo, além de adicionar o diagnostic
+            // isso não gerará o código de decoradores e mostrará o erro na saída.
+            errors.Add(error!);
+            hasWithDecorators = false;
+        }
 
         // verifica se tem o attribute WithUnitOfWork
         TypeDescriptor? accessorType = null;
@@ -150,11 +162,11 @@ public static class CommandHandlerGenerator
         if (hasProduceNewEntity && !hasUow)
         {
             // quando retorna entidade, deve haver uow
-            var diagnostic = Diagnostic.Create(
+            error = Diagnostic.Create(
                 CmdDiagnostics.ProduceNewEntityRequiresWithUnitOfWork,
                 location: method.Identifier.GetLocation());
 
-            return diagnostic;
+            errors.Add(error);
         }
 
         // verifica se edita uma entidade existente
@@ -165,21 +177,21 @@ public static class CommandHandlerGenerator
             // editar entidade requer uow
             if (!hasUow)
             {
-                var diagnostic = Diagnostic.Create(
+                error = Diagnostic.Create(
                     CmdDiagnostics.EditEntityRequiresWithUnitOfWork,
                     location: method.Identifier.GetLocation());
 
-                return diagnostic;
+                errors.Add(error);
             }
 
             // se já tem produce new entity, não pode ter edit entity
             if (hasProduceNewEntity)
             {
-                var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+                error = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
                     location: method.Identifier.GetLocation(),
                     "The method cannot have both ProduceNewEntity and EditEntity attributes");
 
-                return diagnostic;
+                errors.Add(error);
             }
 
             editType = EditTypeDescriptor.Create(editEntityAttr!, context.SemanticModel);
@@ -205,28 +217,30 @@ public static class CommandHandlerGenerator
             var newEntityTypeInfo = context.SemanticModel.GetTypeInfo(newEntityTypeSyntax);
             if (newEntityTypeInfo.Type is not INamedTypeSymbol newEntityNameSymbol)
             {
-                var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+                error = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
                     location: method.Identifier.GetLocation(),
                     "It was not possible to determine the return type of the new entity");
 
-                return diagnostic;
+                errors.Add(error);
             }
-
-            // se for um Result, deve ser o tipo genérico
-            if (newEntityNameSymbol.Name.StartsWith("Result"))
+            else
             {
-                // O Result deve ser genérico, se não for, retorna um erro.
-                if (!newEntityNameSymbol.IsGenericType)
+                // se for um Result, deve ser o tipo genérico
+                if (newEntityNameSymbol.Name.StartsWith("Result"))
                 {
-                    var diagnostic = Diagnostic.Create(
-                        CmdDiagnostics.ProduceNewEntityMustReturnResultWithValue,
-                        location: method.ReturnType.GetLocation());
+                    // O Result deve ser genérico, se não for, retorna um erro.
+                    if (!newEntityNameSymbol.IsGenericType)
+                    {
+                        error = Diagnostic.Create(
+                            CmdDiagnostics.ProduceNewEntityMustReturnResultWithValue,
+                            location: method.ReturnType.GetLocation());
 
-                    return diagnostic;
+                        errors.Add(error);
+                    }
+
+                    // extrai o tipo genérico do Result
+                    newEntityTypeSyntax = newEntityTypeSyntax.GetInnerType();
                 }
-
-                // extrai o tipo genérico do Result
-                newEntityTypeSyntax = newEntityTypeSyntax.GetInnerType();
             }
 
             // cria o tipo da nova entidade
@@ -250,11 +264,11 @@ public static class CommandHandlerGenerator
             // valida CancellationToken, só pode haver caso o método seja assíncrono
             if (paramDescriptor.Type.IsCancellationToken && !isAsync)
             {
-                var diagnostic = Diagnostic.Create(
+                error = Diagnostic.Create(
                     CmdDiagnostics.CancellationTokenParameterMustBeAsync,
                     location: p.Identifier.GetLocation());
 
-                return diagnostic;
+                errors.Add(error);
             }
 
             if (paramIndex == 0 && editType is not null)
@@ -263,11 +277,11 @@ public static class CommandHandlerGenerator
 
                 if (!Equals(paramDescriptor.Type, editType.EntityType))
                 {
-                    var diagnostic = Diagnostic.Create(
+                    error = Diagnostic.Create(
                     CmdDiagnostics.EditEntityRequiresFirstParameter,
                     location: p.Identifier.GetLocation());
 
-                    return diagnostic;
+                    errors.Add(error);
                 }
 
                 paramDescriptor.Type.MarkAsEntity();
@@ -286,16 +300,18 @@ public static class CommandHandlerGenerator
                     var idProperty = classDeclaration.GetIdProperty(p.Identifier.Text, context.SemanticModel);
                     if (idProperty is null)
                     {
-                        var diagnostic = Diagnostic.Create(
+                        error = Diagnostic.Create(
                             CmdDiagnostics.EntityTypeParameterDoesNotHaveIdProperty,
                             location: p.Identifier.GetLocation(),
                             p.Identifier.Text);
 
-                        return diagnostic;
+                        errors.Add(error);
                     }
-
-                    var binding = new IdPropertyBoundToEntityParameter(paramDescriptor, idProperty);
-                    idPropertiesBindings.Add(binding);
+                    else
+                    {
+                        var binding = new IdPropertyBoundToEntityParameter(paramDescriptor, idProperty);
+                        idPropertiesBindings.Add(binding);
+                    }
                 }
                 else if (p.IsCollectionOfEntities(context.SemanticModel))
                 {
@@ -305,16 +321,18 @@ public static class CommandHandlerGenerator
                     var idsProperty = classDeclaration.GetIdsProperty(p.Identifier.Text, context.SemanticModel);
                     if (idsProperty is null)
                     {
-                        var diagnostic = Diagnostic.Create(
+                        error = Diagnostic.Create(
                             CmdDiagnostics.EntityTypeParameterDoesNotHaveIdProperty,
                             location: p.Identifier.GetLocation(),
                             p.Identifier.Text);
 
-                        return diagnostic;
+                        errors.Add(error);
                     }
-
-                    var binding = new IdPropertyBoundToEntityParameter(paramDescriptor, idsProperty);
-                    idPropertiesBindings.Add(binding);
+                    else
+                    {
+                        var binding = new IdPropertyBoundToEntityParameter(paramDescriptor, idsProperty);
+                        idPropertiesBindings.Add(binding);
+                    }
                 }
                 else if (paramDescriptor.Type.Equals(accessorType))
                 {
@@ -331,14 +349,16 @@ public static class CommandHandlerGenerator
                     paramDescriptor.Type.IsCollectionOfEntities ||
                     paramDescriptor.Type.IsContext)
                 {
-                    var diagnostic = Diagnostic.Create(
+                    error = Diagnostic.Create(
                         CmdDiagnostics.ParameterCannotBeMarkedWithParameter,
                         location: p.Identifier.GetLocation());
 
-                    return diagnostic;
+                    errors.Add(error);
                 }
-
-                paramDescriptor.Type.MarkAsHandlerParameter();
+                else
+                {
+                    paramDescriptor.Type.MarkAsHandlerParameter();
+                }
             }
 
             parameters.Add(paramDescriptor);
@@ -347,11 +367,11 @@ public static class CommandHandlerGenerator
         // após processar os parâmetros e existir EditEntityType, valida se o nome do parâmetro foi preenchido
         if (editType is not null && editType.Parameter is null)
         {
-            var diagnostic = Diagnostic.Create(
+            error = Diagnostic.Create(
                 CmdDiagnostics.EditEntityRequiresFirstParameter,
                 location: method.Identifier.GetLocation());
 
-            return diagnostic;
+            errors.Add(error);
         }
 
         // obtém informações para geração do WasValidated, caso seja possível
@@ -393,7 +413,7 @@ public static class CommandHandlerGenerator
             mapInformation.MapIdResultValue &&
             !method.ReturnType.ValidateMapIdResultValue(context.SemanticModel, out error))
         {
-            return error!;
+            errors.Add(error!);
         }
 
         // armazena todas as informações coletadas
@@ -420,6 +440,8 @@ public static class CommandHandlerGenerator
             EditType = editType,
             MapInformation = mapInformation
         };
+
+        info.SetErrors(errors);
 
         return info;
     }

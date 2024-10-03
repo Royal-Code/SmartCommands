@@ -5,8 +5,21 @@ using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
 
-public sealed class CommandHandlerInformation : IGenerator, IEquatable<CommandHandlerInformation>
+public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEquatable<CommandHandlerInformation>
 {
+    private readonly bool canGenerate;
+
+    public CommandHandlerInformation()
+    {
+        canGenerate = true;
+    }
+
+    public CommandHandlerInformation(Diagnostic diagnostic)
+    {
+        canGenerate = false;
+        AddError(diagnostic);
+    }
+
 
 #nullable disable
 
@@ -35,10 +48,11 @@ public sealed class CommandHandlerInformation : IGenerator, IEquatable<CommandHa
     public EditTypeDescriptor? EditType { get; internal set; }
     public MapInformation? MapInformation { get; internal set; }
 
-    public bool HasErrors(SourceProductionContext spc, SyntaxToken mainToken) => false;
-
-    public void Generate(SourceProductionContext spc)
+    protected override void Generate(SourceProductionContext spc, bool hasErrors)
     {
+        if (!canGenerate)
+            return;
+
         // cria interface do handler
         var interfaceGenerator = CommandHandlerGenerator.GenerateInterface(this);
         // obtém o método handler da interface
@@ -54,6 +68,12 @@ public sealed class CommandHandlerInformation : IGenerator, IEquatable<CommandHa
         interfaceGenerator.Generate(spc);
         implementationGenerator.Generate(spc);
         partialModelGenerator?.Generate(spc);
+    }
+
+    public void SetErrors(List<Diagnostic>? diagnostics)
+    {
+        if (diagnostics is not null && diagnostics.Count > 0)
+            Errors = diagnostics;
     }
 
     public bool Equals(CommandHandlerInformation? other)
@@ -78,7 +98,8 @@ public sealed class CommandHandlerInformation : IGenerator, IEquatable<CommandHa
                ProduceProblems.SequenceEqual(other.ProduceProblems) &&
                Equals(ProduceNewEntityType, other.ProduceNewEntityType) &&
                Equals(EditType, other.EditType) &&
-               Equals(MapInformation, other.MapInformation);
+               Equals(MapInformation, other.MapInformation) &&
+               EqualErrors(other);
     }
 
     public override bool Equals(object? obj)
@@ -109,6 +130,7 @@ public sealed class CommandHandlerInformation : IGenerator, IEquatable<CommandHa
         hashCode = hashCode * -1521134295 + ProduceNewEntityType?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + EditType?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + MapInformation?.GetHashCode() ?? 0;
+        hashCode = hashCode * -1521134295 + Errors?.GetHashCode() ?? 0;
         return hashCode;
     }
 }

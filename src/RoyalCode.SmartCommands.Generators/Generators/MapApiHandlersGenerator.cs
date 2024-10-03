@@ -14,39 +14,42 @@ public static class MapApiHandlersGenerator
 
     public static bool Predicate(SyntaxNode node, CancellationToken token) => node is ClassDeclarationSyntax;
 
-    public static TransformResult<MapApiHandlersInformation> TransformMapHandlers(
+    public static MapApiHandlersInformation TransformMapHandlers(
         GeneratorAttributeSyntaxContext context,
         CancellationToken token)
     {
         var classSyntax = (ClassDeclarationSyntax)context.TargetNode;
 
-        // if (!classSyntax.Modifiers.Any(SyntaxKind.PartialKeyword))
-        // {
-        //     var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
-        //         location: classSyntax.Identifier.GetLocation(),
-        //         "The class with MapHandlersAttribute must be partial");
-        //
-        //     return diagnostic;
-        // }
+        var errors = new List<Diagnostic>();
 
-        // ??? não precisaria, mas deveria ser static???
+        // a classe deve ser partial
+        if (!classSyntax.Modifiers.Any(SyntaxKind.PartialKeyword))
+        {
+            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidMapApiHandlers,
+                location: classSyntax.Identifier.GetLocation(),
+                "The class with MapHandlersAttribute must be partial");
+
+            errors.Add(diagnostic);
+        }
+
+        // a classe deve ser static
         if (!classSyntax.Modifiers.Any(SyntaxKind.StaticKeyword))
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidMapApiHandlers,
                 location: classSyntax.Identifier.GetLocation(),
                 "The class with MapHandlersAttribute must be static");
 
-            return diagnostic;
+            errors.Add(diagnostic);
         }
 
         var handlerType = new TypeDescriptor(classSyntax.Identifier.Text, [classSyntax.GetNamespace()]);
-        return new MapApiHandlersInformation(handlerType);
+        return new MapApiHandlersInformation(handlerType, errors);
     }
 
     public static void Generate(
         SourceProductionContext spc,
         MapApiHandlersInformation left,
-        IList<CommandHandlerInformation> right)
+        IEnumerable<CommandHandlerInformation> right)
     {
         // Api's agrupadas
         var commandGroup = right.GroupBy(m => m.MapInformation!.GroupName);

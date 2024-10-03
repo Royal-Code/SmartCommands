@@ -359,6 +359,13 @@ public static class ExtensionMethods
             : typeDeclaration;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Each<T>(this IEnumerable<T> values, Action<T> action)
+    {
+        foreach (var v in values)
+            action(v);
+    }
+
     public static string ToLowerCamelCase(this string value)
     {
         if (string.IsNullOrEmpty(value))

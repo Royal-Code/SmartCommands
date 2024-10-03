@@ -16,3 +16,5 @@ RCCMD008 | Usage   | Error    | CMD008_CancellationToken_require_async_method, [
 RCCMD009 | Usage   | Error    | CMD006_EditEntity_requires_WithUnitOfWork, [Documentation](https://google.com)
 RCCMD010 | Usage   | Error    | CMD010_EditEntity_requires_FirstParameter, [Documentation](https://google.com)
 RCCMD011 | Usage   | Error    | CMD011_WithParameters_cant_be_entity_or_context, [Documentation](https://google.com)
+RCCMD012 | Usage   | Warning  | CMD012_Only_one_MapApiHandlersAttribute, [Documentation](https://google.com)
+RCCMD013 | Usage   | Error    | CMD013_Invalid_use_of_MapApiHandlersAttribute, [Documentation](https://google.com)

@@ -1,9 +1,10 @@
 ﻿using System.Text;
 using Microsoft.CodeAnalysis;
+using RoyalCode.SmartCommands.Generators.Generators;
 
 namespace RoyalCode.SmartCommands.Generators.Models;
 
-public class ClassGenerator : IGenerator
+public class ClassGenerator : ITransformationGenerator
 {
     private UsingsGenerator? usings;
     private GeneratorNodeList? attributes;

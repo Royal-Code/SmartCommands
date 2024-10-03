@@ -4,7 +4,7 @@ using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
 [Generator]
-public class CommandsIncrementalGenerator : IIncrementalGenerator
+public class IncrementalGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -27,34 +27,24 @@ public class CommandsIncrementalGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(pipelineCommands, static (context, model) =>
         {
-            model.Generator?.Generate(context);
-
-            if (model.Diagnostics is not null)
-                context.ReportDiagnostic(model.Diagnostics);
+            model.Generate(context);
         });
 
         context.RegisterSourceOutput(pipelineAddServices.Combine(pipelineCollectCommands), static (context, source) =>
         {
             var (addServices, models) = source;
 
-            if (addServices.Diagnostics is not null)
-                context.ReportDiagnostic(addServices.Diagnostics);
-
-            if (addServices.Generator is null)
-                return;
-
             var services = models
-                .Where(m => m.Generator is not null)
                 .Select(m =>
                 {
-                    var interfaceType = new TypeDescriptor(m.Generator!.HandlerInterfaceName, [m.Generator.Namespace]);
-                    var handlerType = new TypeDescriptor(m.Generator.HandlerImplementationName,
-                        [$"{m.Generator.Namespace}.Internals"]);
+                    var interfaceType = new TypeDescriptor(m.HandlerInterfaceName, [m.Namespace]);
+                    var handlerType = new TypeDescriptor(m.HandlerImplementationName,
+                        [$"{m.Namespace}.Internals"]);
                     return new ServiceTypeDescriptor(interfaceType, handlerType);
                 })
                 .ToList();
 
-            AddHandlersServicesGenerator.Generate(context, addServices.Generator, services);
+            addServices.Generate(context, services);
         });
 
         context.RegisterSourceOutput(pipelineMapApiHandlers.Collect().Combine(pipelineCollectCommands),
@@ -65,24 +55,21 @@ public class CommandsIncrementalGenerator : IIncrementalGenerator
                 if (mapApiHandlers.Length is 0)
                     return;
 
-                var handler = mapApiHandlers.FirstOrDefault(m => m.Generator is not null);
-
-                if (handler.Generator is null)
+                if (mapApiHandlers.Length > 1)
                 {
-                    foreach (var mah in mapApiHandlers)
+                    foreach(var mah in mapApiHandlers)
                     {
-                        if (mah.Diagnostics is not null)
-                            context.ReportDiagnostic(mah.Diagnostics);
+                        context.ReportDiagnostic(Diagnostic.Create(CmdDiagnostics.MultiplesMapApiHandlers, null));
                     }
-
-                    return;
                 }
+                
+                var handler = mapApiHandlers.First();
 
-                var mapInformation = models.Where(m => m.Generator?.MapInformation is not null)
-                    .Select(m => m.Generator!)
+                var mapInformation = models
+                    .Where(m => m.MapInformation is not null)
                     .ToList();
 
-                MapApiHandlersGenerator.Generate(context, handler.Generator, mapInformation);
+                handler.Generate(context, mapInformation);
             });
     }
 }

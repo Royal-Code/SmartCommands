@@ -37,7 +37,7 @@ internal static class Util
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         // apply the source generator and collect the output
-        var driver = CSharpGeneratorDriver.Create(new CommandsIncrementalGenerator());
+        var driver = CSharpGeneratorDriver.Create(new IncrementalGenerator());
 
         driver.RunGeneratorsAndUpdateCompilation(compilation, out outputCompilation, out diagnostics);
     }
