@@ -137,6 +137,8 @@ public static class MapApiHandlersGenerator
         CommandHandlerInformation commandInfo,
         string handlerMethodName)
     {
+        const string resultVarName = "result";
+
         // tipo retornado pelo handler
         var handlerReturnType = DiscoveryReturnType(commandInfo, mapInfo);
         var method = new MethodGenerator(handlerMethodName, handlerReturnType);
@@ -182,7 +184,7 @@ public static class MapApiHandlersGenerator
 
         // a invocação do handler é atribuída a uma variável 'result'
         var resultAssignment = new AssignValueCommand(
-            new StringValueNode("var result"),
+            new StringValueNode($"var {resultVarName}"),
             handlerInvoke);
 
         // adiciona o comando de atribuição ao método
@@ -197,9 +199,18 @@ public static class MapApiHandlersGenerator
                 mapInfo.CreatedInformation,
                 mapInfo,
                 commandInfo,
-                "result");
+                resultVarName);
             var returnCommand = new ReturnCommand(createdInvoke);
             method.Commands.Add(returnCommand);
+            method.Usings.Add("RoyalCode.SmartProblems");
+        }
+        // senão, verifica se mapeia o Id
+        else if (mapInfo.MapIdResultValue)
+        {
+            var mapInvoke = GenerateMapIdInvoke(resultVarName);
+            var returnCommand = new ReturnCommand(mapInvoke);
+            method.Commands.Add(returnCommand);
+            method.Usings.Add("RoyalCode.SmartProblems");
         }
         // senão, verifica se tem MapResponseValues
         else if (mapInfo.ResponseValues is not null)
@@ -207,15 +218,16 @@ public static class MapApiHandlersGenerator
             var mapInvoke = GenerateMapInvoke(
                 mapInfo.ResponseValues,
                 commandInfo,
-                "result");
+                resultVarName);
 
             var returnCommand = new ReturnCommand(mapInvoke);
             method.Commands.Add(returnCommand);
+            method.Usings.Add("RoyalCode.SmartProblems");
         }
         // senão, retorna o resultado
         else
         {
-            var returnCommand = new ReturnCommand(new StringValueNode("result"));
+            var returnCommand = new ReturnCommand(new StringValueNode(resultVarName));
             method.Commands.Add(returnCommand);
         }
 
@@ -227,10 +239,20 @@ public static class MapApiHandlersGenerator
         CommandHandlerInformation commandInfo,
         string varName)
     {
-        // cria invocação do método CreatedMatch
-        var methodInvoke = new MethodInvokeGenerator(varName, commandInfo.HandlerMustBeAsync ? "MapAsync" : "Map");
+        // cria invocação do método Map sobre o Result
+        var methodInvoke = new MethodInvokeGenerator(varName, "Map");
 
         AddResponseValuesParameter(methodInvoke, responseValues, commandInfo.ModelType.Name);
+
+        return methodInvoke;
+    }
+
+    private static MethodInvokeGenerator GenerateMapIdInvoke(string varName)
+    {
+        // cria invocação do método Map sobre o Result
+        var methodInvoke = new MethodInvokeGenerator(varName, "Map");
+
+        methodInvoke.AddArgument(new StringValueNode("v => v.Id"));
 
         return methodInvoke;
     }
@@ -287,7 +309,7 @@ public static class MapApiHandlersGenerator
         sb.Append("Response(");
         foreach (var prop in responseValues.PropertiesNames)
         {
-            sb.Append($"v.{prop}, ");
+            sb.Append($"v.{prop.Name}, ");
         }
 
         sb.Remove(sb.Length - 2, 2);

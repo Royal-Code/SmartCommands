@@ -8,6 +8,9 @@ public sealed class PropertyDescriptor : IEquatable<PropertyDescriptor>
     public static PropertyDescriptor Create(PropertyDeclarationSyntax syntax, SemanticModel model)
         => new(TypeDescriptor.Create(syntax.Type!, model), syntax.Identifier.Text);
 
+    public static PropertyDescriptor Create(IPropertySymbol syntax, SemanticModel model)
+        => new(TypeDescriptor.Create(syntax.Type!, model), syntax.Name);
+
     public PropertyDescriptor(TypeDescriptor type, string name)
     {
         Type = type;

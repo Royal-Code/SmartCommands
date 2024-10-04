@@ -519,12 +519,11 @@ public static class CommandHandlerGenerator
         }
 
         // tenta obter MapIdResultValue
-        var hasMapIdResultValue = classDeclaration.TryGetAttribute(MapIdResultValueAttributeName, out _);
-        if (hasMapIdResultValue)
+        if (classDeclaration.TryGetAttribute(MapIdResultValueAttributeName, out _))
         {
             // quando há o attribute MapIdResultValue, deve obter a propriedade e o tipo dela.
             var typeInfo = semanticModel.GetTypeInfo(valueReturnType);
-            var idProperty =typeInfo.Type?
+            var idProperty = typeInfo.Type?
                 .GetMembers()
                 .OfType<IPropertySymbol>()
                 .FirstOrDefault(p => p.Name == "Id");
@@ -536,6 +535,7 @@ public static class CommandHandlerGenerator
             else
             {
                 // se não achar a propriedade, deveria gerar um diagnostico.
+                // TODO: Erro de diagnostic
             }
         }
 
@@ -545,27 +545,45 @@ public static class CommandHandlerGenerator
             var arguments = resultValueAttr!.ArgumentList?.Arguments;
             if (arguments is not null && arguments.Value.Count > 0)
             {
-                var propertiesNames = arguments.Value.Select(a => a.Expression.ToString()).ToArray();
+                var propertiesNames = arguments.Value.Select(a => a.Expression.ToString().RemoveQuotes()).ToArray();
 
-                // para cada propriedade, obtém o membro do comando que corresponde a ela,
-                // então valida se é uma propriedade, e cria um PropertyDescription
-                var properties = propertiesNames.Select(name =>
-                    {
-                        // obtém o membro do comando que corresponde a ela
-                        var property = classDeclaration.Members
-                            .OfType<PropertyDeclarationSyntax>()
-                            .FirstOrDefault(p => p.Identifier.Text == name);
-
-                        // cria o PropertyDescription, quando existir a propriedade
-                        return property is null
-                            ? null
-                            : PropertyDescriptor.Create(property, semanticModel);
-                    })
-                    .Where(p => p is not null)
+                var returnTypeProperties = semanticModel.GetTypeInfo(valueReturnType).Type?
+                    .GetMembers()
+                    .OfType<IPropertySymbol>()
                     .ToList();
 
+                if (returnTypeProperties is null)
+                {
+                    // deve gerar algum diagnostic error
+                    // TODO: Erro de diagnostic
+                }
+                else
+                {
+                    // para cada propriedade, obtém o membro do comando que corresponde a ela,
+                    // então valida se é uma propriedade, e cria um PropertyDescription
+                    var properties = propertiesNames.Select(name =>
+                        {
+                            // obtém o membro do comando que corresponde a ela
+                            var property = returnTypeProperties.Find(p => p.Name == name);
 
-                responseValues = new MapResponseValuesInformation(properties!);
+                            if (property is null)
+                            {
+                                // se não achar a propriedade, deve gerar um erro de diagnostico
+                                // TODO: Erro de diagnostic
+                                return null;
+                            }
+                            else
+                            {
+                                // cria o PropertyDescription, quando existir a propriedade
+                                return PropertyDescriptor.Create(property, semanticModel);
+                            }
+                        })
+                        .Where(p => p is not null)
+                        .ToList();
+
+
+                    responseValues = new MapResponseValuesInformation(properties!);
+                }
             }
         }
 

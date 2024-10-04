@@ -47,17 +47,17 @@ public static partial class MapSomeApi
     }
 
     [ProduceProblems(ProblemCategory.InvalidParameter)]
-    private static async Task<CreatedMatch<int>> CreateSomeHandleAsync(
+    private static async Task<OkMatch<int>> CreateSomeHandleAsync(
         ICreateSomeHandler handler,
         CreateSome command,
         CancellationToken ct)
     {
         var result = await handler.HandleAsync(command, ct);
-        return result.CreatedMatch(v => $"some/{v.Id}", v => v.Id);
+        return result.Map(v => v.Id);
     }
 }
 
-public static class MapIdCode
+public static class CreateSomeMapIdCode
 {
     public const string Command =
 """
