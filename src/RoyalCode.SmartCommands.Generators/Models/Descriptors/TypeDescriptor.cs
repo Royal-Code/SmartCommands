@@ -24,6 +24,20 @@ public sealed class TypeDescriptor : IEquatable<TypeDescriptor>
         return new(name, typeSyntax.GetNamespaces(model).ToArray(), isNullable);
     }
 
+    public static TypeDescriptor Create(ITypeSymbol typeSymbol, SemanticModel model)
+    {
+        var name = typeSymbol.ToString();
+        bool isNullable = false;
+
+        if (name[name.Length - 1] == '?')
+        {
+            var namedTypeSymbol = typeSymbol as INamedTypeSymbol;
+            isNullable = namedTypeSymbol?.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
+        }
+
+        return new(name, typeSymbol.GetNamespaces().ToArray(), isNullable);
+    }
+
     public static readonly TypeDescriptor CancellationToken = new("CancellationToken", []);
 
     public static readonly TypeDescriptor Void = new("void", []);

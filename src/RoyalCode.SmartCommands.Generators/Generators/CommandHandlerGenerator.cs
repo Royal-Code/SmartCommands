@@ -205,10 +205,11 @@ public static class CommandHandlerGenerator
         var methodReturnType = TypeDescriptor.Create(method.ReturnType, context.SemanticModel);
 
         // se produz uma nova entidade, então o retorno do método será a nova entidade
+        TypeSyntax? newEntityTypeSyntax = null;
         TypeDescriptor? newEntityType = null;
         if (hasProduceNewEntity)
         {
-            var newEntityTypeSyntax = method.ReturnType;
+            newEntityTypeSyntax = method.ReturnType;
 
             // se for uma Task, extrai o tipo genérico, senão é o próprio tipo
             if (isAsync)
@@ -409,7 +410,7 @@ public static class CommandHandlerGenerator
         methodReturnType.HasValueType(out var returnValueType);
 
         // lê atributo Map... da classe do comando
-        var mapInformation = ReadMap(classDeclaration, method.ReturnType, context.SemanticModel);
+        var mapInformation = ReadMap(classDeclaration, newEntityTypeSyntax ?? method.ReturnType.GetValueReturnType(), context.SemanticModel);
 
         // se map não for nulo, e tiver o MapIdResultValue, deve ser validado se o tipo retornado tem o campo Id
         if (mapInformation is not null &&
@@ -451,7 +452,7 @@ public static class CommandHandlerGenerator
 
     private static MapInformation? ReadMap(
         ClassDeclarationSyntax classDeclaration,
-        TypeSyntax? returnType,
+        TypeSyntax valueReturnType,
         SemanticModel semanticModel)
     {
         string? httpMethod = null;
@@ -521,19 +522,16 @@ public static class CommandHandlerGenerator
         var hasMapIdResultValue = classDeclaration.TryGetAttribute(MapIdResultValueAttributeName, out _);
         if (hasMapIdResultValue)
         {
-            // TODO: trocar o classDeclaration pois deve ser olhado para a tipo retornado no comando
-            // extrair o return value type do returnType
-            // returnValueType
-
-
             // quando há o attribute MapIdResultValue, deve obter a propriedade e o tipo dela.
-            var idProperty = classDeclaration.Members
-                .OfType<PropertyDeclarationSyntax>()
-                .FirstOrDefault(p => p.Identifier.Text == "Id");
+            var typeInfo = semanticModel.GetTypeInfo(valueReturnType);
+            var idProperty =typeInfo.Type?
+                .GetMembers()
+                .OfType<IPropertySymbol>()
+                .FirstOrDefault(p => p.Name == "Id");
 
             if (idProperty is not null)
             {
-                idResultValueType = TypeDescriptor.Create(idProperty.Type!, semanticModel);
+                idResultValueType = TypeDescriptor.Create(idProperty.Type, semanticModel);
             }
             else
             {

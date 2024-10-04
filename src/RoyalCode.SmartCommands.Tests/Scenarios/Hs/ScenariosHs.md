@@ -5,7 +5,7 @@ Nestes cenários os comandos terão atributos para mapear os handlers a endpoint
 Possíveis cenários com essa característica:
 
 - [MapPost] comum, sem editar entidade ou criar nova entidade.
-- [MapPost, MapCreatedRoute] para criar nova entidade, utilizado junto com [ProduceNewEntity]
+- [MapPost, MapCreatedRoute] para criar nova entidade, utilizado com [ProduceNewEntity]
 - [MapPost, MapCreatedRoute] para criar nova entidade a partir de uma existente, utilizando com [EditEntity< Some, int >]
 - [MapPut] para editar uma entidade, utilizando [EditEntity< Some, int >]
 - [MapPatch] para editar uma entidade, utilizando [EditEntity< Some, int >]
@@ -47,19 +47,15 @@ public class AppDbContext : DbContext
 #### 1 - Comum, sem editar entidade ou criar nova entidade.
 
 ```cs
+[MapGroup("api/some")]
+[MapPost("create")]
 public class CreateSome
 {
     public int Value { get; set; }
 
-    [Command, WithUnitOfWork<AppDbContext>]
-    internal Result Execute(AppDbContext db)
+    [Command]
+    internal Result Execute()
     {
-        var some = new Some()
-        {
-            Value = Value,
-            Active = true
-        };
-        db.Some.Add(some);
         return Result.Ok();
     }
 }
@@ -68,6 +64,9 @@ public class CreateSome
 #### 2 - Criar nova entidade, utilizado junto com [ProduceNewEntity]
 
 ```cs
+[MapGroup("api/some")]
+[MapPost("create")]
+[MapCreatedRoute("{0}", "Id")]
 public class CreateSome
 {
     public int Value { get; set; }

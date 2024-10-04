@@ -148,6 +148,27 @@ public static class ExtensionMethods
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static IEnumerable<string> GetNamespaces(this ITypeSymbol typeSymbol)
+    {
+        var ns = typeSymbol.ContainingNamespace.ToDisplayString();
+        yield return ns;
+
+        // se for generic, namespace dos tipos genéricos
+        if (typeSymbol is not INamedTypeSymbol namedTypeSymbol)
+            yield break;
+
+        foreach (var typeArgument in namedTypeSymbol.TypeArguments)
+        {
+            if (typeArgument is INamedTypeSymbol namedTypeArgument)
+            {
+                var namespaces = GetNamespaces(namedTypeArgument);
+                foreach (var n in namespaces)
+                    yield return n;
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsEntity(this ParameterSyntax syntax, SemanticModel model)
     {
         // verifica os atributos do parâmetro, se houver um chamado "IsEntity" então é entidade.
@@ -351,6 +372,25 @@ public static class ExtensionMethods
         return typeSyntax;
     }
 
+    public static TypeSyntax GetValueReturnType(this TypeSyntax typeSyntax)
+    {
+        var type = typeSyntax;
+
+        // se for um Task<T> então obtém o T
+        if (type is GenericNameSyntax { Identifier.Text: "Task" } taskSyntax)
+            type = taskSyntax.TypeArgumentList.Arguments[0];
+
+        // se for um ValueTask<T> então obtém o T
+        if (type is GenericNameSyntax { Identifier.Text: "ValueTask" } valueTaskSyntax)
+            type = valueTaskSyntax.TypeArgumentList.Arguments[0];
+
+        // se for um Result<T> então obtém o T
+        if (type is GenericNameSyntax { Identifier.Text: "Result" } resultSyntax)
+            type = resultSyntax.TypeArgumentList.Arguments[0];
+
+        return type;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string TryGetInnerTaskType(this string typeDeclaration)
     {
@@ -381,8 +421,8 @@ public static class ExtensionMethods
 
         // exemplo, "my-group-name" -> "MyGroupName"
 
-        // separa as palavras pelo hífen
-        var words = value.Split('-');
+        // separa as palavras pelo hífen e por '/'
+        var words = value.Split('-', '/');
         // converte a primeira letra de cada palavra para maiúscula
         for (var i = 0; i < words.Length; i++)
         {

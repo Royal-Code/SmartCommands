@@ -100,22 +100,6 @@ internal static class CommandHelpers
         return false;
     }
 
-    public static bool ValidateCancellationParameter(this MethodDeclarationSyntax method, out Diagnostic? diagnostic)
-    {
-        var cancellationToken = method.ParameterList.Parameters.Last();
-        if (cancellationToken.Type is not IdentifierNameSyntax { Identifier.Text: "CancellationToken" })
-        {
-            diagnostic = Diagnostic.Create(
-                CmdDiagnostics.InvalidCommandType,
-                cancellationToken.Identifier.GetLocation(),
-                "CancellationToken must be the last parameter");
-            return false;
-        }
-
-        diagnostic = null;
-        return true;
-    }
-
     public static bool ValidateMapIdResultValue(this TypeSyntax resultType, SemanticModel semanticModel, out Diagnostic? diagnostic)
     {
         // se for task, pega o tipo genérico
