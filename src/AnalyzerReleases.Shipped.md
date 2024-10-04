@@ -18,3 +18,6 @@ RCCMD010 | Usage   | Error    | CMD010_EditEntity_requires_FirstParameter, [Docu
 RCCMD011 | Usage   | Error    | CMD011_WithParameters_cant_be_entity_or_context, [Documentation](https://google.com)
 RCCMD012 | Usage   | Warning  | CMD012_Only_one_MapApiHandlersAttribute, [Documentation](https://google.com)
 RCCMD013 | Usage   | Error    | CMD013_Invalid_use_of_MapApiHandlersAttribute, [Documentation](https://google.com)
+RCCMD014 | Usage   | Error    | CMD014_Id_property_not_found, [Documentation](https://google.com)
+RCCMD015 | Usage   | Error    | CMD015_The_type_returned_by_the_command_was_not_found, [Documentation](https://google.com)
+RCCMD016 | Usage   | Error    | CMD016_Property_not_found_for_the_object_returned, [Documentation](https://google.com)

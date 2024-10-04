@@ -5,7 +5,6 @@ using RoyalCode.SmartCommands.Generators.Models;
 using RoyalCode.SmartCommands.Generators.Models.Commands;
 using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 using System.Reflection;
-using System.Xml.Linq;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
@@ -42,11 +41,11 @@ public static class CommandHandlerGenerator
     private const string UowAccessorType = "IUnitOfWorkAccessor<{0}>";
     private const string RepoAccessorType = "IRepositoriesAccessor<{0}>";
 
-    public static bool Predicate(SyntaxNode node, CancellationToken token) => node is MethodDeclarationSyntax;
+    public static bool Predicate(SyntaxNode node, CancellationToken _) => node is MethodDeclarationSyntax;
 
     public static CommandHandlerInformation Transform(
         GeneratorAttributeSyntaxContext context,
-        CancellationToken token)
+        CancellationToken __)
     {
         // método do comando, ou seja, que contém o attribute Command
         var method = (MethodDeclarationSyntax)context.TargetNode;
@@ -398,19 +397,13 @@ public static class CommandHandlerGenerator
 
         // verifica a necessidade do método do handler ser assíncrono
         var handlerMustBeAsync = isAsync || hasWithDecorators || hasUow || hasFindEntities;
-
-        // Define o tipo de retorno do handler
-        var handlerReturnType = methodReturnType;
-        if (handlerMustBeAsync)
-            handlerReturnType = handlerReturnType.MustBeTask();
-        if (hasWithValidateModel || hasUow || hasFindEntities)
-            handlerReturnType = handlerReturnType.MustBeResult();
-
-
-        methodReturnType.HasValueType(out var returnValueType);
-
+        
         // lê atributo Map... da classe do comando
-        var mapInformation = ReadMap(classDeclaration, newEntityTypeSyntax ?? method.ReturnType.GetValueReturnType(), context.SemanticModel);
+        var mapInformation = ReadMap(
+            classDeclaration, 
+            newEntityTypeSyntax ?? method.ReturnType.GetValueReturnType(), 
+            context.SemanticModel,
+            errors);
 
         // se map não for nulo, e tiver o MapIdResultValue, deve ser validado se o tipo retornado tem o campo Id
         if (mapInformation is not null &&
@@ -419,6 +412,13 @@ public static class CommandHandlerGenerator
         {
             errors.Add(error!);
         }
+
+        // Define o tipo de retorno do handler
+        var handlerReturnType = methodReturnType;
+        if (handlerMustBeAsync)
+            handlerReturnType = handlerReturnType.MustBeTask();
+        if (hasWithValidateModel || hasUow || hasFindEntities || mapInformation is not null)
+            handlerReturnType = handlerReturnType.MustBeResult();
 
         // armazena todas as informações coletadas
         var info = new CommandHandlerInformation
@@ -453,7 +453,8 @@ public static class CommandHandlerGenerator
     private static MapInformation? ReadMap(
         ClassDeclarationSyntax classDeclaration,
         TypeSyntax valueReturnType,
-        SemanticModel semanticModel)
+        SemanticModel semanticModel,
+        List<Diagnostic> errors)
     {
         string? httpMethod = null;
         string? description = null;
@@ -523,8 +524,8 @@ public static class CommandHandlerGenerator
         {
             // quando há o attribute MapIdResultValue, deve obter a propriedade e o tipo dela.
             var typeInfo = semanticModel.GetTypeInfo(valueReturnType);
-            var idProperty = typeInfo.Type?
-                .GetMembers()
+            var idProperty = typeInfo.Type
+                .GetAllMembers()
                 .OfType<IPropertySymbol>()
                 .FirstOrDefault(p => p.Name == "Id");
 
@@ -535,7 +536,9 @@ public static class CommandHandlerGenerator
             else
             {
                 // se não achar a propriedade, deveria gerar um diagnostico.
-                // TODO: Erro de diagnostic
+                errors.Add(Diagnostic.Create(
+                    CmdDiagnostics.IdNotFoundInReturnedCommand,
+                    valueReturnType.GetLocation()));
             }
         }
 
@@ -548,14 +551,17 @@ public static class CommandHandlerGenerator
                 var propertiesNames = arguments.Value.Select(a => a.Expression.ToString().RemoveQuotes()).ToArray();
 
                 var returnTypeProperties = semanticModel.GetTypeInfo(valueReturnType).Type?
-                    .GetMembers()
+                    .GetAllMembers()
                     .OfType<IPropertySymbol>()
                     .ToList();
 
                 if (returnTypeProperties is null)
                 {
                     // deve gerar algum diagnostic error
-                    // TODO: Erro de diagnostic
+                    // se não achar a propriedade, deveria gerar um diagnostico.
+                    errors.Add(Diagnostic.Create(
+                        CmdDiagnostics.ReturnedCommandTypeNotFound,
+                        valueReturnType.GetLocation()));
                 }
                 else
                 {
@@ -569,7 +575,10 @@ public static class CommandHandlerGenerator
                             if (property is null)
                             {
                                 // se não achar a propriedade, deve gerar um erro de diagnostico
-                                // TODO: Erro de diagnostic
+                                errors.Add(Diagnostic.Create(
+                                    CmdDiagnostics.PropertyNotFoundInReturnedCommand,
+                                    valueReturnType.GetLocation(),
+                                    name));
                                 return null;
                             }
                             else
@@ -580,7 +589,6 @@ public static class CommandHandlerGenerator
                         })
                         .Where(p => p is not null)
                         .ToList();
-
 
                     responseValues = new MapResponseValuesInformation(properties!);
                 }

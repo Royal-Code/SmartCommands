@@ -117,4 +117,28 @@ internal static class CmdDiagnostics
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor IdNotFoundInReturnedCommand = new(
+        id: "RCCMD014",
+        title: "Id property not found for the object returned by the command",
+        messageFormat: "Id property not found for the object returned by the command",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor ReturnedCommandTypeNotFound = new(
+        id: "RCCMD015",
+        title: "The type returned by the command was not found",
+        messageFormat: "The type returned by the command was not found",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor PropertyNotFoundInReturnedCommand = new(
+        id: "RCCMD016",
+        title: "Property not found for the object returned by the command",
+        messageFormat: "The property '{0}' was not found for the object returned by the command",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

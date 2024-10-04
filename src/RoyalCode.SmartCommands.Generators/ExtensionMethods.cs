@@ -391,6 +391,17 @@ public static class ExtensionMethods
         return type;
     }
 
+    public static IEnumerable<ISymbol> GetAllMembers(this ITypeSymbol? typeSymbol)
+    {
+        while (typeSymbol is not null)
+        {
+            foreach (var member in typeSymbol.GetMembers())
+                yield return member;
+
+            typeSymbol = typeSymbol.BaseType;
+        }
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string TryGetInnerTaskType(this string typeDeclaration)
     {
