@@ -57,6 +57,8 @@ public sealed class TypeDescriptor : IEquatable<TypeDescriptor>
 
     public string[] Namespaces { get; }
 
+    public bool IsNullable { get; }
+
     public bool IsCancellationToken => Name == "CancellationToken";
 
     public bool Is(ParameterDescriptor parameter) => Equals(parameter.Type);
@@ -84,8 +86,6 @@ public sealed class TypeDescriptor : IEquatable<TypeDescriptor>
     public void MarkAsHandlerParameter() => AddHint("IsHandlerParameter");
 
     public bool IsHandlerParameter => HasHint("IsHandlerParameter");
-
-    public bool IsNullable { get; }
 
     public bool MayBeNull => IsNullable || Name[Name.Length - 1] == '?';
 
