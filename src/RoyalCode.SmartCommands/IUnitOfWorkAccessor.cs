@@ -1,3 +1,5 @@
+// Ignore Spelling: Accessor
+
 using RoyalCode.SmartProblems;
 
 namespace RoyalCode.SmartCommands;

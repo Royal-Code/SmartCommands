@@ -651,9 +651,9 @@ public static class CommandHandlerGenerator
 
             // adiciona o campo
             handlerGen.Fields.Add(new FieldGenerator(uowType, AccessorVarName, true));
-            // adiciona o parametro
+            // adiciona o parameter
             ctorGen.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(uowType, AccessorVarName)));
-            // adiciona comando de atribuíção
+            // adiciona comando de atribuição
             ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(AccessorVarName));
             // adiciona os namespaces
             handlerGen.Usings.AddNamespaces(uowType);
@@ -666,9 +666,9 @@ public static class CommandHandlerGenerator
 
             // adiciona o campo
             handlerGen.Fields.Add(new FieldGenerator(repoType, AccessorVarName, true));
-            // adiciona o parametro
+            // adiciona o parameter
             ctorGen.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(repoType, AccessorVarName)));
-            // adiciona comando de atribuíção
+            // adiciona comando de atribuição
             ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(AccessorVarName));
             // adiciona os namespaces
             handlerGen.Usings.AddNamespaces(repoType);
@@ -681,9 +681,9 @@ public static class CommandHandlerGenerator
 
             // adiciona o campo
             handlerGen.Fields.Add(new FieldGenerator(decoratorsType, DecoratorsVarName, true));
-            // adiciona o parametro
+            // adiciona o parameter
             ctorGen.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(decoratorsType, DecoratorsVarName)));
-            // adiciona comando de atribuíção
+            // adiciona comando de atribuição
             ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(DecoratorsVarName));
             // adiciona os namespaces
             handlerGen.Usings.AddNamespaces(decoratorsType);
@@ -716,7 +716,7 @@ public static class CommandHandlerGenerator
             handlerGen.Fields.Add(new FieldGenerator(p.Type, p.Name, true));
             // adiciona o parâmetro
             ctorGen.Parameters.Add(new ParameterGenerator(p));
-            // adiciona comando de atribuíção
+            // adiciona comando de atribuição
             ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(p.Name));
         }
         // adiciona o ctor a classe apenas se tiver algum parâmetro, quando não há parâmetros, não há necessidade de ctor.
@@ -770,7 +770,7 @@ public static class CommandHandlerGenerator
         }
 
         // Geração da chamada do comando no modelo e do retorno do método do handler
-        // Dependendo do cenário, essa parte final pode váriar.
+        // Dependendo do cenário, essa parte final pode variar.
         // Essa parte final será representada por um GenerateNode e ela será incremental.
         GeneratorNode final;
 
