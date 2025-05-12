@@ -83,10 +83,10 @@ public class FindEntitiesCommand: GeneratorNode
             .AppendLine();
 
         sb.Ident(ident);
-        sb.Append("if (").Append(entityVarName).Append("Entry.NotFound(out notFoundProblems))").AppendLine();
+        sb.Append("if (").Append(entityVarName).Append("Entry.NotFound(out notFoundProblem))").AppendLine();
 
         sb.IdentPlus(ident);
-        sb.AppendLine("return notFoundProblems;");
+        sb.AppendLine("return notFoundProblem;");
 
         sb.Ident(ident);
         sb.Append(parameter.Name).Append(".Add(").Append(entityVarName).AppendLine("Entry.Entity);");

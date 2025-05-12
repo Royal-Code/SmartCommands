@@ -8,7 +8,7 @@ public class DeclareNotFoundProblemsCommand : GeneratorNode
     {
         sb.Ident(ident);
 
-        sb.AppendLine("Problems? notFoundProblems;");
+        sb.AppendLine("Problem? notFoundProblem;");
 
         sb.AppendLine();
     }

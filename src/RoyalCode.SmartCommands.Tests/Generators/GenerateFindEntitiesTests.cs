@@ -78,11 +78,11 @@ public class CreateMovieHandler : ICreateMovieHandler
 
         await this.accessor.BeginAsync(ct);
 
-        Problems? notFoundProblems;
+        Problem? notFoundProblem;
 
         var directorEntry = await this.accessor.FindEntityAsync<Director, int>(command.DirectorId, ct);
-        if (directorEntry.NotFound(out notFoundProblems))
-            return notFoundProblems;
+        if (directorEntry.NotFound(out notFoundProblem))
+            return notFoundProblem;
         var director = directorEntry.Entity;
 
         var commandResult = command.Execute(this.accessor.Context, director);
@@ -172,11 +172,11 @@ public class CreateMovieHandler : ICreateMovieHandler
 
         await this.accessor.BeginAsync(ct);
 
-        Problems? notFoundProblems;
+        Problem? notFoundProblem;
 
         var directorEntry = await this.accessor.FindEntityAsync<Director, int>(command.DirectorId, ct);
-        if (directorEntry.NotFound(out notFoundProblems))
-            return notFoundProblems;
+        if (directorEntry.NotFound(out notFoundProblem))
+            return notFoundProblem;
         var director = directorEntry.Entity;
 
         var commandResult = command.Execute(this.accessor.Context, director);
@@ -245,19 +245,19 @@ public class CreateMovieWithGenreHandler : ICreateMovieWithGenreHandler
 
         await this.accessor.BeginAsync(ct);
 
-        Problems? notFoundProblems;
+        Problem? notFoundProblem;
 
         var directorEntry = await this.accessor.FindEntityAsync<Director, int>(command.DirectorId, ct);
-        if (directorEntry.NotFound(out notFoundProblems))
-            return notFoundProblems;
+        if (directorEntry.NotFound(out notFoundProblem))
+            return notFoundProblem;
         var director = directorEntry.Entity;
 
         Genre? genre = null;
         if (command.GenreId is not null)
         {
             var genreEntry = await this.accessor.FindEntityAsync<Genre, int>(command.GenreId.Value, ct);
-            if (genreEntry.NotFound(out notFoundProblems))
-                return notFoundProblems;
+            if (genreEntry.NotFound(out notFoundProblem))
+                return notFoundProblem;
             genre = genreEntry.Entity;
         }
 
@@ -354,19 +354,19 @@ public class CreateMovieWithGenreHandler : ICreateMovieWithGenreHandler
 
         await this.accessor.BeginAsync(ct);
 
-        Problems? notFoundProblems;
+        Problem? notFoundProblem;
 
         var directorEntry = await this.accessor.FindEntityAsync<Director, int>(command.DirectorId, ct);
-        if (directorEntry.NotFound(out notFoundProblems))
-            return notFoundProblems;
+        if (directorEntry.NotFound(out notFoundProblem))
+            return notFoundProblem;
         var director = directorEntry.Entity;
 
         Genre? genre = null;
         if (command.GenreId is not null)
         {
             var genreEntry = await this.accessor.FindEntityAsync<Genre, int>(command.GenreId.Value, ct);
-            if (genreEntry.NotFound(out notFoundProblems))
-                return notFoundProblems;
+            if (genreEntry.NotFound(out notFoundProblem))
+                return notFoundProblem;
             genre = genreEntry.Entity;
         }
 
@@ -442,19 +442,19 @@ public class CreateMovieFullHandler : ICreateMovieFullHandler
 
         await this.accessor.BeginAsync(ct);
 
-        Problems? notFoundProblems;
+        Problem? notFoundProblem;
 
         var directorEntry = await this.accessor.FindEntityAsync<Director, int>(command.DirectorId, ct);
-        if (directorEntry.NotFound(out notFoundProblems))
-            return notFoundProblems;
+        if (directorEntry.NotFound(out notFoundProblem))
+            return notFoundProblem;
         var director = directorEntry.Entity;
 
         List<Genre> genres = [];
         foreach (var genreId in command.Genres)
         {
             var genreEntry = await this.accessor.FindEntityAsync<Genre, int>(genreId, ct);
-            if (genreEntry.NotFound(out notFoundProblems))
-                return notFoundProblems;
+            if (genreEntry.NotFound(out notFoundProblem))
+                return notFoundProblem;
             genres.Add(genreEntry.Entity);
         }
 
@@ -462,8 +462,8 @@ public class CreateMovieFullHandler : ICreateMovieFullHandler
         foreach (var actorId in command.ActorsIds)
         {
             var actorEntry = await this.accessor.FindEntityAsync<Actor, int>(actorId, ct);
-            if (actorEntry.NotFound(out notFoundProblems))
-                return notFoundProblems;
+            if (actorEntry.NotFound(out notFoundProblem))
+                return notFoundProblem;
             actors.Add(actorEntry.Entity);
         }
 
@@ -567,19 +567,19 @@ public class CreateMovieFullHandler : ICreateMovieFullHandler
 
         await this.accessor.BeginAsync(ct);
 
-        Problems? notFoundProblems;
+        Problem? notFoundProblem;
 
         var directorEntry = await this.accessor.FindEntityAsync<Director, int>(command.DirectorId, ct);
-        if (directorEntry.NotFound(out notFoundProblems))
-            return notFoundProblems;
+        if (directorEntry.NotFound(out notFoundProblem))
+            return notFoundProblem;
         var director = directorEntry.Entity;
 
         List<Genre> genres = [];
         foreach (var genreId in command.Genres)
         {
             var genreEntry = await this.accessor.FindEntityAsync<Genre, int>(genreId, ct);
-            if (genreEntry.NotFound(out notFoundProblems))
-                return notFoundProblems;
+            if (genreEntry.NotFound(out notFoundProblem))
+                return notFoundProblem;
             genres.Add(genreEntry.Entity);
         }
 
@@ -587,8 +587,8 @@ public class CreateMovieFullHandler : ICreateMovieFullHandler
         foreach (var actorId in command.ActorsIds)
         {
             var actorEntry = await this.accessor.FindEntityAsync<Actor, int>(actorId, ct);
-            if (actorEntry.NotFound(out notFoundProblems))
-                return notFoundProblems;
+            if (actorEntry.NotFound(out notFoundProblem))
+                return notFoundProblem;
             actors.Add(actorEntry.Entity);
         }
 

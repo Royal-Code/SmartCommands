@@ -1,4 +1,5 @@
-using RoyalCode.SmartValidations.Entities;
+using RoyalCode.SmartProblems.Entities;
+
 
 namespace RoyalCode.SmartCommands;
 
@@ -30,7 +31,7 @@ public interface IRepositoriesAccessor<out T>
     ///     An entry that represents the entity find by the identifier.
     ///     Even if the entity is not found, the method must return an Entry object with the NotFound problem.
     /// </returns>
-    public Task<Entry<TEntity, TId>> FindEntityAsync<TEntity, TId>(TId id, CancellationToken ct)
+    public Task<FindResult<TEntity, TId>> FindEntityAsync<TEntity, TId>(TId id, CancellationToken ct)
         where TEntity : class;
 
     /// <summary>

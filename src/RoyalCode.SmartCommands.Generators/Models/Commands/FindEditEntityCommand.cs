@@ -63,10 +63,10 @@ public class FindEditEntityCommand : GeneratorNode
             .AppendLine();
 
         sb.Ident(ident);
-        sb.Append("if (").Append(descriptor.Parameter.Name).Append("Entry.NotFound(out notFoundProblems))").AppendLine();
+        sb.Append("if (").Append(descriptor.Parameter.Name).Append("Entry.NotFound(out notFoundProblem))").AppendLine();
 
         sb.IdentPlus(ident);
-        sb.AppendLine("return notFoundProblems;");
+        sb.AppendLine("return notFoundProblem;");
 
         sb.Ident(ident);
         if (!entityVarDeclared)

@@ -32,11 +32,11 @@ public class DoWithTwoParametersHandler : IDoWithTwoParametersHandler
     {
         await this.accessor.BeginAsync(ct);
 
-        Problems? notFoundProblems;
+        Problem? notFoundProblem;
 
         var someEntry = await this.accessor.FindEntityAsync<Some, int>(someId, ct);
-        if (someEntry.NotFound(out notFoundProblems))
-            return notFoundProblems;
+        if (someEntry.NotFound(out notFoundProblem))
+            return notFoundProblem;
         var some = someEntry.Entity;
 
         return await command.Plus(some, other, another).ContinueAsync(this.accessor, async (_, a) => await a.CompleteAsync(ct));
@@ -100,11 +100,11 @@ public class DoWithTwoParametersHandler : IDoWithTwoParametersHandler
     {
         await this.accessor.BeginAsync(ct);
 
-        Problems? notFoundProblems;
+        Problem? notFoundProblem;
 
         var someEntry = await this.accessor.FindEntityAsync<Some, int>(someId, ct);
-        if (someEntry.NotFound(out notFoundProblems))
-            return notFoundProblems;
+        if (someEntry.NotFound(out notFoundProblem))
+            return notFoundProblem;
         var some = someEntry.Entity;
 
         return await command.Plus(some, other, another).ContinueAsync(this.accessor, async (_, a) => await a.CompleteAsync(ct));
