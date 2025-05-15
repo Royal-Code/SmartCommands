@@ -18,10 +18,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\RoyalCode.SmartCommands.Tests.Models\RoyalCode.SmartCommands.Tests.Models.csproj" />
 		<ProjectReference Include="..\RoyalCode.SmartCommands\RoyalCode.SmartCommands.csproj" />
-		<ProjectReference Include="..\RoyalCode.SmartCommands.Generators\RoyalCode.SmartCommands.Generators.csproj"
-						  OutputItemType="Analyzer"
-						  ReferenceOutputAssembly="false"/>
+		<ProjectReference Include="..\RoyalCode.SmartCommands.Generators\RoyalCode.SmartCommands.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 	<PropertyGroup>
@@ -34,5 +33,9 @@
 		<Compile Remove="$(CompilerGeneratedFilesOutputPath)/**/*.cs" />
 		<None Include="Generated/**" Visible="true" />
 		<Compile Remove="Generated\RoyalCode.SmartCommands.Generators\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Commands\" />
 	</ItemGroup>
 </Project>
