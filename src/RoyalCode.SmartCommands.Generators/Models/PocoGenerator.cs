@@ -48,6 +48,7 @@ public class PocoGenerator: ITransformationGenerator
             CanSet = false,
             Value = new StringValueNode(paramName)
         };
+        property.Modifiers.Public();
 
         properties.Add(property);
 

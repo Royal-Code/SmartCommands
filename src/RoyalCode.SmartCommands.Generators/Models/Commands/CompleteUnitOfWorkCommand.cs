@@ -11,6 +11,7 @@ public class CompleteUnitOfWorkCommand : GeneratorNode
     private readonly string accessorVarName;
     private readonly string commandResultVarName;
     private readonly bool produceNewEntity;
+    private readonly bool hasDecorators;
 
     public CompleteUnitOfWorkCommand(
         GeneratorNode methodInvoke,
@@ -18,7 +19,8 @@ public class CompleteUnitOfWorkCommand : GeneratorNode
         TypeDescriptor commandReturnType,
         string accessorVarName,
         string commandResultVarName,
-        bool produceNewEntity = false)
+        bool produceNewEntity = false,
+        bool hasDecorators = false)
     {
         this.methodInvoke = methodInvoke;
         this.invokeIsAsync = invokeIsAsync;
@@ -26,10 +28,30 @@ public class CompleteUnitOfWorkCommand : GeneratorNode
         this.accessorVarName = accessorVarName;
         this.commandResultVarName = commandResultVarName;
         this.produceNewEntity = produceNewEntity;
+        this.hasDecorators = hasDecorators;
     }
 
     public override void Write(StringBuilder sb, int ident = 0)
     {
+        // se não tem decorators e se for void, executa o método e completa o UnitOfWork
+        if (!hasDecorators && (commandReturnType.IsVoid || commandReturnType.IsVoidTask))
+        {
+            new Command(methodInvoke) 
+            { 
+                Await = commandReturnType.IsVoidTask,
+                NewLine = true,
+            }.Write(sb, ident);
+            
+            var invokeCompleteAsync = new MethodInvokeGenerator($"this.{accessorVarName}", "CompleteAsync", "ct")
+            {
+                Await = true
+            };
+
+            new ReturnCommand(invokeCompleteAsync).Write(sb, ident);
+
+            return;
+        }
+
         var commandReturnResult = commandReturnType.Name.StartsWith("Result") ||
                                   commandReturnType.Name.StartsWith("Task<Result");
 
@@ -45,7 +67,6 @@ public class CompleteUnitOfWorkCommand : GeneratorNode
 
             if (produceNewEntity)
             {
-
                 invokeAddEntityAsync = new MethodInvokeGenerator($"this.{accessorVarName}", "AddEntityAsync");
                 invokeAddEntityAsync.AddArgument(commandResultVarName);
                 invokeAddEntityAsync.AddArgument("ct");
@@ -105,6 +126,7 @@ public class CompleteUnitOfWorkCommand : GeneratorNode
                 sb.AppendLine(";").AppendLine();
             }
         }
+
         new ReturnCommand(final).Write(sb, ident);
     }
 }

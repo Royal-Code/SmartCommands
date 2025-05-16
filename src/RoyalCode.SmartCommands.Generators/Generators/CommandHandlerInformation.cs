@@ -56,10 +56,10 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
         // cria interface do handler
         var interfaceGenerator = CommandHandlerGenerator.GenerateInterface(this);
         // obtém o método handler da interface
-        var intrfaceHandlerMethod = interfaceGenerator.Methods.Enumerate<MethodGenerator>().First();
+        var interfaceHandlerMethod = interfaceGenerator.Methods.Enumerate<MethodGenerator>().First();
 
         // cria classe que implementa o handler
-        var implementationGenerator = CommandHandlerGenerator.GenerateImplementation(this, intrfaceHandlerMethod);
+        var implementationGenerator = CommandHandlerGenerator.GenerateImplementation(this, interfaceHandlerMethod);
 
         // cria classe partial do model se possível.
         var partialModelGenerator = CommandHandlerGenerator.GenerateWasValidated(this);

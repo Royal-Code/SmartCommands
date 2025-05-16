@@ -1,9 +1,9 @@
 ﻿
-namespace RoyalCode.SmartCommands.Demo.Commands;
+namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
 
 public partial class CriarProdutoResponse(System.Guid id, string nome)
 {
-    System.Guid Id { get; } = id;
+    public System.Guid Id { get; } = id;
 
-    string Nome { get; } = nome;
+    public string Nome { get; } = nome;
 }

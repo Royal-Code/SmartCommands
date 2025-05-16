@@ -11,7 +11,6 @@ namespace RoyalCode.SmartCommands;
 /// </summary>
 /// <typeparam name="T">The type of the context of the unit of work.</typeparam>
 public interface IUnitOfWorkAccessor<out T> : IRepositoriesAccessor<T>
-    where T : class
 {
     /// <summary>
     /// Invoked when the unit of work is about to begin.

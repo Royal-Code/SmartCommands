@@ -59,6 +59,10 @@ public sealed class TypeDescriptor : IEquatable<TypeDescriptor>
 
     public bool IsNullable { get; }
 
+    public bool IsVoid => Name == "void";
+
+    public bool IsVoidTask => Name == "Task";
+
     public bool IsCancellationToken => Name == "CancellationToken";
 
     public bool Is(ParameterDescriptor parameter) => Equals(parameter.Type);
@@ -138,6 +142,13 @@ public sealed class TypeDescriptor : IEquatable<TypeDescriptor>
     public bool HasValueType(out TypeDescriptor? type)
     {
         string typeName = Name;
+
+        if (IsVoid)
+        {
+            type = null;
+            return false;
+        }
+
         if (typeName.StartsWith("Task"))
         {
             if (typeName.Length == 4)
@@ -174,6 +185,9 @@ public sealed class TypeDescriptor : IEquatable<TypeDescriptor>
         if (Name.StartsWith("Task"))
             return this;
 
+        if (IsVoid)
+            return new TypeDescriptor("Task", Namespaces);
+
         return new TypeDescriptor($"Task<{Name}>", Namespaces);
     }
 
@@ -181,6 +195,14 @@ public sealed class TypeDescriptor : IEquatable<TypeDescriptor>
     {
         string typeName = Name;
         bool task = false;
+
+        if (IsVoid)
+            return new TypeDescriptor("Result", Namespaces);
+
+        if (typeName == "Task")
+        {
+            return new TypeDescriptor("Task<Result>", [.. Namespaces, "RoyalCode.SmartProblems"]);
+        }
 
         if (typeName.StartsWith("Task"))
         {

@@ -405,6 +405,9 @@ public static class ExtensionMethods
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string TryGetInnerTaskType(this string typeDeclaration)
     {
+        if (typeDeclaration is "void" || typeDeclaration is "Task")
+            return "Result";
+
         return typeDeclaration.StartsWith("Task<")
             ? typeDeclaration.Substring(5, typeDeclaration.Length - 6)
             : typeDeclaration;

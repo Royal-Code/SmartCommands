@@ -7,10 +7,8 @@ using System.Diagnostics.CodeAnalysis;
 namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
 
 [MapGroup("produtos")]
-[MapPost("/", "Criar Produto")]
-[MapResponseValues("Id", "Nome")]
-[MapCreatedRoute("{0}", "Id")]
-public partial class CriarProduto
+[MapPut("/{id}", "Editar Produto")]
+public partial class EditarProduto
 {
     public string? Nome { get; set; }
 
@@ -24,11 +22,11 @@ public partial class CriarProduto
         return result;
     }
 
-    [Command, WithValidateModel, ProduceNewEntity, WithUnitOfWork<IWorkContext>]
-    internal Produto Execute()
+    [Command, WithValidateModel, EditEntity<Produto, Guid>, WithUnitOfWork<IWorkContext>]
+    internal void Execute(Produto produto)
     {
         WasValidated();
 
-        return new Produto(Nome);
+        produto.Nome = Nome;
     }
 }

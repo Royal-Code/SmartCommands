@@ -26,6 +26,13 @@ public class Movie : Entity<int>
         Comments = [];
     }
 
+#nullable disable
+    /// <summary>
+    /// Deserialization constructor for Entity Framework.
+    /// </summary>
+    public Movie() { }
+#nullable enable
+
     public string Title { get; set; }
     
     public int Year { get; set; }

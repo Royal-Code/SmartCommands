@@ -17,6 +17,13 @@ public class Comment : Entity<int>
         CreatedAt = DateTime.UtcNow;
     }
 
+#nullable disable
+    /// <summary>
+    /// Deserialization constructor for Entity Framework.
+    /// </summary>
+    public Comment() { }
+#nullable enable
+
     public string Content { get; set; }
     public virtual User Author { get; set; } // Comentário feito por um usuário
     public DateTime CreatedAt { get; set; }

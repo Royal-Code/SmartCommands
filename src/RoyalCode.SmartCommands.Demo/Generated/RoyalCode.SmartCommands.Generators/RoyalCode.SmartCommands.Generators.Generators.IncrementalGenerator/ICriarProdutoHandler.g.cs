@@ -1,7 +1,7 @@
 ﻿using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 
-namespace RoyalCode.SmartCommands.Demo.Commands;
+namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
 
 public interface ICriarProdutoHandler
 {

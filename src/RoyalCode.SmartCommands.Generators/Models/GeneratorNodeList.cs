@@ -6,6 +6,8 @@ public class GeneratorNodeList : GeneratorNode
 {
     private List<GeneratorNode>? nodes;
 
+    public bool InLine { get; set; }
+
     public void Add(GeneratorNode generator)
     {
         nodes ??= [];
@@ -19,9 +21,22 @@ public class GeneratorNodeList : GeneratorNode
         if (nodes is null)
             return;
 
+        bool first = true;
+
         foreach (var node in nodes)
         {
-            node.Write(sb, ident);
+            if (InLine)
+            {
+                if (!first)
+                    sb.Append(" ");
+                first = false;
+
+                node.Write(sb, 0);
+            }
+            else
+            {
+                node.Write(sb, ident);
+            }
         }
     }
 }

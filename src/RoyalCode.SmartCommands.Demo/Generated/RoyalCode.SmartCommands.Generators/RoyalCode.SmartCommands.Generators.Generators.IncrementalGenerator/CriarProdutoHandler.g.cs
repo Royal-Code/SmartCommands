@@ -1,10 +1,10 @@
 ﻿using RoyalCode.SmartCommands;
-using RoyalCode.SmartCommands.Demo.Commands;
+using RoyalCode.SmartCommands.Demo.Commands.Produtos;
 using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext.Abstractions;
 
-namespace RoyalCode.SmartCommands.Demo.Commands.Internals;
+namespace RoyalCode.SmartCommands.Demo.Commands.Produtos.Internals;
 
 public class CriarProdutoHandler : ICriarProdutoHandler
 {
@@ -22,7 +22,7 @@ public class CriarProdutoHandler : ICriarProdutoHandler
 
         await this.accessor.BeginAsync(ct);
 
-        var commandResult = command.ExecuteAsync();
+        var commandResult = command.Execute();
 
         await this.accessor.AddEntityAsync(commandResult, ct);
 

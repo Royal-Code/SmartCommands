@@ -18,6 +18,13 @@ public class Review : Entity<int>
         Comments = new List<Comment>();
     }
 
+#nullable disable
+    /// <summary>
+    /// Deserialization constructor for Entity Framework.
+    /// </summary>
+    public Review() { }
+#nullable enable
+
     public virtual Movie Movie { get; set; }
     public string Content { get; set; }
     public int Rating { get; set; } // Nota entre 1 e 5, por exemplo

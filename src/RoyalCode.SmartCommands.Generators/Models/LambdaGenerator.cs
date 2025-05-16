@@ -14,6 +14,8 @@ public class LambdaGenerator : GeneratorNode
 
     public bool Block { get; set; }
 
+    public bool InLine { get; set; }
+
     public override void Write(StringBuilder sb, int ident = 0)
     {
         if (Async)
@@ -31,10 +33,20 @@ public class LambdaGenerator : GeneratorNode
 
         if (Block)
         {
-            sb.AppendLine();
-            sb.Ident(ident).AppendLine("{");
-            commands.Write(sb, ident + 1);
-            sb.Ident(ident).AppendLine("}");
+            if (InLine)
+            {
+                sb.Append("{ ");
+                commands.InLine = true;
+                commands.Write(sb);
+                sb.Append(" }");
+            }
+            else
+            {
+                sb.AppendLine();
+                sb.Ident(ident).AppendLine("{");
+                commands.Write(sb, ident + 1);
+                sb.Ident(ident).AppendLine("}");
+            }
         }
         else
         {

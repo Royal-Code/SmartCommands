@@ -15,6 +15,8 @@ public sealed class Command : GeneratorNode
 
     public bool NewLine { get; set; } = true;
 
+    public bool InLine { get; set; }
+
     public override void Write(StringBuilder sb, int ident = 0)
     {
         sb.Ident(ident);
@@ -24,9 +26,15 @@ public sealed class Command : GeneratorNode
 
         generatorNode.Write(sb, ident);
 
-        sb.AppendLine(";");
-
-        if (NewLine)
-            sb.AppendLine();
+        if (InLine)
+        {
+            sb.Append(";");
+        }
+        else
+        {
+            sb.AppendLine(";");
+            if (NewLine)
+                sb.AppendLine();
+        }
     }
 }

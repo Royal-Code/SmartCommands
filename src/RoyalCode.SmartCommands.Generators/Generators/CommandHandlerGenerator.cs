@@ -803,11 +803,47 @@ public static class CommandHandlerGenerator
         if (i.HasWithDecorators)
         {
             var lambda = new LambdaGenerator();
-            if (i.MethodIsAsync)
+            
+            if (i.MethodReturnType.IsVoid)
+            {
+                lambda.InLine = true;
+                lambda.Block = true;
+
+                lambda.Commands.Add(new Command(final) { InLine = true});
+
+                var lambdaReturn = new ReturnCommand(
+                    new MethodInvokeGenerator("Task", "FromResult",
+                        new MethodInvokeGenerator("Result", "Ok")))
+                {
+                    AppendLine = false
+                };
+
+                lambda.Commands.Add(lambdaReturn);
+            }
+            else if (i.MethodReturnType.IsVoidTask)
+            {
+                lambda.InLine = true;
+                lambda.Block = true;
                 lambda.Async = true;
-            else if (i.HandlerMustBeAsync)
-                final = new MethodInvokeGenerator("Task", "FromResult", final);
-            lambda.Commands.Add(final);
+
+                lambda.Commands.Add(new Command(final) { InLine = true, Await = true });
+
+                var lambdaReturn = new ReturnCommand(
+                        new MethodInvokeGenerator("Result", "Ok"))
+                {
+                    AppendLine = false
+                };
+
+                lambda.Commands.Add(lambdaReturn);
+            }
+            else
+            {
+                if (i.MethodIsAsync)
+                    lambda.Async = true;
+                else if (i.HandlerMustBeAsync)
+                    final = new MethodInvokeGenerator("Task", "FromResult", final);
+                lambda.Commands.Add(final);
+            }
 
             var newMediator = new MediatorCreateCommand(
                 DecoratorsMediatorVarName,
@@ -833,7 +869,13 @@ public static class CommandHandlerGenerator
             var produceNewEntity = i.ProduceNewEntityType is not null;
 
             final = new CompleteUnitOfWorkCommand(
-                final, isInvokeAsync, i.MethodReturnType, AccessorVarName, CommandResultVarName, produceNewEntity);
+                final, 
+                isInvokeAsync, 
+                i.MethodReturnType,
+                AccessorVarName, 
+                CommandResultVarName, 
+                produceNewEntity,
+                i.HasWithDecorators);
 
             useReturn = false;
         }
