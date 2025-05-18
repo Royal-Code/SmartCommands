@@ -141,4 +141,12 @@ internal static class CmdDiagnostics
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidFindType = new(
+        id: "RCCMD017",
+        title: "Invalid Find type",
+        messageFormat: "Invalid use of MapFindAttribute: {0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }
