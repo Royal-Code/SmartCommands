@@ -26,8 +26,8 @@ public static partial class MapProdutosApi
 
     [ProduceProblems(ProblemCategory.InvalidParameter)]
     private static async Task<CreatedMatch<CriarProdutoResponse>> CriarProdutoHandleAsync(
-        ICriarProdutoHandler handler,
-        CriarProduto command,
+        ICriarProdutoHandler handler, 
+        CriarProduto command, 
         CancellationToken ct)
     {
         var result = await handler.HandleAsync(command, ct);

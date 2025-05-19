@@ -144,9 +144,9 @@ namespace Tests.Scenarios.Is;
 
 public partial class CreateSomeResponse(int id, string name)
 {
-    int Id { get; } = id;
+    public int Id { get; } = id;
 
-    string Name { get; } = name;
+    public string Name { get; } = name;
 }
 
 """;
