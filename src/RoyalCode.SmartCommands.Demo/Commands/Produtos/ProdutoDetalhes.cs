@@ -1,5 +1,4 @@
 ﻿using RoyalCode.SmartCommands.Tests.Models;
-using System.Collections;
 using System.Linq.Expressions;
 
 namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
