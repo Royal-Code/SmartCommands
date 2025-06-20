@@ -1,5 +1,4 @@
 ﻿using Microsoft.CodeAnalysis;
-using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 

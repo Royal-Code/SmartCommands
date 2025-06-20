@@ -1,9 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using RoyalCode.SmartCommands.Generators.Models;
-using RoyalCode.SmartCommands.Generators.Models.Commands;
-using RoyalCode.SmartCommands.Generators.Models.Descriptors;
+using RoyalCode.SmartCommands.Generators.Commands;
 using System.Reflection;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
@@ -79,7 +77,7 @@ public static class CommandHandlerGenerator
         List<string> produceProblems = [];
 
         // verifica se existe problemas no método da do comando
-        if (method.TryGetAttribute(ProduceProblemsAttributeName, out var produceProblemsAttr))
+        if (method.TryGetAttribute(ProduceProblemsAttributeName, out AttributeSyntax? produceProblemsAttr))
         {
             // se tem o attribute, extrai os parâmetros
             var problemsProduced = produceProblemsAttr!.ArgumentList?.Arguments.Select(a => a.Expression.ToString());
@@ -91,7 +89,7 @@ public static class CommandHandlerGenerator
 
         // Verifica se o método possui o atributo WithValidateModel
         // Se tiver, busca pelo método na classe e já valida se está dentro do padrão
-        var hasWithValidateModel = method.TryGetAttribute(WithValidateModelAttributeName, out var withValidateModelAttr);
+        var hasWithValidateModel = method.TryGetAttribute(WithValidateModelAttributeName, out AttributeSyntax? withValidateModelAttr);
         if (withValidateModelAttr is not null
             && !classDeclaration.ValidateClassWithHasProblemsMethod(
                 withValidateModelAttr,
@@ -135,7 +133,7 @@ public static class CommandHandlerGenerator
 
         // verifica se tem o attribute WithUnitOfWork
         TypeDescriptor? accessorType = null;
-        var hasUow = method.TryGetAttribute(WithUnitOfWorkAttributeName, out var withUowAttr);
+        var hasUow = method.TryGetAttribute(WithUnitOfWorkAttributeName, out AttributeSyntax? withUowAttr);
         if (hasUow)
         {
             // se tem uow, extrai o tipo do contexto
@@ -147,7 +145,7 @@ public static class CommandHandlerGenerator
         var hasFindEntities = false;
         if (!hasUow)
         {
-            hasFindEntities = method.TryGetAttribute(WithFindEntitiesAttributeName, out var withFindEntitiesAttr);
+            hasFindEntities = method.TryGetAttribute(WithFindEntitiesAttributeName, out AttributeSyntax? withFindEntitiesAttr);
             if (hasFindEntities)
             {
                 // se tem with find entities, extrai o tipo do contexto
@@ -170,7 +168,7 @@ public static class CommandHandlerGenerator
 
         // verifica se edita uma entidade existente
         EditTypeDescriptor? editType = null;
-        var hasEditEntity = method.TryGetAttribute(EditEntityAttributeName, out var editEntityAttr);
+        var hasEditEntity = method.TryGetAttribute(EditEntityAttributeName, out AttributeSyntax? editEntityAttr);
         if (hasEditEntity)
         {
             // editar entidade requer uow
@@ -463,7 +461,7 @@ public static class CommandHandlerGenerator
         TypeDescriptor? idResultValueType = null;
         MapResponseValuesInformation? responseValues = null;
 
-        if (classDeclaration.TryGetAttribute(MapPostAttributeName, out var attr))
+        if (classDeclaration.TryGetAttribute(MapPostAttributeName, out AttributeSyntax? attr))
         {
             httpMethod = "Post";
         }
@@ -495,15 +493,15 @@ public static class CommandHandlerGenerator
             return null;
 
         // tenta obter a descrição também
-        if (classDeclaration.TryGetAttribute("Description", out var descAttr) && descAttr!.ArgumentList?.Arguments.Count is 1)
+        if (classDeclaration.TryGetAttribute("Description", out AttributeSyntax? descAttr) && descAttr!.ArgumentList?.Arguments.Count is 1)
             description = descAttr.ArgumentList.Arguments[0].Expression.ToString();
 
         // tenta obter o MapGroup attribute
-        if (classDeclaration.TryGetAttribute(MapGroupAttributeName, out var groupAttr) && groupAttr!.ArgumentList?.Arguments.Count is 1)
+        if (classDeclaration.TryGetAttribute(MapGroupAttributeName, out AttributeSyntax? groupAttr) && groupAttr!.ArgumentList?.Arguments.Count is 1)
             groupName = groupAttr.ArgumentList.Arguments[0].Expression.ToString().RemoveQuotes();
 
         // tenta obter MapCreatedRoute
-        if (classDeclaration.TryGetAttribute(MapCreatedRouteAttributeName, out var createdRouteAttr))
+        if (classDeclaration.TryGetAttribute(MapCreatedRouteAttributeName, out AttributeSyntax? createdRouteAttr))
         {
             var arguments = createdRouteAttr!.ArgumentList?.Arguments;
             if (arguments is not null && arguments.Value.Count > 0)
@@ -531,7 +529,7 @@ public static class CommandHandlerGenerator
 
             if (idProperty is not null)
             {
-                idResultValueType = TypeDescriptor.Create(idProperty.Type, semanticModel);
+                idResultValueType = TypeDescriptor.Create(idProperty.Type);
             }
             else
             {
@@ -543,7 +541,7 @@ public static class CommandHandlerGenerator
         }
 
         // tenta obter MapResponseValues e seus parâmetros
-        if (classDeclaration.TryGetAttribute(MapResponseValuesAttributeName, out var resultValueAttr))
+        if (classDeclaration.TryGetAttribute(MapResponseValuesAttributeName, out AttributeSyntax? resultValueAttr))
         {
             var arguments = resultValueAttr!.ArgumentList?.Arguments;
             if (arguments is not null && arguments.Value.Count > 0)
@@ -584,7 +582,7 @@ public static class CommandHandlerGenerator
                             else
                             {
                                 // cria o PropertyDescription, quando existir a propriedade
-                                return PropertyDescriptor.Create(property, semanticModel);
+                                return PropertyDescriptor.Create(property);
                             }
                         })
                         .Where(p => p is not null)
@@ -613,7 +611,7 @@ public static class CommandHandlerGenerator
         // cria interface do handler
         var interfaceGen = new ClassGenerator(i.HandlerInterfaceName, i.Namespace, "interface");
         interfaceGen.Modifiers.Public();
-        interfaceGen.Usings.AddNamespaces(i.HandlerReturnType.Namespaces);
+        //interfaceGen.Usings.AddNamespaces(i.HandlerReturnType.Namespaces);
 
         // cria o method para a interface
         var handlerMethodDef = new MethodGenerator(i.HandlerMustBeAsync ? "HandleAsync" : "Handle", i.HandlerReturnType)
@@ -637,8 +635,7 @@ public static class CommandHandlerGenerator
         // cria classe que implementa o handler
         var handlerGen = new ClassGenerator(i.HandlerImplementationName, $"{i.Namespace}.Internals");
         handlerGen.Modifiers.Public();
-        handlerGen.Hierarchy.AddImplements(i.HandlerInterfaceName);
-        handlerGen.Usings.AddNamespace(i.Namespace);
+        handlerGen.Hierarchy.AddImplements(new TypeDescriptor(i.HandlerInterfaceName, [i.Namespace]));
 
         // cria os campos e o construtor
         var ctorGen = new ConstructorGenerator(i.HandlerImplementationName);
@@ -655,8 +652,6 @@ public static class CommandHandlerGenerator
             ctorGen.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(uowType, AccessorVarName)));
             // adiciona comando de atribuição
             ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(AccessorVarName));
-            // adiciona os namespaces
-            handlerGen.Usings.AddNamespaces(uowType);
         }
         if (i.HasWithFindEntities)
         {
@@ -670,8 +665,6 @@ public static class CommandHandlerGenerator
             ctorGen.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(repoType, AccessorVarName)));
             // adiciona comando de atribuição
             ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(AccessorVarName));
-            // adiciona os namespaces
-            handlerGen.Usings.AddNamespaces(repoType);
         }
         if (i.HasWithDecorators)
         {
@@ -685,8 +678,6 @@ public static class CommandHandlerGenerator
             ctorGen.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(decoratorsType, DecoratorsVarName)));
             // adiciona comando de atribuição
             ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(DecoratorsVarName));
-            // adiciona os namespaces
-            handlerGen.Usings.AddNamespaces(decoratorsType);
         }
 
         // para cada parâmetro do método do comando, valida se é necessário adicionar como campo do construtor.
@@ -695,9 +686,6 @@ public static class CommandHandlerGenerator
             // não requer ct
             if (p.Type.IsCancellationToken)
                 continue;
-
-            // adiciona os namespaces
-            handlerGen.Usings.AddNamespaces(p);
 
             // se for uma entidade, não deve recebê-la no construtor.
             if (p.Type.IsEntity || p.Type.IsCollectionOfEntities)
@@ -900,20 +888,18 @@ public static class CommandHandlerGenerator
         };
         partialClass.Modifiers.Public();
         partialClass.Modifiers.Partial();
-        partialClass.Usings.AddNamespace("System.Runtime.CompilerServices");
-        partialClass.Usings.AddNamespace("System.Diagnostics.CodeAnalysis");
 
-        var method = new MethodGenerator("WasValidated", TypeDescriptor.Void);
+        var method = new MethodGenerator("WasValidated", TypeDescriptor.Void());
         method.Modifiers.Internal();
         method.Modifiers.Protected();
-        method.Attributes.Add(new AttributeGenerator("MethodImpl", "MethodImplOptions.AggressiveInlining"));
+        method.Attributes.Add(new AttributeGenerator("MethodImpl", "MethodImplOptions.AggressiveInlining", ["System.Runtime.CompilerServices"]));
         partialClass.Methods.Add(method);
 
         // para cada atributo MemberNotNullWhen
         // criar um atributo MemberNotNull no método WasValidated
         foreach (var member in i.NotNullProperties)
         {
-            method.Attributes.Add(new AttributeGenerator("MemberNotNull", member));
+            method.Attributes.Add(new AttributeGenerator("MemberNotNull", member, ["System.Diagnostics.CodeAnalysis"]));
         }
 
         partialClass.Generating += (_, builder) =>
@@ -942,6 +928,6 @@ public static class CommandHandlerGenerator
 
         // cancellation token, quando necessário (async)
         if (commandInfo.HandlerMustBeAsync)
-            method.Parameters.Add(new ParameterGenerator(ParameterDescriptor.CancellationToken));
+            method.Parameters.Add(new ParameterGenerator(ParameterDescriptor.CancellationToken()));
     }
 }

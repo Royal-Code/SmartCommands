@@ -2,9 +2,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using RoyalCode.SmartCommands.Generators.Models;
-using RoyalCode.SmartCommands.Generators.Models.Commands;
-using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
@@ -97,7 +94,6 @@ public static class MapApiHandlersGenerator
                 // Cria o método do Handler.
                 var handlerMethod = GenerateHandlerMethod(mapInfo, commandInfo, handlerMethodName);
                 classGenerator.Methods.Add(handlerMethod);
-                handlerMethod.AddUsings(classGenerator.Usings);
 
                 // se há ResponseValues, então cria a classe de resposta
                 if (mapInfo.ResponseValues is not null)
@@ -153,10 +149,8 @@ public static class MapApiHandlersGenerator
             // deverá gerar algo como: [ProduceProblems(ProblemCategory.InvalidParameter)] onde
             // cada valor será ProblemCategory.InvalidParameter, segundo o exemplo.
             var attrArguments = commandInfo.ProduceProblems.Select(ValueNode (p) => new StringValueNode(p)).ToArray();
-            var attribute = new AttributeGenerator("ProduceProblems", attrArguments);
+            var attribute = new AttributeGenerator("ProduceProblems", ["RoyalCode.SmartProblems"], attrArguments);
             method.Attributes.Add(attribute);
-            // adiciona o namespace
-            method.Usings.Add("RoyalCode.SmartProblems");
         }
 
         // adiciona os parâmetros
@@ -202,7 +196,6 @@ public static class MapApiHandlersGenerator
                 resultVarName);
             var returnCommand = new ReturnCommand(createdInvoke);
             method.Commands.Add(returnCommand);
-            method.Usings.Add("RoyalCode.SmartProblems");
         }
         // senão, verifica se mapeia o Id
         else if (mapInfo.MapIdResultValue)
@@ -210,7 +203,6 @@ public static class MapApiHandlersGenerator
             var mapInvoke = GenerateMapIdInvoke(resultVarName);
             var returnCommand = new ReturnCommand(mapInvoke);
             method.Commands.Add(returnCommand);
-            method.Usings.Add("RoyalCode.SmartProblems");
         }
         // senão, verifica se tem MapResponseValues
         else if (mapInfo.ResponseValues is not null)
@@ -222,7 +214,6 @@ public static class MapApiHandlersGenerator
 
             var returnCommand = new ReturnCommand(mapInvoke);
             method.Commands.Add(returnCommand);
-            method.Usings.Add("RoyalCode.SmartProblems");
         }
         // senão, retorna o resultado
         else
@@ -424,7 +415,6 @@ public static class MapApiHandlersGenerator
             });
 
         classGenerator.Methods.Add(mapMethod);
-        mapMethod.AddUsings(classGenerator.Usings);
 
         return (classGenerator, mapMethod);
     }

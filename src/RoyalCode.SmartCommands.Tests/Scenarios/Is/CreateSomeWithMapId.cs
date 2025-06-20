@@ -100,7 +100,6 @@ public static partial class VaultApis { }
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.HttpResults;
 
 namespace Tests.Scenarios.Is;

@@ -1,7 +1,6 @@
 using System.Text;
-using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
-namespace RoyalCode.SmartCommands.Generators.Models.Commands;
+namespace RoyalCode.SmartCommands.Generators.Commands;
 
 public class CompleteUnitOfWorkCommand : GeneratorNode
 {

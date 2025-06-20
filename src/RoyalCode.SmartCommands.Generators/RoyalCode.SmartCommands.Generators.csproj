@@ -21,8 +21,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />
-		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
+		<PackageReference Include="RoyalCode.Extensions.SourceGenerator" Version="0.1.0" />
 	</ItemGroup>
 
 	<Target BeforeTargets="Build" Name="Generator">
@@ -30,11 +31,24 @@
 		<ItemGroup>
 			<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 			<Analyzer Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
+			<None Include="$(NuGetPackageRoot)royalcode.extensions.sourcegenerator\0.1.0\lib\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll"
+				  Pack="true"
+				  PackagePath="analyzers/dotnet/cs"
+				  Visible="false" />
 		</ItemGroup>
 	</Target>
 
 	<ItemGroup>
 		<!-- Package items -->
 		<None Include="RoyalCode.SmartCommands.Generators.props" Pack="true" PackagePath="build" Visible="false" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="RoyalCode.Extensions.SourceGenerator" />
+		<Using Include="RoyalCode.Extensions.SourceGenerator.Generators" />
+		<Using Include="RoyalCode.Extensions.SourceGenerator.Generators.Commands" />
+		<Using Include="RoyalCode.Extensions.SourceGenerator.Descriptors" />
+		<Using Include="RoyalCode.Extensions.SourceGenerator.Descriptors.Assignments" />
+		<Using Include="RoyalCode.Extensions.SourceGenerator.Descriptors.PropertySelection" />
 	</ItemGroup>
 </Project>

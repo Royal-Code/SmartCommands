@@ -15,15 +15,21 @@
 		<PackageReference Include="RoyalCode.SmartProblems.ApiResults" Version="$(SmartProblemsVer)" />
 		<PackageReference Include="RoyalCode.SmartProblems.Http" Version="$(SmartProblemsVer)" />
 		<PackageReference Include="RoyalCode.WorkContext.EntityFramework" Version="$(WorkContextVer)" />
+		<PackageReference Include="RoyalCode.Extensions.SourceGenerator" Version="0.1.0" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\RoyalCode.SmartCommands.Tests.Models\RoyalCode.SmartCommands.Tests.Models.csproj" />
 		<ProjectReference Include="..\RoyalCode.SmartCommands.WorkContext\RoyalCode.SmartCommands.WorkContext.csproj" />
 		<ProjectReference Include="..\RoyalCode.SmartCommands\RoyalCode.SmartCommands.csproj" />
-		<ProjectReference Include="..\RoyalCode.SmartCommands.Generators\RoyalCode.SmartCommands.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+		<ProjectReference Include="..\RoyalCode.SmartCommands.Generators\RoyalCode.SmartCommands.Generators.csproj" 
+						  OutputItemType="Analyzer" 
+						  ReferenceOutputAssembly="false" />
 	</ItemGroup>
-
+	<ItemGroup>
+		<Analyzer Include="$(NuGetPackageRoot)royalcode.extensions.sourcegenerator\0.1.0\lib\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll" />
+	</ItemGroup>
+	
 	<PropertyGroup>
 		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
 		<CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>

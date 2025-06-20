@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace RoyalCode.SmartCommands.Generators.Models.Commands;
+namespace RoyalCode.SmartCommands.Generators.Commands;
 
 #pragma warning disable S4035 // IEquatable
 #pragma warning disable S2328 // GetHashCode

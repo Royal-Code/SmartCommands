@@ -1,6 +1,4 @@
 ﻿
-using RoyalCode.SmartCommands.Generators.Models.Descriptors;
-
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
 public sealed class MapInformation : IEquatable<MapInformation>

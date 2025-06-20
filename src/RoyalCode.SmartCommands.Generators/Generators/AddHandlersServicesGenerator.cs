@@ -1,9 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using RoyalCode.SmartCommands.Generators.Models;
-using RoyalCode.SmartCommands.Generators.Models.Commands;
-using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
@@ -39,7 +36,7 @@ public static class AddHandlersServicesGenerator
             errors.Add(diagnostic);
         }
 
-        if (!classSyntax.TryGetAttribute("AddHandlersServices", out var attr)
+        if (!classSyntax.TryGetAttribute("AddHandlersServices", out AttributeSyntax? attr)
             || attr?.ArgumentList?.Arguments.Count is not 1)
         {
             var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
@@ -77,7 +74,7 @@ public static class AddHandlersServicesGenerator
         classGenerator.Modifiers.Static();
         classGenerator.Modifiers.Partial();
 
-        var method = new MethodGenerator($"Add{left.Title}HandlersServices", TypeDescriptor.Void);
+        var method = new MethodGenerator($"Add{left.Title}HandlersServices", TypeDescriptor.Void());
         method.Modifiers.Public();
         method.Modifiers.Static();
         method.Parameters.Add(
@@ -92,12 +89,9 @@ public static class AddHandlersServicesGenerator
         foreach (var std in right)
         {
             method.Commands.Add(new AddServiceCommand(std, "services"));
-            classGenerator.Usings.AddNamespaces(std.HandlerType);
-            classGenerator.Usings.AddNamespaces(std.InterfaceType);
         }
 
         classGenerator.Methods.Add(method);
-        classGenerator.Usings.AddNamespaces(method);
 
         classGenerator.FileName = $"{left.ClassType.Name}_AddHandlersServices.g.cs";
         classGenerator.Generate(spc);

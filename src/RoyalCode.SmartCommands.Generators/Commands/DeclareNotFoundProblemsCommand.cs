@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace RoyalCode.SmartCommands.Generators.Models.Commands;
+namespace RoyalCode.SmartCommands.Generators.Commands;
 
 public class DeclareNotFoundProblemsCommand : GeneratorNode
 {

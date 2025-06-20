@@ -1,6 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
@@ -22,7 +21,7 @@ public static class FindGenerator
         var classDeclaration = (ClassDeclarationSyntax)context.TargetNode;
 
         // lê o atributo MapFindAttribute
-        if (!classDeclaration.TryGetAttribute(MapFindAttributeName, out var mapFindAttribute))
+        if (!classDeclaration.TryGetAttribute(MapFindAttributeName, out AttributeSyntax? mapFindAttribute))
         {
             var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
                 location: classDeclaration.Identifier.GetLocation(),
@@ -39,11 +38,11 @@ public static class FindGenerator
         string? groupName = null;
 
         // tenta obter a descrição também
-        if (classDeclaration.TryGetAttribute(DescriptionAttributeName, out var descAttr) && descAttr!.ArgumentList?.Arguments.Count is 1)
+        if (classDeclaration.TryGetAttribute(DescriptionAttributeName, out AttributeSyntax? descAttr) && descAttr!.ArgumentList?.Arguments.Count is 1)
             description = descAttr.ArgumentList.Arguments[0].Expression.ToString();
 
         // tenta obter o MapGroup attribute
-        if (classDeclaration.TryGetAttribute(MapGroupAttributeName, out var groupAttr) && groupAttr!.ArgumentList?.Arguments.Count is 1)
+        if (classDeclaration.TryGetAttribute(MapGroupAttributeName, out AttributeSyntax? groupAttr) && groupAttr!.ArgumentList?.Arguments.Count is 1)
             groupName = groupAttr.ArgumentList.Arguments[0].Expression.ToString().RemoveQuotes();
 
         // extrai o tipo da entidade buscada

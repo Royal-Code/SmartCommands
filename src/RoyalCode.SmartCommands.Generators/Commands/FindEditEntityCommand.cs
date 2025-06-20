@@ -1,25 +1,18 @@
 ﻿using System.Text;
-using RoyalCode.SmartCommands.Generators.Models.Descriptors;
 
-namespace RoyalCode.SmartCommands.Generators.Models.Commands;
+namespace RoyalCode.SmartCommands.Generators.Commands;
 
-public class FindEntityCommand : GeneratorNode
+public class FindEditEntityCommand : GeneratorNode
 {
-    private readonly ParameterDescriptor parameter;
-    private readonly PropertyDescriptor property;
+    private readonly EditTypeDescriptor descriptor;
     private readonly string accessorVarName;
-    private readonly string modelVarName;
 
-    public FindEntityCommand(
-        ParameterDescriptor parameter, 
-        PropertyDescriptor property, 
-        string accessorVarName,
-        string modelVarName)
+    public FindEditEntityCommand(
+        EditTypeDescriptor descriptor, 
+        string accessorVarName)
     {
-        this.parameter = parameter;
-        this.property = property;
+        this.descriptor = descriptor;
         this.accessorVarName = accessorVarName;
-        this.modelVarName = modelVarName;
     }
 
     /// <summary>
@@ -35,19 +28,20 @@ public class FindEntityCommand : GeneratorNode
     public override void Write(StringBuilder sb, int ident = 0)
     {
         bool entityVarDeclared = false;
+        var idParamName = $"{descriptor.Parameter.Name}Id";
 
         // quando a propriedade do comando pode ser nula,
         // deve ser feito um if para verificar se se deve executar o find.
-        if (property.Type.MayBeNull)
+        if (descriptor.IdType.MayBeNull)
         {
             // a variável do parâmetro deve ser declarada antes do if
             sb.Ident(ident);
-            sb.Append(parameter.Type.Name).Append(' ').Append(parameter.Name).Append(" = null;").AppendLine();
+            sb.Append(descriptor.Parameter.Name).Append(' ').Append(descriptor.Parameter.Name).Append(" = null;").AppendLine();
             entityVarDeclared = true;
 
             // declaração do if
             sb.Ident(ident);
-            sb.Append("if (").Append(modelVarName).Append('.').Append(property.Name).Append(" is not null)").AppendLine();
+            sb.Append("if (").Append(idParamName).Append(" is not null)").AppendLine();
             sb.Ident(ident);
             sb.AppendLine("{");
 
@@ -55,20 +49,20 @@ public class FindEntityCommand : GeneratorNode
         }
 
         sb.Ident(ident);
-        sb.Append("var ").Append(parameter.Name).Append("Entry = ")
+        sb.Append("var ").Append(descriptor.Parameter.Name).Append("Entry = ")
             .Append("await this.").Append(accessorVarName).Append(".FindEntityAsync<")
-            .Append(parameter.Type.UnderlyingType).Append(", ")
-            .Append(property.Type.UnderlyingType).Append(">(")
-            .Append(modelVarName).Append('.').Append(property.Name);
+            .Append(descriptor.Parameter.Type.UnderlyingType).Append(", ")
+            .Append(descriptor.IdType.UnderlyingType).Append(">(")
+            .Append(idParamName);
 
-        if (property.Type.IsNullable)
+        if (descriptor.IdType.IsNullable)
             sb.Append(".Value");
 
         sb.Append(", ct);")
             .AppendLine();
 
         sb.Ident(ident);
-        sb.Append("if (").Append(parameter.Name).Append("Entry.NotFound(out notFoundProblem))").AppendLine();
+        sb.Append("if (").Append(descriptor.Parameter.Name).Append("Entry.NotFound(out notFoundProblem))").AppendLine();
 
         sb.IdentPlus(ident);
         sb.AppendLine("return notFoundProblem;");
@@ -76,9 +70,9 @@ public class FindEntityCommand : GeneratorNode
         sb.Ident(ident);
         if (!entityVarDeclared)
             sb.Append("var ");
-        sb.Append(parameter.Name).Append(" = ").Append(parameter.Name).AppendLine("Entry.Entity;");
+        sb.Append(descriptor.Parameter.Name).Append(" = ").Append(descriptor.Parameter.Name).AppendLine("Entry.Entity;");
 
-        if (property.Type.MayBeNull)
+        if (descriptor.IdType.MayBeNull)
         {
             ident--;
             sb.Ident(ident);
