@@ -2,7 +2,7 @@
 
 namespace RoyalCode.SmartCommands.Generators.Commands;
 
-public class FindEntityCommand : GeneratorNode
+public class FindEntityCommand : GeneratorNode, IWithNamespaces
 {
     private readonly ParameterDescriptor parameter;
     private readonly PropertyDescriptor property;
@@ -19,6 +19,14 @@ public class FindEntityCommand : GeneratorNode
         this.property = property;
         this.accessorVarName = accessorVarName;
         this.modelVarName = modelVarName;
+    }
+
+    public IEnumerable<string> GetNamespaces()
+    {
+        foreach (var ns in parameter.Type.Namespaces)
+            yield return ns;
+        foreach (var ns in property.Type.Namespaces)
+            yield return ns;
     }
 
     /// <summary>

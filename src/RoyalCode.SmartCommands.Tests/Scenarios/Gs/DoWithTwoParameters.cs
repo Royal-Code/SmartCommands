@@ -51,19 +51,33 @@ using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
-namespace Tests.Scenarios.Gs;
-
-public class DoWithTwoParameters
+namespace Tests.Scenarios.Gs
 {
-    public int Value { get; set; }
+    using Tests.Scenarios.Gs.Models;
 
-    [Command, EditEntity<Some, int>, WithUnitOfWork<AppDbContext>]
-    internal Result<int> Plus(Some some, [WithParameter] int other, [WithParameter] int another)
+    public class DoWithTwoParameters
     {
-        some.Value += Value + other + another;
-        return some.Value;
+        public int Value { get; set; }
+
+        [Command, EditEntity<Some, int>, WithUnitOfWork<AppDbContext>]
+        internal Result<int> Plus(Some some, [WithParameter] int other, [WithParameter] int another)
+        {
+            some.Value += Value + other + another;
+            return some.Value;
+        }
+    }
+
+}
+
+namespace Tests.Scenarios.Gs.Models
+{
+    public class Some
+    {
+        public int Id { get; set; }
+        public int Value { get; set; }
     }
 }
+
 """;
 
     public const string Interface =
@@ -84,6 +98,7 @@ public interface IDoWithTwoParametersHandler
 using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using Tests.Scenarios.Gs;
+using Tests.Scenarios.Gs.Models;
 
 namespace Tests.Scenarios.Gs.Internals;
 

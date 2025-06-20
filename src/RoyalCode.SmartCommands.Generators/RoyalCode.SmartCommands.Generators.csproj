@@ -23,7 +23,13 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
-		<PackageReference Include="RoyalCode.Extensions.SourceGenerator" Version="0.1.0" />
+	</ItemGroup>
+		
+	<ItemGroup>
+		<!-- Package Reference - FOR PUBLISH -->
+		<!--<PackageReference Include="RoyalCode.Extensions.SourceGenerator" Version="0.1.0" />-->
+		<!-- Project Reference - FOR TESTS - SMART MAPPER -->
+		<ProjectReference Include="..\..\..\utils\RoyalCode.Utils\RoyalCode.Extensions.SourceGenerator\RoyalCode.Extensions.SourceGenerator.csproj" />
 	</ItemGroup>
 
 	<Target BeforeTargets="Build" Name="Generator">
@@ -31,10 +37,7 @@
 		<ItemGroup>
 			<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 			<Analyzer Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
-			<None Include="$(NuGetPackageRoot)royalcode.extensions.sourcegenerator\0.1.0\lib\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll"
-				  Pack="true"
-				  PackagePath="analyzers/dotnet/cs"
-				  Visible="false" />
+			<None Include="$(NuGetPackageRoot)royalcode.extensions.sourcegenerator\0.1.0\lib\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 		</ItemGroup>
 	</Target>
 

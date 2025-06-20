@@ -1,5 +1,6 @@
 ﻿using RoyalCode.SmartCommands;
 using RoyalCode.SmartCommands.Demo.Commands.Produtos;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext.Abstractions;
 

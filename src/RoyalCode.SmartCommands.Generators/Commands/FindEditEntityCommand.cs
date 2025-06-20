@@ -2,7 +2,7 @@
 
 namespace RoyalCode.SmartCommands.Generators.Commands;
 
-public class FindEditEntityCommand : GeneratorNode
+public class FindEditEntityCommand : GeneratorNode, IWithNamespaces
 {
     private readonly EditTypeDescriptor descriptor;
     private readonly string accessorVarName;
@@ -13,6 +13,15 @@ public class FindEditEntityCommand : GeneratorNode
     {
         this.descriptor = descriptor;
         this.accessorVarName = accessorVarName;
+    }
+
+    public IEnumerable<string> GetNamespaces()
+    {
+        if (descriptor.Parameter is not null)
+            foreach (var ns in descriptor.Parameter.Type.Namespaces)
+                yield return ns;
+        foreach (var ns in descriptor.IdType.Namespaces)
+            yield return ns;
     }
 
     /// <summary>

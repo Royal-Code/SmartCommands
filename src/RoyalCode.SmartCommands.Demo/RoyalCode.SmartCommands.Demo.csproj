@@ -15,7 +15,6 @@
 		<PackageReference Include="RoyalCode.SmartProblems.ApiResults" Version="$(SmartProblemsVer)" />
 		<PackageReference Include="RoyalCode.SmartProblems.Http" Version="$(SmartProblemsVer)" />
 		<PackageReference Include="RoyalCode.WorkContext.EntityFramework" Version="$(WorkContextVer)" />
-		<PackageReference Include="RoyalCode.Extensions.SourceGenerator" Version="0.1.0" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -26,8 +25,18 @@
 						  OutputItemType="Analyzer" 
 						  ReferenceOutputAssembly="false" />
 	</ItemGroup>
+
 	<ItemGroup>
-		<Analyzer Include="$(NuGetPackageRoot)royalcode.extensions.sourcegenerator\0.1.0\lib\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll" />
+		<!-- Package Reference - FOR PUBLISH -->
+		<!--<PackageReference Include="RoyalCode.Extensions.SourceGenerator" Version="0.1.0" ReferenceOutputAssembly="false" />-->
+		<!-- Project Reference - FOR TESTS - SMART MAPPER -->
+		<ProjectReference Include="..\..\..\utils\RoyalCode.Utils\RoyalCode.Extensions.SourceGenerator\RoyalCode.Extensions.SourceGenerator.csproj" ReferenceOutputAssembly="false" />
+	</ItemGroup>
+	<ItemGroup>
+		<!-- Package Reference - FOR PUBLISH -->
+		<!--<Analyzer Include="$(NuGetPackageRoot)royalcode.extensions.sourcegenerator\0.1.0\lib\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll" />-->
+		<!-- Project Reference - FOR TESTS - SMART MAPPER -->
+		<Analyzer Include="..\..\..\utils\RoyalCode.Utils\RoyalCode.Extensions.SourceGenerator\bin\Debug\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll" />
 	</ItemGroup>
 	
 	<PropertyGroup>
