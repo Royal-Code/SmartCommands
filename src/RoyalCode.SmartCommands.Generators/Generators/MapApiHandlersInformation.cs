@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public sealed class MapApiHandlersInformation: TransformationGeneratorBase<CommandHandlerInformation>, IEquatable<MapApiHandlersInformation>
+public sealed class MapApiHandlersInformation: TransformationGeneratorBase<IMapEndpointGenerator>, IEquatable<MapApiHandlersInformation>
 {
     public MapApiHandlersInformation(TypeDescriptor classType, List<Diagnostic>? diagnostics)
     {
@@ -34,7 +34,7 @@ public sealed class MapApiHandlersInformation: TransformationGeneratorBase<Comma
         return hashCode;
     }
 
-    protected override void Generate(SourceProductionContext spc, IEnumerable<CommandHandlerInformation> models, bool hasErrors)
+    protected override void Generate(SourceProductionContext spc, IEnumerable<IMapEndpointGenerator> models, bool hasErrors)
     {
         MapApiHandlersGenerator.Generate(spc, this, models);
     }

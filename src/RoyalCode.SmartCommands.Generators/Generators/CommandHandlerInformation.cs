@@ -48,8 +48,13 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
 
     protected override void Generate(SourceProductionContext spc, bool hasErrors)
     {
-        if (!canGenerate)
+        if (!canGenerate || hasErrors)
+        {
+            if (Errors is not null)
+                foreach (var diagnostic in Errors)
+                    spc.ReportDiagnostic(diagnostic);
             return;
+        }
 
         // cria interface do handler
         var interfaceGenerator = CommandHandlerGenerator.GenerateInterface(this);

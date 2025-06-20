@@ -24,6 +24,11 @@ public class IncrementalGenerator : IIncrementalGenerator
             predicate: MapApiHandlersGenerator.Predicate,
             transform: MapApiHandlersGenerator.TransformMapHandlers);
 
+        var pipelineFindCommands = context.SyntaxProvider.ForAttributeWithMetadataName(
+            fullyQualifiedMetadataName: FindGenerator.FindAttributeName,
+            predicate: FindGenerator.Predicate,
+            transform: FindGenerator.Transform);
+
         context.RegisterSourceOutput(pipelineCommands, static (context, model) =>
         {
             model.Generate(context);
@@ -66,9 +71,15 @@ public class IncrementalGenerator : IIncrementalGenerator
 
                 var mapInformation = models
                     .Where(m => m.MapInformation is not null)
+                    .Select(m => m.MapInformation!)
                     .ToList();
 
                 handler.Generate(context, mapInformation);
             });
+
+        context.RegisterSourceOutput(pipelineFindCommands, static (context, findInformation) =>
+        { 
+            findInformation.Generate(context);
+        });
     }
 }

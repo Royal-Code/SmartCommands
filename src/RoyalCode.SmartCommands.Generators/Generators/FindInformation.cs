@@ -2,14 +2,13 @@
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public class FindInformation : TransformationGeneratorBase, IEquatable<FindInformation>
+public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerator
 {
-    private readonly bool canGenerate;
+    private List<Diagnostic>? errors;
 
     public FindInformation(Diagnostic diagnostic)
     {
-        canGenerate = false;
-        AddError(diagnostic);
+        errors = [diagnostic];
     }
 
     public FindInformation(
@@ -20,7 +19,6 @@ public class FindInformation : TransformationGeneratorBase, IEquatable<FindInfor
         string? description,
         string? groupName)
     {
-        canGenerate = true;
         EntityType = entityType;
         ModelType = modelType;
         EndpointRoutePattern = endpointRoutePattern;
@@ -39,20 +37,37 @@ public class FindInformation : TransformationGeneratorBase, IEquatable<FindInfor
     
     public string EndpointName { get; }
 
+    public string GroupName { get; }
+
 #nullable enable
 
     public string? Description { get; }
-    public string? GroupName { get; }
-
-
-    protected override void Generate(SourceProductionContext spc, bool hasErrors)
-    {
-        throw new NotImplementedException();
-    }
+    
 
     public bool Equals(FindInformation other)
     {
-        throw new NotImplementedException();
+        if (other is null) 
+            return false;
+
+        return ReferenceEquals(this, other) || 
+               EntityType.Equals(other.EntityType) && 
+               ModelType.Equals(other.ModelType) && 
+               EndpointRoutePattern == other.EndpointRoutePattern &&
+               EndpointName == other.EndpointName &&
+               Description == other.Description &&
+               GroupName == other.GroupName &&
+               EqualErrors(other);
+    }
+
+    private bool EqualErrors(FindInformation other)
+    {
+        if (errors is null)
+            return other.errors is null;
+
+        if (other.errors is null)
+            return false;
+
+        return errors.SequenceEqual(other.errors);
     }
 
     public override bool Equals(object obj)
@@ -62,6 +77,23 @@ public class FindInformation : TransformationGeneratorBase, IEquatable<FindInfor
 
     public override int GetHashCode()
     {
-        return 0; // or implement a specific hash code algorithm
+        int hashCode = -737078483;
+        hashCode = hashCode * -1521134295 + EntityType.GetHashCode();
+        hashCode = hashCode * -1521134295 + ModelType.GetHashCode();
+        hashCode = hashCode * -1521134295 + EndpointRoutePattern.GetHashCode();
+        hashCode = hashCode * -1521134295 + EndpointName.GetHashCode();
+        hashCode = hashCode * -1521134295 + (Description?.GetHashCode() ?? 0);
+        hashCode = hashCode * -1521134295 + (GroupName?.GetHashCode() ?? 0);
+        hashCode = hashCode * -1521134295 + (errors?.GetHashCode() ?? 0);
+        return hashCode;
+    }
+
+    public void Generate(SourceProductionContext spc, GeneratorNodeList commands, GeneratorNodeList methods)
+    {
+        if (errors is not null && errors.Count > 0)
+        {
+            errors.ForEach(spc.ReportDiagnostic);
+            return;
+        }
     }
 }

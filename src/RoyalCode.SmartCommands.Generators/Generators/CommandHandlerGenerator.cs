@@ -443,6 +443,9 @@ public static class CommandHandlerGenerator
             MapInformation = mapInformation
         };
 
+        if (mapInformation is not null)
+            mapInformation.CommandInfo = info;
+
         info.SetErrors(errors);
 
         return info;

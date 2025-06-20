@@ -9,6 +9,7 @@ public class CineDbContext : DbContext
     public CineDbContext(DbContextOptions<CineDbContext> options) : base(options) { }
 
     public DbSet<Produto> Produtos { get; set; }
+    public DbSet<Loja> Lojas { get; set; }
 
     public DbSet<Movie> Movies { get; set; }
     public DbSet<Director> Directors { get; set; }

@@ -1,4 +1,5 @@
 ﻿using RoyalCode.SmartCommands.Tests.Models;
+using System.ComponentModel;
 using System.Linq.Expressions;
 
 namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
@@ -7,6 +8,7 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
 
 [MapGroup("produtos")]
 [MapFind<Produto>("{id:guid}", "Get product details")]
+[Description("Get product details by ID")]
 public partial class ProdutoDetalhes
 {
     public Guid Id { get; set; }
