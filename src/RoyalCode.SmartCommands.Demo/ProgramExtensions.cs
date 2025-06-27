@@ -39,7 +39,7 @@ public static partial class ProgramExtensions
         app.MapGroup("api").MapGroup("entity").MapGet("{id}", FindEntityAsync);
     }
 
-    private static async Task<IResult> FindEntityAsync(int id, ICineDbContext context)
+    private static async Task<IResult> FindEntityAsync(int id, CineDbContext context)
     {
         var entity = await context.FindAsync<Produto>(id);
         return entity is not null ? Results.Ok(entity) : Results.NotFound();
