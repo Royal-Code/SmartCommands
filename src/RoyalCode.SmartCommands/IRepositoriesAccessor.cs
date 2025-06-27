@@ -36,6 +36,22 @@ public interface IRepositoriesAccessor<out T>
 
     /// <summary>
     /// <para>
+    ///     Finds an entity by its identifier.
+    /// </para>
+    /// </summary>
+    /// <param name="id">The identifier of the entity.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <typeparam name="TEntity">The type of the entity.</typeparam>
+    /// <typeparam name="TId">The type of the identifier.</typeparam>
+    /// <returns>
+    ///     An entry that represents the entity find by the identifier.
+    ///     Even if the entity is not found, the method must return an Entry object with the NotFound problem.
+    /// </returns>
+    public Task<FindResult<TEntity, TId>> FindEntityAsync<TEntity, TId>(Id<TEntity, TId> id, CancellationToken ct)
+        where TEntity : class;
+
+    /// <summary>
+    /// <para>
     ///     Adds a new entity to the repository.
     /// </para>
     /// <para>

@@ -1,5 +1,7 @@
 ﻿using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartCommands.WorkContext.Extensions;
+using RoyalCode.SmartProblems.Entities;
+using RoyalCode.SmartProblems.HttpResults;
 
 namespace RoyalCode.SmartCommands.Demo;
 
@@ -36,12 +38,17 @@ public static partial class ProgramExtensions
 
 
         // como seria um find
-        app.MapGroup("api").MapGroup("entity").MapGet("{id}", FindEntityAsync);
+        app.MapGroup("api").MapGroup("entity").MapGet("{id}", FindProdutoAsync);
     }
 
-    private static async Task<IResult> FindEntityAsync(int id, CineDbContext context)
+    private static async Task<OkMatch<Produto>> FindProdutoAsync(
+        Id<Produto, int> id, 
+        IRepositoriesAccessor<Produto> accessor, 
+        CancellationToken ct)
     {
-        var entity = await context.FindAsync<Produto>(id);
-        return entity is not null ? Results.Ok(entity) : Results.NotFound();
+        var findResult = await accessor.FindEntityAsync(id, ct);
+        if (findResult.NotFound(out var notfoundProblem))
+            return notfoundProblem;
+        return findResult.Entity;
     }
 }

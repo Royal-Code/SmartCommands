@@ -26,6 +26,6 @@ public interface IUnitOfWorkAccessor<out T> : IRepositoriesAccessor<T>
     ///     At this point, the unit of work should be committed (or the save changes should be called).
     /// </para>
     /// </summary>
-    /// <returns>Tje result of the operation.</returns>
+    /// <returns>The result of the operation.</returns>
     public Task<Result> CompleteAsync(CancellationToken ct);
 }

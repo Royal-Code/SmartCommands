@@ -51,10 +51,22 @@ public class IncrementalGenerator : IIncrementalGenerator
             addServices.Generate(context, services);
         });
 
-        context.RegisterSourceOutput(pipelineMapApiHandlers.Collect().Combine(pipelineCollectCommands).Combine(pipelineFindCommands.Collect()),
+        var pipelineMapInformation = pipelineCollectCommands.Combine(pipelineFindCommands.Collect())
+            .Select((source, ct) =>
+            {
+                var (commands, finds) = source;
+
+                return commands
+                    .Where(m => m.MapInformation is not null)
+                    .Select(m => (IMapEndpointGenerator)m.MapInformation!)
+                    .Concat(finds)
+                    .ToList();
+            });
+
+        context.RegisterSourceOutput(pipelineMapApiHandlers.Collect().Combine(pipelineMapInformation),
             static (context, source) =>
             {
-                var ((mapApiHandlers, commands), findInformation) = source;
+                var (mapApiHandlers, mapInformation) = source;
 
                 if (mapApiHandlers.Length is 0)
                     return;
@@ -67,15 +79,7 @@ public class IncrementalGenerator : IIncrementalGenerator
                     }
                 }
 
-                var handler = mapApiHandlers.First();
-
-                var mapInformation = commands
-                    .Where(m => m.MapInformation is not null)
-                    .Select(m => (IMapEndpointGenerator)m.MapInformation!)
-                    .Concat(findInformation)
-                    .ToList();
-
-                handler.Generate(context, mapInformation);
+                mapApiHandlers.First().Generate(context, mapInformation);
             });
     }
 }
