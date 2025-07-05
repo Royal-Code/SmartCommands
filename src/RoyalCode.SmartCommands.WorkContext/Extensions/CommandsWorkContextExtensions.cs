@@ -24,7 +24,13 @@ public static class CommandsWorkContextExtensions
     public static IUnitOfWorkBuilder<TDbContext> AddUnitOfWorkAdapter<TDbContext>(this IUnitOfWorkBuilder<TDbContext> builder)
         where TDbContext : DbContext
     {
-        builder.Services.AddScoped<IUnitOfWorkAccessor<IWorkContext>, UnitOfWorkAccessor<IWorkContext<TDbContext>>>();
+         builder.Services
+            .AddScoped<UnitOfWorkAccessor<IWorkContext<TDbContext>>>()
+            .AddScoped<IUnitOfWorkAccessor<IWorkContext>>(
+                sp => sp.GetRequiredService<UnitOfWorkAccessor<IWorkContext<TDbContext>>>())
+            .AddScoped<IRepositoriesAccessor<IWorkContext<TDbContext>>>(
+                sp => sp.GetRequiredService<UnitOfWorkAccessor<IWorkContext<TDbContext>>>());
+
         return builder;
     }
 
@@ -39,8 +45,12 @@ public static class CommandsWorkContextExtensions
     public static IServiceCollection AddUnitOfWorkAdapter<TWorkContext>(this IServiceCollection services)
         where TWorkContext : IWorkContext
     {
-        services.AddScoped<IUnitOfWorkAccessor<TWorkContext>, UnitOfWorkAccessor<TWorkContext>>();
-        return services;
+        return services
+            .AddScoped<UnitOfWorkAccessor<TWorkContext>>()
+            .AddScoped<IUnitOfWorkAccessor<TWorkContext>>(
+                sp => sp.GetRequiredService<UnitOfWorkAccessor<TWorkContext>>())
+            .AddScoped<IRepositoriesAccessor<TWorkContext>>(
+                sp => sp.GetRequiredService<UnitOfWorkAccessor<TWorkContext>>());
     }
 
     /// <summary>

@@ -17,5 +17,5 @@ public class WorkContextAdapterOptions
     ///     but will use the entity framework change tracking to save changes.
     /// </para>
     /// </summary>
-    public bool BeginTransations { get; set; }
+    public bool BeginTransactions { get; set; }
 }

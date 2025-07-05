@@ -27,9 +27,9 @@
 		
 	<ItemGroup>
 		<!-- Package Reference - FOR PUBLISH -->
-		<!--<PackageReference Include="RoyalCode.Extensions.SourceGenerator" Version="0.1.0" />-->
+		<PackageReference Include="RoyalCode.Extensions.SourceGenerator" Version="0.1.0" />
 		<!-- Project Reference - FOR TESTS - SMART MAPPER -->
-		<ProjectReference Include="..\..\..\utils\RoyalCode.Utils\RoyalCode.Extensions.SourceGenerator\RoyalCode.Extensions.SourceGenerator.csproj" />
+<!--		<ProjectReference Include="..\..\..\utils\RoyalCode.Utils\RoyalCode.Extensions.SourceGenerator\RoyalCode.Extensions.SourceGenerator.csproj" />-->
 	</ItemGroup>
 
 	<Target BeforeTargets="Build" Name="Generator">

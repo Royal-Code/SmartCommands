@@ -48,9 +48,15 @@ public sealed class UnitOfWorkAccessor<TWorkContext> : IUnitOfWorkAccessor<TWork
     }
 
     /// <inheritdoc />
+    public async Task<FindResult<TEntity, TId>> FindEntityAsync<TEntity, TId>(Id<TEntity, TId> id, CancellationToken ct) where TEntity : class
+    {
+        return await workContext.Repository<TEntity>().FindAsync(id, ct);
+    }
+
+    /// <inheritdoc />
     public async ValueTask BeginAsync(CancellationToken ct)
     {
-        if (options.BeginTransations)
+        if (options.BeginTransactions)
         {
             await workContext.BeginTransactionAsync(ct);
         }
@@ -61,7 +67,7 @@ public sealed class UnitOfWorkAccessor<TWorkContext> : IUnitOfWorkAccessor<TWork
     {
         Result result = await workContext.SaveAsync(ct);
 
-        if (!options.BeginTransations)
+        if (!options.BeginTransactions)
             return result;
 
         var transaction = workContext.GetCurrentTransaction();

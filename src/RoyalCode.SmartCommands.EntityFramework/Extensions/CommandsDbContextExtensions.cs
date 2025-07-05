@@ -18,7 +18,10 @@ public static class CommandsDbContextExtensions
     public static IServiceCollection AddUnitOfWorkAccessor<TContext>(this IServiceCollection services)
         where TContext : DbContext
     {
-        return services.AddScoped<IUnitOfWorkAccessor<TContext>, DbContextAccessor<TContext>>();
+        return services
+            .AddScoped<DbContextAccessor<TContext>>()
+            .AddScoped<IUnitOfWorkAccessor<TContext>>(sp => sp.GetRequiredService<DbContextAccessor<TContext>>())
+            .AddScoped<IRepositoriesAccessor<TContext>>(sp => sp.GetRequiredService<DbContextAccessor<TContext>>());
     }
 
     /// <summary>
@@ -32,6 +35,11 @@ public static class CommandsDbContextExtensions
         where TContextBase: DbContext
         where TContextImpl : TContextBase
     {
-        return services.AddScoped<IUnitOfWorkAccessor<TContextBase>, DbContextAccessor<TContextImpl>>();
+        return services
+            .AddScoped<DbContextAccessor<TContextImpl>>()
+            .AddScoped<IUnitOfWorkAccessor<TContextBase>>(sp =>
+                sp.GetRequiredService<DbContextAccessor<TContextImpl>>())
+            .AddScoped<IRepositoriesAccessor<TContextBase>>(sp =>
+                sp.GetRequiredService<DbContextAccessor<TContextImpl>>());
     }
 }

@@ -48,9 +48,16 @@ public sealed class DbContextAccessor<TContext> : IUnitOfWorkAccessor<TContext>
     }
 
     /// <inheritdoc />
+    public Task<FindResult<TEntity, TId>> FindEntityAsync<TEntity, TId>(Id<TEntity, TId> id, CancellationToken ct)
+        where TEntity : class
+    {
+        return db.TryFindAsync(id, ct);
+    }
+
+    /// <inheritdoc />
     public async ValueTask BeginAsync(CancellationToken ct)
     {
-        if (options.BeginTransations)
+        if (options.BeginTransactions)
             await db.Database.BeginTransactionAsync(ct);
     }
 
@@ -61,7 +68,7 @@ public sealed class DbContextAccessor<TContext> : IUnitOfWorkAccessor<TContext>
         {
             await db.SaveChangesAsync(ct);
 
-            if (db.Database.CurrentTransaction is not null && options.BeginTransations)
+            if (db.Database.CurrentTransaction is not null && options.BeginTransactions)
             {
                 await db.Database.CommitTransactionAsync(ct);
             }
@@ -71,7 +78,7 @@ public sealed class DbContextAccessor<TContext> : IUnitOfWorkAccessor<TContext>
         catch (Exception ex)
         {
 
-            if (db.Database.CurrentTransaction is not null && options.BeginTransations)
+            if (db.Database.CurrentTransaction is not null && options.BeginTransactions)
             {
                 try
                 {

@@ -95,5 +95,42 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
             errors.ForEach(spc.ReportDiagnostic);
             return;
         }
+
+        var handlerMethodName = $"Find{EntityType.Name}HandleAsync";
+
+        // Cria comando que invoca o método de mapeamento do handler
+        var methodInvoke = GenerateMapMethodInvoke(this, handlerMethodName);
+        var invokeCommand = new Command(methodInvoke);
+        commands.Add(invokeCommand);
+
+
+    }
+
+    private static MethodInvokeGenerator GenerateMapMethodInvoke(FindInformation mapInfo, string handlerMethodName)
+    {
+        var methodInvoke = new MethodInvokeGenerator("group", $"MapGet");
+        methodInvoke.AddArgument(mapInfo.EndpointRoutePattern);
+        methodInvoke.AddArgument(handlerMethodName);
+
+        methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithName", mapInfo.EndpointName)
+        {
+            LineIdent = true
+        };
+
+        if (mapInfo.Description is not null)
+        {
+            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithDescription", mapInfo.Description)
+            {
+                LineIdent = true
+            };
+        }
+
+        // por fim, chama WithOpenApi
+        methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithOpenApi")
+        {
+            LineIdent = true
+        };
+
+        return methodInvoke;
     }
 }
