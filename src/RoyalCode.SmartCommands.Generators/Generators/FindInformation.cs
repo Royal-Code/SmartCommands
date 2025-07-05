@@ -13,6 +13,7 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
 
     public FindInformation(
         TypeDescriptor entityType,
+        TypeDescriptor idType,
         TypeDescriptor modelType,
         string endpointRoutePattern,
         string endpointName,
@@ -20,6 +21,7 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
         string? groupName)
     {
         EntityType = entityType;
+        IdType = idType;
         ModelType = modelType;
         EndpointRoutePattern = endpointRoutePattern;
         EndpointName = endpointName;
@@ -30,6 +32,8 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
 #nullable disable
 
     public TypeDescriptor EntityType { get; }
+
+    public TypeDescriptor IdType { get; }
 
     public TypeDescriptor ModelType { get; }
     
@@ -96,6 +100,8 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
             return;
         }
 
+        return;
+
         var handlerMethodName = $"Find{EntityType.Name}HandleAsync";
 
         // Cria comando que invoca o método de mapeamento do handler
@@ -103,7 +109,9 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
         var invokeCommand = new Command(methodInvoke);
         commands.Add(invokeCommand);
 
-
+        // Cria o método do Handler.
+        var handlerMethod = GenerateHandlerMethod(this, handlerMethodName);
+        methods.Add(handlerMethod);
     }
 
     private static MethodInvokeGenerator GenerateMapMethodInvoke(FindInformation mapInfo, string handlerMethodName)
@@ -132,5 +140,50 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
         };
 
         return methodInvoke;
+    }
+
+    private static MethodGenerator GenerateHandlerMethod(
+        FindInformation mapInfo,
+        string handlerMethodName)
+    {
+        // return type: Task<OkMatch<TModel>>
+        var returnType = new TypeDescriptor(
+            $"Task<OkMatch<{mapInfo.EntityType.Name}>>",
+            ["System.Threading.Tasks", "RoyalCode.SmartCommands.HttpResults", ..mapInfo.EntityType.Namespaces]);
+
+        var method = new MethodGenerator(handlerMethodName, returnType);
+        method.Modifiers.Private();
+        method.Modifiers.Static();
+        method.Modifiers.Async();
+
+        // atributo produce problems com NotFound
+        var attribute = new AttributeGenerator("ProduceProblems", ["RoyalCode.SmartProblems"], "ProblemCategory.NotFound");
+        method.Attributes.Add(attribute);
+
+        // adiciona os parâmetros
+        method.Parameters.InLine = false;
+
+        // primeiro parâmetro: Id<TModel, TId>
+        var idType = new TypeDescriptor(
+            $"Id<{mapInfo.ModelType.Name}, {mapInfo.IdType.Name}>",
+            ["RoyalCode.SmartProblems.Entities", ..mapInfo.ModelType.Namespaces, ..mapInfo.IdType.Namespaces]);
+        method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(idType, "id")));
+
+        // segundo parâmetro: IRepositoriesAccessor<TModel>
+        var accessorType = new TypeDescriptor(
+            $"IRepositoriesAccessor<{mapInfo.ModelType.Name}>",
+            ["RoyalCode.SmartCommands", ..mapInfo.ModelType.Namespaces]);
+        method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(accessorType, "accessor")));
+
+        // terceiro parâmetro: CancellationToken
+        var cancellationTokenType = new TypeDescriptor("CancellationToken", ["System.Threading"]);
+        method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(cancellationTokenType, "ct")));
+
+        // corpo do método
+
+
+
+
+        throw new NotImplementedException("GenerateHandlerMethod is not implemented yet.");
     }
 }

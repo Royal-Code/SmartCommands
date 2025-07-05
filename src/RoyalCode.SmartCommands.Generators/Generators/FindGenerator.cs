@@ -48,12 +48,15 @@ public static class FindGenerator
         // extrai o tipo da entidade buscada
         var syntax = (GenericNameSyntax)mapFindAttribute.Name;
         var entitySyntaxType = syntax.TypeArgumentList.Arguments[0];
+        var idSyntaxType = syntax.TypeArgumentList.Arguments[1];
 
         var entityType = TypeDescriptor.Create(entitySyntaxType, context.SemanticModel);
+        var idType = TypeDescriptor.Create(idSyntaxType, context.SemanticModel);
         var modelType = new TypeDescriptor(classDeclaration.Identifier.Text, [classDeclaration.GetNamespace()]);
 
         return new FindInformation(
             entityType,
+            idType,
             modelType,
             endpointRoutePattern ?? string.Empty,
             endpointName ?? string.Empty,

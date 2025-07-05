@@ -3,7 +3,7 @@
 namespace RoyalCode.SmartCommands;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public class MapFindAttribute<TEntity> : Attribute
+public class MapFindAttribute<TEntity, TId> : Attribute
     where TEntity : class
 {
     public MapFindAttribute([StringSyntax("Route")] string endpointRoutePattern, string endpointName) { }

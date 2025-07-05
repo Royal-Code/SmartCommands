@@ -7,7 +7,7 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
 #nullable disable // poco
 
 [MapGroup("produtos")]
-[MapFind<Produto>("{id:guid}", "Get product details")]
+[MapFind<Produto, Guid>("{id:guid}", "Get product details")]
 [Description("Get product details by ID")]
 public partial class ProdutoDetalhes
 {

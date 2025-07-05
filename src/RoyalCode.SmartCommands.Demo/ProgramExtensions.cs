@@ -1,5 +1,6 @@
 ﻿using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartCommands.WorkContext.Extensions;
+using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.Entities;
 using RoyalCode.SmartProblems.HttpResults;
 
@@ -41,6 +42,7 @@ public static partial class ProgramExtensions
         app.MapGroup("api").MapGroup("entity").MapGet("{id}", FindProdutoAsync);
     }
 
+    [ProduceProblems(ProblemCategory.NotFound)]
     private static async Task<OkMatch<Produto>> FindProdutoAsync(
         Id<Produto, int> id, 
         IRepositoriesAccessor<Produto> accessor, 
