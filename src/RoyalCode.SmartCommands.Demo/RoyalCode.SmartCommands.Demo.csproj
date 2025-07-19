@@ -26,13 +26,13 @@
 
 	<ItemGroup>
 		<!-- Package Reference - FOR PUBLISH -->
-		<PackageReference Include="RoyalCode.Extensions.SourceGenerator" Version="0.1.0" ReferenceOutputAssembly="false" />
+		<PackageReference Include="RoyalCode.Extensions.SourceGenerator" Version="$(ExSrcGenVer)" ReferenceOutputAssembly="false" />
 		<!-- Project Reference - FOR TESTS - SMART MAPPER -->
 <!--		<ProjectReference Include="..\..\..\utils\RoyalCode.Utils\RoyalCode.Extensions.SourceGenerator\RoyalCode.Extensions.SourceGenerator.csproj" ReferenceOutputAssembly="false" />-->
 	</ItemGroup>
 	<ItemGroup>
 		<!-- Package Reference - FOR PUBLISH -->
-		<Analyzer Include="$(NuGetPackageRoot)royalcode.extensions.sourcegenerator\0.1.0\lib\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll" />
+		<Analyzer Include="$(NuGetPackageRoot)royalcode.extensions.sourcegenerator\$(ExSrcGenVer)\lib\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll" />
 		<!-- Project Reference - FOR TESTS - SMART MAPPER -->
 <!--		<Analyzer Include="..\..\..\utils\RoyalCode.Utils\RoyalCode.Extensions.SourceGenerator\bin\Debug\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll" />-->
 	</ItemGroup>
