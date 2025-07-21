@@ -13,9 +13,9 @@
 		<PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
 	</PropertyGroup>
 	<PropertyGroup>
-		<SmartProblemsVer>1.0.0-preview-3.0</SmartProblemsVer>
-		<SmartValidationsVer>1.0.0-preview-1.0</SmartValidationsVer>
-		<WorkContextVer>1.0.0-preview-8.2</WorkContextVer>
+		<SmartProblemsVer>1.0.0-preview-4.4</SmartProblemsVer>
+		<SmartValidationsVer>1.0.0-preview-2.0</SmartValidationsVer>
+		<WorkContextVer>0.8.0</WorkContextVer>
 		<ExSrcGenVer>0.1.1</ExSrcGenVer>
 	</PropertyGroup>
 </Project>

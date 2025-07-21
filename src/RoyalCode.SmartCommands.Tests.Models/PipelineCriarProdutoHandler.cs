@@ -1,5 +1,5 @@
 ﻿using RoyalCode.SmartProblems;
-using RoyalCode.WorkContext.Abstractions;
+using RoyalCode.WorkContext;
 
 namespace RoyalCode.SmartCommands.Tests.Models;
 

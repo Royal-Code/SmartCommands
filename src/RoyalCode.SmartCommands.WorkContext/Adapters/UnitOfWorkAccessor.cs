@@ -2,7 +2,7 @@
 using RoyalCode.SmartCommands.WorkContext.Options;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.Entities;
-using RoyalCode.WorkContext.Abstractions;
+using RoyalCode.WorkContext;
 
 namespace RoyalCode.SmartCommands.WorkContext.Adapters;
 

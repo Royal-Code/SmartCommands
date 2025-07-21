@@ -1,7 +1,7 @@
 ﻿using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
-using RoyalCode.WorkContext.Abstractions;
+using RoyalCode.WorkContext;
 using System.Diagnostics.CodeAnalysis;
 
 namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;

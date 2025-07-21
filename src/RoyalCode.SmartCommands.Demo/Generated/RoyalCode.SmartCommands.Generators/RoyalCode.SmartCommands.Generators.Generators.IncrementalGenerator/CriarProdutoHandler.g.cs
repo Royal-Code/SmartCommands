@@ -2,7 +2,7 @@
 using RoyalCode.SmartCommands.Demo.Commands.Produtos;
 using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
-using RoyalCode.WorkContext.Abstractions;
+using RoyalCode.WorkContext;
 
 namespace RoyalCode.SmartCommands.Demo.Commands.Produtos.Internals;
 

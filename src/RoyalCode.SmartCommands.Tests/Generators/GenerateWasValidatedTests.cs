@@ -31,7 +31,7 @@ using RoyalCode.SmartCommands;
 using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
-using RoyalCode.WorkContext.Abstractions;
+using RoyalCode.WorkContext;
 using System.Diagnostics.CodeAnalysis;
 
 namespace RoyalCode.SmartCommands.Tests;
@@ -78,7 +78,7 @@ public interface IMyCommandHandler
 using RoyalCode.SmartCommands;
 using RoyalCode.SmartCommands.Tests;
 using RoyalCode.SmartProblems;
-using RoyalCode.WorkContext.Abstractions;
+using RoyalCode.WorkContext;
 
 namespace RoyalCode.SmartCommands.Tests.Internals;
 

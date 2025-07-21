@@ -3,6 +3,8 @@ using RoyalCode.SmartCommands.WorkContext.Extensions;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.Entities;
 using RoyalCode.SmartProblems.HttpResults;
+using RoyalCode.WorkContext;
+using RoyalCode.WorkContext.EntityFramework;
 
 namespace RoyalCode.SmartCommands.Demo;
 
@@ -45,7 +47,7 @@ public static partial class ProgramExtensions
     [ProduceProblems(ProblemCategory.NotFound)]
     private static async Task<OkMatch<Produto>> FindProdutoAsync(
         Id<Produto, int> id, 
-        IRepositoriesAccessor<Produto> accessor, 
+        IRepositoriesAccessor<IWorkContext> accessor, 
         CancellationToken ct)
     {
         var findResult = await accessor.FindEntityAsync(id, ct);

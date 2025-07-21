@@ -1,4 +1,4 @@
-﻿using RoyalCode.WorkContext.Abstractions;
+﻿using RoyalCode.WorkContext;
 
 namespace RoyalCode.SmartCommands.WorkContext.Options;
 

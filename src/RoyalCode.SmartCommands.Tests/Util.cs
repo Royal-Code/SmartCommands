@@ -25,7 +25,7 @@ internal static class Util
             MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(ICollection<>).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(CommandAttribute).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(RoyalCode.WorkContext.Abstractions.IWorkContext).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(RoyalCode.WorkContext.IWorkContext).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(RoyalCode.SmartProblems.Result).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Task).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(CancellationToken).Assembly.Location),
