@@ -15,7 +15,7 @@ public partial class EditarProduto
     [MemberNotNullWhen(false, nameof(Nome))]
     public bool HasProblems([NotNullWhen(true)] out Problems? problems)
     {
-        var result = RuleSet.For<CriarProduto>()
+        var result = RuleSet.For<CriarProduto2>()
             .NotEmpty(Nome)
             .HasProblems(out problems);
 

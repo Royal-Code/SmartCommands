@@ -4,7 +4,7 @@ namespace RoyalCode.SmartCommands.Generators.Generators;
 
 public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerator
 {
-    private List<Diagnostic>? errors;
+    private readonly List<Diagnostic>? errors;
 
     public FindInformation(Diagnostic diagnostic)
     {
@@ -105,8 +105,6 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
             return;
         }
 
-        return;
-
         var handlerMethodName = $"Find{EntityType.Name}HandleAsync";
 
         // Cria comando que invoca o método de mapeamento do handler
@@ -161,8 +159,8 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
     {
         // return type: Task<OkMatch<TModel>>
         var returnType = new TypeDescriptor(
-            $"Task<OkMatch<{mapInfo.EntityType.Name}>>",
-            ["System.Threading.Tasks", "RoyalCode.SmartCommands.HttpResults", .. mapInfo.EntityType.Namespaces]);
+            $"Task<OkMatch<{mapInfo.ModelType.Name}>>",
+            ["System.Threading.Tasks", "RoyalCode.SmartProblems.HttpResults", .. mapInfo.ModelType.Namespaces]);
 
         var method = new MethodGenerator(handlerMethodName, returnType);
         method.Modifiers.Private();
@@ -176,16 +174,16 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
         // adiciona os parâmetros
         method.Parameters.InLine = false;
 
-        // primeiro parâmetro: Id<TModel, TId>
+        // primeiro parâmetro: Id<TEntity, TId>
         var idType = new TypeDescriptor(
-            $"Id<{mapInfo.ModelType.Name}, {mapInfo.IdType.Name}>",
-            ["RoyalCode.SmartProblems.Entities", .. mapInfo.ModelType.Namespaces, .. mapInfo.IdType.Namespaces]);
+            $"Id<{mapInfo.EntityType.Name}, {mapInfo.IdType.Name}>",
+            ["RoyalCode.SmartProblems.Entities", .. mapInfo.EntityType.Namespaces, .. mapInfo.IdType.Namespaces]);
         method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(idType, "id")));
 
-        // segundo parâmetro: IRepositoryAccessor<TModel>
+        // segundo parâmetro: IRepositoryAccessor<TEntity>
         var accessorType = new TypeDescriptor(
-            $"IRepositoryAccessor<{mapInfo.ModelType.Name}>",
-            ["RoyalCode.SmartCommands", .. mapInfo.ModelType.Namespaces]);
+            $"IRepositoryAccessor<{mapInfo.EntityType.Name}>",
+            ["RoyalCode.SmartCommands", .. mapInfo.EntityType.Namespaces]);
         method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(accessorType, "accessor")));
 
         // terceiro parâmetro: CancellationToken
@@ -194,9 +192,35 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
 
         // corpo do método
 
+        // primeiro, chama o método FindEntityAsync<TDto, TId> do accessor
+        var findInvoke = new MethodInvokeGenerator(
+            "accessor", 
+            $"FindEntityAsync<{mapInfo.ModelType.Name}, {mapInfo.IdType.Name}>");
+        findInvoke.AddArgument("id");
+        findInvoke.AddArgument("ct");
+        findInvoke.Await = true;
+
+        // a invocação é atribuída a uma variável chamada findResult
+        var findResult = new AssignValueCommand(
+            new StringValueNode($"var findResult"),
+            findInvoke);
+
+        method.Commands.Add(findResult);
+
+        // segundo, verifica se o resultado não foi encontrado, fazendo o if com o método NotFound
+        var notFoundInvoke = new MethodInvokeGenerator("findResult", "NotFound");
+        notFoundInvoke.AddArgument("out var notfoundProblem");
+        var ifCommand = new IfCommand(notFoundInvoke);
+        ifCommand.AddCommand(new ReturnCommand("notfoundProblem"));
 
 
+        method.Commands.Add(ifCommand);
 
-        throw new NotImplementedException("GenerateHandlerMethod is not implemented yet.");
+        // terceiro, retorna o resultado encontrado
+        var returnCommand = new ReturnCommand("findResult.Entity");
+
+        method.Commands.Add(returnCommand);
+
+        return method;
     }
 }

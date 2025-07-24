@@ -77,6 +77,9 @@ public static partial class ProgramExtensions
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartProblems;
+using RoyalCode.SmartProblems.Entities;
 using RoyalCode.SmartProblems.HttpResults;
 
 namespace Tests.Scenarios.Js;
@@ -88,18 +91,24 @@ public static partial class MapProdutosApi
         var group = builder.MapGroup("produtos");
 
         group.MapGet("{id:guid}", FindProdutoHandleAsync)
-            .WithName("create some")
+            .WithName("Get product details")
+            .WithDescription("Get product details by ID")
             .WithOpenApi();
 
         return group;
     }
 
-    private static Task<OkMatch<Produto>> FindProdutoHandleAsync(
-        ICreateSomeHandler handler, 
-        CreateSome command)
+    [ProduceProblems(ProblemCategory.NotFound)]
+    private static async Task<OkMatch<ProdutoDetalhes>> FindProdutoHandleAsync(
+        Id<Produto, Guid> id, 
+        IRepositoryAccessor<Produto> accessor, 
+        CancellationToken ct)
     {
-        var result = handler.Handle(command);
-        return result;
+        var findResult = await accessor.FindEntityAsync<ProdutoDetalhes, Guid>(id, ct);
+        if (findResult.NotFound(out var notfoundProblem))
+            return notfoundProblem;
+
+        return findResult.Entity;
     }
 }
 

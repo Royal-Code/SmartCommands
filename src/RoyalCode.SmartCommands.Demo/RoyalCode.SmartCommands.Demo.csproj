@@ -48,4 +48,8 @@
 		<None Include="Generated/**" Visible="true" />
 		<Compile Remove="Generated\RoyalCode.SmartCommands.Generators\**" />
 	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Generated\RoyalCode.SmartCommands.Generators\" />
+	</ItemGroup>
 </Project>

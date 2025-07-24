@@ -22,7 +22,7 @@ public partial class CriarProduto
     [Command, WithValidateModel, WithDecorators]
     internal async Task<Result<Guid>> ExecuteAsync(IWorkContext context, CancellationToken ct)
     {
-        //WasValidated();
+        WasValidated();
 
         var entity = new Produto(Nome);
         context.Add(entity);

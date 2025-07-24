@@ -1,11 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using RoyalCode.SmartCommands.Demo.Commands.Produtos;
 using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartCommands.WorkContext.Extensions;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.Entities;
 using RoyalCode.SmartProblems.HttpResults;
-using RoyalCode.WorkContext;
-using RoyalCode.WorkContext.EntityFramework;
 
 namespace RoyalCode.SmartCommands.Demo;
 
@@ -42,16 +41,16 @@ public static partial class ProgramExtensions
 
 
         // como seria um find
-        produtosGroup.MapGet("{id:guid}", FindProdutoAsync);
+        produtosGroup.MapGet("manual/{id:guid}", FindProdutoAsync);
     }
 
     [ProduceProblems(ProblemCategory.NotFound)]
-    private static async Task<OkMatch<Produto>> FindProdutoAsync(
+    private static async Task<OkMatch<ProdutoDetalhes>> FindProdutoAsync(
         [FromRoute] Id<Produto, Guid> id, 
-        [FromServices] IRepositoryAccessor<Produto> accessor, 
+        [FromServices] IRepositoryAccessor<Produto> accessor,
         CancellationToken ct)
     {
-        var findResult = await accessor.FindEntityAsync(id, ct);
+        var findResult = await accessor.FindEntityAsync<ProdutoDetalhes, Guid>(id, ct);
         if (findResult.NotFound(out var notfoundProblem))
             return notfoundProblem;
         return findResult.Entity;

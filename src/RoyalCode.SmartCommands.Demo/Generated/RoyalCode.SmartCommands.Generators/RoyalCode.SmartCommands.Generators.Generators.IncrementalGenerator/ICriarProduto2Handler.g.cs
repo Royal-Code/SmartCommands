@@ -3,7 +3,7 @@ using RoyalCode.SmartProblems;
 
 namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
 
-public interface ICriarProdutoHandler
+public interface ICriarProduto2Handler
 {
-    public Task<Result<Produto>> HandleAsync(CriarProduto command, CancellationToken ct);
+    public Task<Result<Produto>> HandleAsync(CriarProduto2 command, CancellationToken ct);
 }

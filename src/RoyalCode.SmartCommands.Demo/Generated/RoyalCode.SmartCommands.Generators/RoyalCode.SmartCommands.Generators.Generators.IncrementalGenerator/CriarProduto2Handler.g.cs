@@ -6,16 +6,16 @@ using RoyalCode.WorkContext;
 
 namespace RoyalCode.SmartCommands.Demo.Commands.Produtos.Internals;
 
-public class CriarProdutoHandler : ICriarProdutoHandler
+public class CriarProduto2Handler : ICriarProduto2Handler
 {
     private readonly IUnitOfWorkAccessor<IWorkContext> accessor;
 
-    public CriarProdutoHandler(IUnitOfWorkAccessor<IWorkContext> accessor)
+    public CriarProduto2Handler(IUnitOfWorkAccessor<IWorkContext> accessor)
     {
         this.accessor = accessor;
     }
 
-    public async Task<Result<Produto>> HandleAsync(CriarProduto command, CancellationToken ct)
+    public async Task<Result<Produto>> HandleAsync(CriarProduto2 command, CancellationToken ct)
     {
         if (command.HasProblems(out var validationProblems))
             return validationProblems;

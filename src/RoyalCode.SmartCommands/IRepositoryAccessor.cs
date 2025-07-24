@@ -22,8 +22,24 @@ public interface IRepositoryAccessor<TEntity>
     /// 
     /// <typeparam name="TId">The type of the identifier.</typeparam>
     /// <returns>
-    ///     An entry that represents the entity find by the identifier.
-    ///     Even if the entity is not found, the method must return an Entry object with the NotFound problem.
+    ///     A result that represents the entity find by the identifier.
+    ///     Even if the entity is not found, the method must return a result object with the NotFound problem.
     /// </returns>
     public Task<FindResult<TEntity, TId>> FindEntityAsync<TId>(Id<TEntity, TId> id, CancellationToken ct);
+
+    /// <summary>
+    /// <para>
+    ///     Finds an entity by its identifier and select a DTO (Data Transfer Object) representation of it.
+    /// </para>
+    /// </summary>
+    /// <param name="id">The identifier of the entity.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <typeparam name="TDto">The type of the Data Transfer Object (DTO) to select.</typeparam>
+    /// <typeparam name="TId">The type of the identifier.</typeparam>
+    /// <returns>
+    ///     A result that represents the entity find by the identifier.
+    ///     Even if the entity is not found, the method must return a result object with the NotFound problem.
+    /// </returns>
+    public Task<FindResult<TDto, TId>> FindEntityAsync<TDto, TId>(Id<TEntity, TId> id, CancellationToken ct)
+        where TDto : class;
 }
