@@ -18,6 +18,8 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
 
     public string? Description { get; set; }
 
+    public string? DisplayName { get; set; }
+
     public string? GroupName { get; set; }
 
     public MapCreatedInformation? CreatedInformation { get; set; }
@@ -37,6 +39,7 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
             RoutePattern == other.RoutePattern &&
             EndpointName == other.EndpointName &&
             Description == other.Description &&
+            DisplayName == other.DisplayName &&
             GroupName == other.GroupName &&
             Equals(CreatedInformation, other.CreatedInformation) &&
             Equals(IdResultValueType, other.IdResultValueType) &&
@@ -55,6 +58,7 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
         hashCode = hashCode * -1521134295 + RoutePattern.GetHashCode();
         hashCode = hashCode * -1521134295 + EndpointName.GetHashCode();
         hashCode = hashCode * -1521134295 + Description?.GetHashCode() ?? 0;
+        hashCode = hashCode * -1521134295 + DisplayName?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + GroupName?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + CreatedInformation?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + IdResultValueType?.GetHashCode() ?? 0;
@@ -99,6 +103,15 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
         if (mapInfo.Description is not null)
         {
             methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithDescription", mapInfo.Description)
+            {
+                LineIdent = true
+            };
+        }
+        
+
+        if (mapInfo.DisplayName is not null)
+        {
+            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithSummary", mapInfo.DisplayName)
             {
                 LineIdent = true
             };

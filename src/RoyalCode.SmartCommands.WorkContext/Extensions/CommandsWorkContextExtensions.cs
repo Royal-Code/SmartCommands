@@ -36,6 +36,8 @@ public static class CommandsWorkContextExtensions
            .AddScoped<IRepositoriesAccessor<IWorkContext<TDbContext>>>(
                sp => sp.GetRequiredService<UnitOfWorkAccessor<IWorkContext<TDbContext>>>());
 
+        builder.Services.AddTransient(typeof(IRepositoryAccessor<>), typeof(RepositoryAdapter<>));
+
         return builder;
     }
 
@@ -61,6 +63,8 @@ public static class CommandsWorkContextExtensions
            .AddScoped<IRepositoriesAccessor<IWorkContext<TDbContext>>>(
                sp => sp.GetRequiredService<UnitOfWorkAccessor<IWorkContext<TDbContext>>>());
 
+        builder.Services.AddTransient(typeof(IRepositoryAccessor<>), typeof(RepositoryAdapter<>));
+
         return builder;
     }
 
@@ -75,12 +79,16 @@ public static class CommandsWorkContextExtensions
     public static IServiceCollection AddUnitOfWorkAdapter<TWorkContext>(this IServiceCollection services)
         where TWorkContext : IWorkContext
     {
-        return services
+        services
             .AddScoped<UnitOfWorkAccessor<TWorkContext>>()
             .AddScoped<IUnitOfWorkAccessor<TWorkContext>>(
                 sp => sp.GetRequiredService<UnitOfWorkAccessor<TWorkContext>>())
             .AddScoped<IRepositoriesAccessor<TWorkContext>>(
                 sp => sp.GetRequiredService<UnitOfWorkAccessor<TWorkContext>>());
+
+        services.AddTransient(typeof(IRepositoryAccessor<>), typeof(RepositoryAdapter<>));
+
+        return services;
     }
 
     /// <summary>

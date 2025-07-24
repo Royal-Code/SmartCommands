@@ -1,4 +1,5 @@
-﻿using RoyalCode.SmartCommands.Tests.Models;
+﻿using Microsoft.AspNetCore.Mvc;
+using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartCommands.WorkContext.Extensions;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.Entities;
@@ -36,18 +37,18 @@ public static partial class ProgramExtensions
             app.UseSwaggerUI();
         }
 
-        app.MapGroup("api").MapProdutosGroup();
-        app.MapGroup("api").MapLojasGroup();
+        var produtosGroup = app.MapProdutosGroup().WithTags("Produtos");
+        var lojasGroup = app.MapLojasGroup().WithTags("Lojas");
 
 
         // como seria um find
-        app.MapGroup("api").MapGroup("entity").MapGet("{id}", FindProdutoAsync);
+        produtosGroup.MapGet("{id:guid}", FindProdutoAsync);
     }
 
     [ProduceProblems(ProblemCategory.NotFound)]
     private static async Task<OkMatch<Produto>> FindProdutoAsync(
-        Id<Produto, int> id, 
-        IRepositoriesAccessor<IWorkContext> accessor, 
+        [FromRoute] Id<Produto, Guid> id, 
+        [FromServices] IRepositoryAccessor<Produto> accessor, 
         CancellationToken ct)
     {
         var findResult = await accessor.FindEntityAsync(id, ct);

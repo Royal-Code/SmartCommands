@@ -18,6 +18,7 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
         string endpointRoutePattern,
         string endpointName,
         string? description,
+        string? displayName,
         string? groupName)
     {
         EntityType = entityType;
@@ -26,6 +27,7 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
         EndpointRoutePattern = endpointRoutePattern;
         EndpointName = endpointName;
         Description = description;
+        DisplayName = displayName;
         GroupName = groupName;
     }
 
@@ -36,9 +38,9 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
     public TypeDescriptor IdType { get; }
 
     public TypeDescriptor ModelType { get; }
-    
+
     public string EndpointRoutePattern { get; }
-    
+
     public string EndpointName { get; }
 
     public string GroupName { get; }
@@ -46,21 +48,23 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
 #nullable enable
 
     public string? Description { get; }
-    
+
+    public string? DisplayName { get; }
 
     public bool Equals(FindInformation other)
     {
-        if (other is null) 
+        if (other is null)
             return false;
 
-        return ReferenceEquals(this, other) || 
-               EntityType.Equals(other.EntityType) && 
-               ModelType.Equals(other.ModelType) && 
-               EndpointRoutePattern == other.EndpointRoutePattern &&
-               EndpointName == other.EndpointName &&
-               Description == other.Description &&
-               GroupName == other.GroupName &&
-               EqualErrors(other);
+        return ReferenceEquals(this, other) ||
+                EntityType.Equals(other.EntityType) &&
+                ModelType.Equals(other.ModelType) &&
+                EndpointRoutePattern == other.EndpointRoutePattern &&
+                EndpointName == other.EndpointName &&
+                Description == other.Description &&
+                DisplayName == other.DisplayName &&
+                GroupName == other.GroupName &&
+                EqualErrors(other);
     }
 
     private bool EqualErrors(FindInformation other)
@@ -87,6 +91,7 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
         hashCode = hashCode * -1521134295 + EndpointRoutePattern.GetHashCode();
         hashCode = hashCode * -1521134295 + EndpointName.GetHashCode();
         hashCode = hashCode * -1521134295 + (Description?.GetHashCode() ?? 0);
+        hashCode = hashCode * -1521134295 + (DisplayName?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (GroupName?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (errors?.GetHashCode() ?? 0);
         return hashCode;
@@ -133,6 +138,14 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
             };
         }
 
+        if (mapInfo.DisplayName is not null)
+        {
+            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithSummary", mapInfo.DisplayName)
+            {
+                LineIdent = true
+            };
+        }
+
         // por fim, chama WithOpenApi
         methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithOpenApi")
         {
@@ -149,7 +162,7 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
         // return type: Task<OkMatch<TModel>>
         var returnType = new TypeDescriptor(
             $"Task<OkMatch<{mapInfo.EntityType.Name}>>",
-            ["System.Threading.Tasks", "RoyalCode.SmartCommands.HttpResults", ..mapInfo.EntityType.Namespaces]);
+            ["System.Threading.Tasks", "RoyalCode.SmartCommands.HttpResults", .. mapInfo.EntityType.Namespaces]);
 
         var method = new MethodGenerator(handlerMethodName, returnType);
         method.Modifiers.Private();
@@ -166,13 +179,13 @@ public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerato
         // primeiro parâmetro: Id<TModel, TId>
         var idType = new TypeDescriptor(
             $"Id<{mapInfo.ModelType.Name}, {mapInfo.IdType.Name}>",
-            ["RoyalCode.SmartProblems.Entities", ..mapInfo.ModelType.Namespaces, ..mapInfo.IdType.Namespaces]);
+            ["RoyalCode.SmartProblems.Entities", .. mapInfo.ModelType.Namespaces, .. mapInfo.IdType.Namespaces]);
         method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(idType, "id")));
 
-        // segundo parâmetro: IRepositoriesAccessor<TModel>
+        // segundo parâmetro: IRepositoryAccessor<TModel>
         var accessorType = new TypeDescriptor(
-            $"IRepositoriesAccessor<{mapInfo.ModelType.Name}>",
-            ["RoyalCode.SmartCommands", ..mapInfo.ModelType.Namespaces]);
+            $"IRepositoryAccessor<{mapInfo.ModelType.Name}>",
+            ["RoyalCode.SmartCommands", .. mapInfo.ModelType.Namespaces]);
         method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(accessorType, "accessor")));
 
         // terceiro parâmetro: CancellationToken

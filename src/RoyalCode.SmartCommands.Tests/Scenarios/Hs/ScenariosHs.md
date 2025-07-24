@@ -48,7 +48,7 @@ public class AppDbContext : DbContext
 
 ```cs
 [MapGroup("api/some")]
-[MapPost("create")]
+[MapPost("/", "create some")]
 public class CreateSome
 {
     public int Value { get; set; }
@@ -65,7 +65,7 @@ public class CreateSome
 
 ```cs
 [MapGroup("api/some")]
-[MapPost("create")]
+[MapPost("/", "create some")]
 [MapCreatedRoute("{0}", "Id")]
 public class CreateSome
 {

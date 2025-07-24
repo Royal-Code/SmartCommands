@@ -459,6 +459,7 @@ public static class CommandHandlerGenerator
     {
         string? httpMethod = null;
         string? description = null;
+        string? displayName = null;
         string? groupName = null;
         MapCreatedInformation? createdInformation = null;
         TypeDescriptor? idResultValueType = null;
@@ -498,6 +499,10 @@ public static class CommandHandlerGenerator
         // tenta obter a descrição também
         if (classDeclaration.TryGetAttribute("Description", out AttributeSyntax? descAttr) && descAttr!.ArgumentList?.Arguments.Count is 1)
             description = descAttr.ArgumentList.Arguments[0].Expression.ToString();
+
+        // tenta obter o display name
+        if (classDeclaration.TryGetAttribute("DisplayName", out AttributeSyntax? displayNameAttr) && displayNameAttr!.ArgumentList?.Arguments.Count is 1)
+            displayName = displayNameAttr.ArgumentList.Arguments[0].Expression.ToString();
 
         // tenta obter o MapGroup attribute
         if (classDeclaration.TryGetAttribute(MapGroupAttributeName, out AttributeSyntax? groupAttr) && groupAttr!.ArgumentList?.Arguments.Count is 1)
@@ -602,6 +607,7 @@ public static class CommandHandlerGenerator
             RoutePattern = endpointRoutePattern,
             EndpointName = endpointName,
             Description = description,
+            DisplayName = displayName,
             GroupName = groupName,
             CreatedInformation = createdInformation,
             IdResultValueType = idResultValueType,

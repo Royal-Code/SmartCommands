@@ -1,6 +1,5 @@
 using RoyalCode.SmartProblems.Entities;
 
-
 namespace RoyalCode.SmartCommands;
 
 /// <summary>

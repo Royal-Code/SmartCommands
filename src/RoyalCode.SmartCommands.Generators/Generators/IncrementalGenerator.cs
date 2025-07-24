@@ -12,8 +12,6 @@ public class IncrementalGenerator : IIncrementalGenerator
             predicate: CommandHandlerGenerator.Predicate,
             transform: CommandHandlerGenerator.Transform);
 
-        var pipelineCollectCommands = pipelineCommands.Collect();
-
         var pipelineAddServices = context.SyntaxProvider.ForAttributeWithMetadataName(
             fullyQualifiedMetadataName: AddHandlersServicesGenerator.AddHandlersServicesAttributeName,
             predicate: AddHandlersServicesGenerator.Predicate,
@@ -28,6 +26,9 @@ public class IncrementalGenerator : IIncrementalGenerator
             fullyQualifiedMetadataName: FindGenerator.FindAttributeName,
             predicate: FindGenerator.Predicate,
             transform: FindGenerator.Transform);
+
+        var pipelineCollectCommands = pipelineCommands.Collect();
+        var pipelineCollectFinds = pipelineFindCommands.Collect();
 
         context.RegisterSourceOutput(pipelineCommands, static (context, model) =>
         {
@@ -51,7 +52,7 @@ public class IncrementalGenerator : IIncrementalGenerator
             addServices.Generate(context, services);
         });
 
-        var pipelineMapInformation = pipelineCollectCommands.Combine(pipelineFindCommands.Collect())
+        var pipelineMapInformation = pipelineCollectCommands.Combine(pipelineCollectFinds)
             .Select((source, ct) =>
             {
                 var (commands, finds) = source;
