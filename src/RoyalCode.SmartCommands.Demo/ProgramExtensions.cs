@@ -19,7 +19,7 @@ public static partial class ProgramExtensions
         builder.Services.AddHandlersServices();
 
         builder.Services.AddWorkContext<CineDbContext>()
-            .AddUnitOfWorkAdapter()
+            .AddUnitOfWorkAccessor()
             .ConfigureDbContext()
             .ConfigureRepositories(repos =>
             {

@@ -21,8 +21,11 @@ public static class CommandsWorkContextExtensions
     /// </summary>
     /// <typeparam name="TDbContext">The type of the <see cref="DbContext"/>.</typeparam>
     /// <param name="builder">The <see cref="IUnitOfWorkBuilder{TDbContext}"/> instance.</param>
+    /// <param name="configureOptions">An optional action to configure the <see cref="WorkContextAdapterOptions"/>.</param>
     /// <returns>The same <paramref name="builder"/> for chaining.</returns>
-    public static IUnitOfWorkBuilder<TDbContext> AddUnitOfWorkAdapter<TDbContext>(this IUnitOfWorkBuilder<TDbContext> builder)
+    public static IUnitOfWorkBuilder<TDbContext> AddUnitOfWorkAccessor<TDbContext>(
+        this IUnitOfWorkBuilder<TDbContext> builder,
+        Action<WorkContextAdapterOptions>? configureOptions = null)
         where TDbContext : DbContext
     {
          builder.Services
@@ -38,6 +41,11 @@ public static class CommandsWorkContextExtensions
 
         builder.Services.AddTransient(typeof(IRepositoryAccessor<>), typeof(RepositoryAdapter<>));
 
+        if (configureOptions is not null)
+        {
+            builder.Services.Configure(configureOptions);
+        }
+
         return builder;
     }
 
@@ -48,8 +56,11 @@ public static class CommandsWorkContextExtensions
     /// </summary>
     /// <typeparam name="TDbContext">The type of the <see cref="DbContext"/>.</typeparam>
     /// <param name="builder">The <see cref="IUnitOfWorkBuilder{TDbContext}"/> instance.</param>
+    /// <param name="configureOptions">An optional action to configure the <see cref="WorkContextAdapterOptions"/>.</param>
     /// <returns>The same <paramref name="builder"/> for chaining.</returns>
-    public static IWorkContextBuilder<TDbContext> AddUnitOfWorkAdapter<TDbContext>(this IWorkContextBuilder<TDbContext> builder)
+    public static IWorkContextBuilder<TDbContext> AddUnitOfWorkAccessor<TDbContext>(
+        this IWorkContextBuilder<TDbContext> builder,
+        Action<WorkContextAdapterOptions>? configureOptions = null)
         where TDbContext : DbContext
     {
         builder.Services
@@ -65,6 +76,11 @@ public static class CommandsWorkContextExtensions
 
         builder.Services.AddTransient(typeof(IRepositoryAccessor<>), typeof(RepositoryAdapter<>));
 
+        if (configureOptions is not null)
+        {
+            builder.Services.Configure(configureOptions);
+        }
+
         return builder;
     }
 
@@ -76,7 +92,7 @@ public static class CommandsWorkContextExtensions
     /// <typeparam name="TWorkContext">The type of the <see cref="IWorkContext"/>.</typeparam>  
     /// <param name="services">The <see cref="IServiceCollection"/> instance.</param>
     /// <returns>The same <paramref name="services"/> for chaining.</returns>
-    public static IServiceCollection AddUnitOfWorkAdapter<TWorkContext>(this IServiceCollection services)
+    public static IServiceCollection AddUnitOfWorkAccessor<TWorkContext>(this IServiceCollection services)
         where TWorkContext : IWorkContext
     {
         services
