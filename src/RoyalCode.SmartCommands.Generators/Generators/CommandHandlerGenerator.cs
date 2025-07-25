@@ -28,6 +28,10 @@ public static class CommandHandlerGenerator
     private const string MapGetAttributeName = "MapGet";
     private const string MapGroupAttributeName = "MapGroup";
     private const string MapCreatedRouteAttributeName = "MapCreatedRoute";
+    private const string WithDescriptionAttributeName = "WithDescription";
+    private const string WithSummaryAttributeName = "WithSummary";
+    private const string WithAuthorizationAttributeName = "WithAuthorization";
+    private const string WithPolicyAttributeName = "WithPolicy";
 
     private const string EditEntityAttributeName = "EditEntity";
     private const string ModelVarName = "command";
@@ -459,8 +463,9 @@ public static class CommandHandlerGenerator
     {
         string? httpMethod = null;
         string? description = null;
-        string? displayName = null;
+        string? summary = null;
         string? groupName = null;
+        string[]? authorizationPolicies = null;
         MapCreatedInformation? createdInformation = null;
         TypeDescriptor? idResultValueType = null;
         MapResponseValuesInformation? responseValues = null;
@@ -496,13 +501,32 @@ public static class CommandHandlerGenerator
         if (endpointRoutePattern is null || endpointName is null)
             return null;
 
-        // tenta obter a descrição também
-        if (classDeclaration.TryGetAttribute("Description", out AttributeSyntax? descAttr) && descAttr!.ArgumentList?.Arguments.Count is 1)
+        // tenta obter a descrição
+        if (classDeclaration.TryGetAttribute(WithDescriptionAttributeName, out AttributeSyntax? descAttr) && descAttr!.ArgumentList?.Arguments.Count is 1)
             description = descAttr.ArgumentList.Arguments[0].Expression.ToString();
 
-        // tenta obter o display name
-        if (classDeclaration.TryGetAttribute("DisplayName", out AttributeSyntax? displayNameAttr) && displayNameAttr!.ArgumentList?.Arguments.Count is 1)
-            displayName = displayNameAttr.ArgumentList.Arguments[0].Expression.ToString();
+        // tenta obter o summary
+        if (classDeclaration.TryGetAttribute(WithSummaryAttributeName, out AttributeSyntax? displayNameAttr) && displayNameAttr!.ArgumentList?.Arguments.Count is 1)
+            summary = displayNameAttr.ArgumentList.Arguments[0].Expression.ToString();
+
+        // tenta obter o authorization
+        if (classDeclaration.TryGetAttribute(WithAuthorizationAttributeName, out AttributeSyntax? authAttr))
+            authorizationPolicies = [];
+
+        // se tiver o attribute WithPolicy, deve obter o(s) nome(s) da(s) política(s)
+        if (classDeclaration.TryGetAttribute(WithPolicyAttributeName, out AttributeSyntax? policyAttr))
+        {
+            var arguments = policyAttr!.ArgumentList?.Arguments;
+            if (arguments is not null && arguments.Value.Count > 0)
+            {
+                // obtém os nomes das políticas
+                authorizationPolicies = arguments.Value.Select(a => a.Expression.ToString()).ToArray();
+            }
+            else
+            {
+                authorizationPolicies ??= [];
+            }
+        }
 
         // tenta obter o MapGroup attribute
         if (classDeclaration.TryGetAttribute(MapGroupAttributeName, out AttributeSyntax? groupAttr) && groupAttr!.ArgumentList?.Arguments.Count is 1)
@@ -607,11 +631,12 @@ public static class CommandHandlerGenerator
             RoutePattern = endpointRoutePattern,
             EndpointName = endpointName,
             Description = description,
-            DisplayName = displayName,
+            Summary = summary,
             GroupName = groupName,
             CreatedInformation = createdInformation,
             IdResultValueType = idResultValueType,
-            ResponseValues = responseValues
+            ResponseValues = responseValues,
+            AuthorizationPolicies = authorizationPolicies
         };
     }
 

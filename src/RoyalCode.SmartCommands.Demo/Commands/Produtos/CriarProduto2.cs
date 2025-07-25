@@ -7,9 +7,11 @@ using System.Diagnostics.CodeAnalysis;
 namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
 
 [MapGroup("produtos")]
-[MapPost("/", "Criar Produto")]
+[MapPost("/", "criar-produto")]
 [MapResponseValues("Id", "Nome")]
 [MapCreatedRoute("{0}", "Id")]
+[WithDescription("Cria um novo produto com o nome informado.")]
+[WithSummary("Criar Produto")]
 public partial class CriarProduto2
 {
     public string? Nome { get; set; }

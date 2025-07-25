@@ -18,7 +18,7 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
 
     public string? Description { get; set; }
 
-    public string? DisplayName { get; set; }
+    public string? Summary { get; set; }
 
     public string? GroupName { get; set; }
 
@@ -30,6 +30,8 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
 
     public MapResponseValuesInformation? ResponseValues { get; set; }
 
+    public string[]? AuthorizationPolicies { get; set; }
+
     internal CommandHandlerInformation? CommandInfo { get; set; }
 
     public bool Equals(MapInformation? other)
@@ -39,11 +41,12 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
             RoutePattern == other.RoutePattern &&
             EndpointName == other.EndpointName &&
             Description == other.Description &&
-            DisplayName == other.DisplayName &&
+            Summary == other.Summary &&
             GroupName == other.GroupName &&
             Equals(CreatedInformation, other.CreatedInformation) &&
             Equals(IdResultValueType, other.IdResultValueType) &&
-            Equals(ResponseValues, other.ResponseValues);
+            Equals(ResponseValues, other.ResponseValues) &&
+            AuthorizationPolicies.SequenceEqual(other.AuthorizationPolicies);
     }
 
     public override bool Equals(object? obj)
@@ -58,11 +61,12 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
         hashCode = hashCode * -1521134295 + RoutePattern.GetHashCode();
         hashCode = hashCode * -1521134295 + EndpointName.GetHashCode();
         hashCode = hashCode * -1521134295 + Description?.GetHashCode() ?? 0;
-        hashCode = hashCode * -1521134295 + DisplayName?.GetHashCode() ?? 0;
+        hashCode = hashCode * -1521134295 + Summary?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + GroupName?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + CreatedInformation?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + IdResultValueType?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + ResponseValues?.GetHashCode() ?? 0;
+        hashCode = hashCode * -1521134295 + AuthorizationPolicies?.GetHashCode() ?? 0;
         return hashCode;
     }
 
@@ -108,10 +112,23 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
             };
         }
         
-
-        if (mapInfo.DisplayName is not null)
+        if (mapInfo.Summary is not null)
         {
-            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithSummary", mapInfo.DisplayName)
+            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithSummary", mapInfo.Summary)
+            {
+                LineIdent = true
+            };
+        }
+
+        if (mapInfo.AuthorizationPolicies is not null)
+        {
+            // adiciona os AuthorizationPolicies, se houver
+            ArgumentsGenerator arguments = new();
+            foreach (var policy in mapInfo.AuthorizationPolicies)
+            {
+                arguments.AddArgument(policy);
+            }
+            methodInvoke = new MethodInvokeGenerator(methodInvoke, "RequireAuthorization", arguments)
             {
                 LineIdent = true
             };

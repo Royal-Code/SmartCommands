@@ -55,7 +55,7 @@ public static class FindGenerator
 
         // tenta obter o DisplayName attribute
         if (classDeclaration.TryGetAttribute("DisplayName", out AttributeSyntax? displayNameAttr) && displayNameAttr!.ArgumentList?.Arguments.Count is 1)
-            displayName = displayNameAttr.ArgumentList.Arguments[0].Expression.ToString().RemoveQuotes();
+            displayName = displayNameAttr.ArgumentList.Arguments[0].Expression.ToString();
 
         // tenta obter o MapGroup attribute
         if (classDeclaration.TryGetAttribute(MapGroupAttributeName, out AttributeSyntax? groupAttr) && groupAttr!.ArgumentList?.Arguments.Count is 1)

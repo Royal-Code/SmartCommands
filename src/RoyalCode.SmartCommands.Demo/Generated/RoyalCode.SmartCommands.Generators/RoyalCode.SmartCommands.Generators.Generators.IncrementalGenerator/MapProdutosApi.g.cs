@@ -17,7 +17,9 @@ public static partial class MapProdutosApi
         var group = builder.MapGroup("produtos");
 
         group.MapPost("/", CriarProduto2HandleAsync)
-            .WithName("Criar Produto")
+            .WithName("criar-produto")
+            .WithDescription("Cria um novo produto com o nome informado.")
+            .WithSummary("Criar Produto")
             .WithOpenApi();
 
         group.MapPut("/{id}", EditarProdutoHandleAsync)
