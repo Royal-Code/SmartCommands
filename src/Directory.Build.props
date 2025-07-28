@@ -15,7 +15,7 @@
 	<PropertyGroup>
 		<SmartProblemsVer>1.0.0-preview-4.4</SmartProblemsVer>
 		<SmartValidationsVer>1.0.0-preview-2.0</SmartValidationsVer>
-		<WorkContextVer>0.8.3</WorkContextVer>
+		<WorkContextVer>0.8.4</WorkContextVer>
 		<ExSrcGenVer>0.1.3</ExSrcGenVer>
 	</PropertyGroup>
 </Project>
