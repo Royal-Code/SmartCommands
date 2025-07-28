@@ -13,6 +13,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RoyalCode.SmartCommands.Tes
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".Items", ".Items", "{A1FA5B28-9CA6-4FE6-8BB9-B6394D5D801D}"
 	ProjectSection(SolutionItems) = preProject
+		..\.github\workflows\commands-nuget.yml = ..\.github\workflows\commands-nuget.yml
 		Directory.Build.props = Directory.Build.props
 		pack.targets = pack.targets
 	EndProjectSection

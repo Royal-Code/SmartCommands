@@ -1,0 +1,37 @@
+# This workflow will build a .NET project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+
+name: commands-nuget
+
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          include-prerelease: true
+        
+      - name: Build and pack SmartCommands
+        run: dotnet build ./src/RoyalCode.SmartCommands/RoyalCode.SmartCommands.csproj -c Release
+
+      - name: Build and pack EntityFramework
+        run: dotnet build ./src/RoyalCode.SmartCommands.EntityFramework/RoyalCode.SmartCommands.EntityFramework.csproj -c Release
+        
+      - name: Build and pack SmartCommands Generators
+        run: dotnet build ./src/RoyalCode.SmartCommands.Generators/RoyalCode.SmartCommands.Generators.csproj -c Release
+
+      - name: Build and pack WorkContext
+        run: dotnet build ./src/RoyalCode.SmartCommands.WorkContext/RoyalCode.SmartCommands.WorkContext.csproj -c Release
+      
+      - name: Publish
+        run: dotnet nuget push ./**/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
