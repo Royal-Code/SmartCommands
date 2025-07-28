@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public sealed class AddHandlersServicesInformation : TransformationGeneratorBase<ServiceTypeDescriptor>, IEquatable<AddHandlersServicesInformation>
+public sealed class AddHandlersServicesInformation : TransformationGeneratorBase<AddServiceDescriptor>, IEquatable<AddHandlersServicesInformation>
 {
     public AddHandlersServicesInformation(TypeDescriptor classType, string title, List<Diagnostic> errors)
     {
@@ -40,7 +40,7 @@ public sealed class AddHandlersServicesInformation : TransformationGeneratorBase
         return hashCode;
     }
 
-    protected override void Generate(SourceProductionContext spc, IEnumerable<ServiceTypeDescriptor> models, bool hasErrors)
+    protected override void Generate(SourceProductionContext spc, IEnumerable<AddServiceDescriptor> models, bool hasErrors)
     {
         AddHandlersServicesGenerator.Generate(spc, this, models);
     }

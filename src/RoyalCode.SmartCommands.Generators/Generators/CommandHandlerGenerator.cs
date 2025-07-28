@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using RoyalCode.SmartCommands.Generators.Commands;
 using System.Reflection;
+using static RoyalCode.SmartCommands.Generators.Generators.CommandHandlerInformation;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
@@ -16,6 +17,8 @@ public static class CommandHandlerGenerator
     private const string WithValidateModelAttributeName = "WithValidateModel";
     private const string WithDecoratorsAttributeName = "WithDecorators";
     private const string WithUnitOfWorkAttributeName = "WithUnitOfWork";
+    private const string WithDbContextAttributeName = "WithDbContext";
+    private const string WithWorkContextAttributeName = "WithWorkContext";
     private const string WithFindEntitiesAttributeName = "WithFindEntities";
     private const string ProduceNewEntityAttributeName = "ProduceNewEntity";
     private const string MapIdResultValueAttributeName = "MapIdResultValue";
@@ -137,12 +140,62 @@ public static class CommandHandlerGenerator
 
         // verifica se tem o attribute WithUnitOfWork
         TypeDescriptor? accessorType = null;
+        ContextAccessorModes contextAccessorMode = ContextAccessorModes.None;
         var hasUow = method.TryGetAttribute(WithUnitOfWorkAttributeName, out AttributeSyntax? withUowAttr);
         if (hasUow)
         {
             // se tem uow, extrai o tipo do contexto
             var uowSyntaxType = ((GenericNameSyntax)withUowAttr!.Name).TypeArgumentList.Arguments[0];
             accessorType = TypeDescriptor.Create(uowSyntaxType, context.SemanticModel);
+            contextAccessorMode = ContextAccessorModes.Specified;
+        }
+        
+        // verifica se tem o attribute WithDbContext
+        var hasDbContext = method.TryGetAttribute(WithDbContextAttributeName, out AttributeSyntax? withDbContextAttr);
+        if (hasDbContext)
+        {
+            if (withUowAttr is not null)
+            {
+                // se já tem WithUnitOfWork, não pode ter WithDbContext
+                error = Diagnostic.Create(
+                    CmdDiagnostics.WithDbContextCannotBeUsedWithWithUnitOfWork,
+                    location: method.Identifier.GetLocation());
+                errors.Add(error);
+            }
+
+            // se tem db context, determina o tipo do contexto para uow
+            hasUow = true;
+            contextAccessorMode = ContextAccessorModes.DbContext;
+            accessorType = new TypeDescriptor("DbContext", ["Microsoft.EntityFrameworkCore"]);
+        }
+        
+        // verifica se tem o attribute WithWorkContext
+        var hasWorkContext = method.TryGetAttribute(WithWorkContextAttributeName, out AttributeSyntax? _);
+        if (hasWorkContext)
+        {
+            if (withUowAttr is not null)
+            {
+                // se já tem WithUnitOfWork, não pode ter WithWorkContext
+                error = Diagnostic.Create(
+                    CmdDiagnostics.WithWorkContextCannotBeUsedWithWithUnitOfWork,
+                    location: method.Identifier.GetLocation());
+
+                errors.Add(error);
+            }
+            else if (withDbContextAttr is not null)
+            {
+                // se já tem WithDbContext, não pode ter WithWorkContext
+                error = Diagnostic.Create(
+                    CmdDiagnostics.WithWorkContextCannotBeUsedWithWithDbContext,
+                    location: method.Identifier.GetLocation());
+
+                errors.Add(error);
+            }
+
+            // se tem work context, determina o tipo do contexto para uow
+            hasUow = true;
+            contextAccessorMode = ContextAccessorModes.WorkContext;
+            accessorType = new TypeDescriptor("IWorkContext", ["RoyalCode.WorkContext"]);
         }
 
         // verifica se tem WithFindEntities (se tiver hasUow, não precisa verificar)
@@ -440,6 +493,7 @@ public static class CommandHandlerGenerator
             HasWithUnitOfWork = hasUow,
             HasWithFindEntities = hasFindEntities,
             ContextAccessorType = accessorType,
+            ContextAccessorMode = contextAccessorMode,
             IdPropertiesBindings = idPropertiesBindings,
             ProduceProblems = produceProblems,
             ProduceNewEntityType = newEntityType,
@@ -671,14 +725,21 @@ public static class CommandHandlerGenerator
         handlerGen.Modifiers.Public();
         handlerGen.Hierarchy.AddImplements(new TypeDescriptor(i.HandlerInterfaceName, [i.Namespace]));
 
+        var isGenericContextAccessor = i.ContextAccessorMode is ContextAccessorModes.DbContext or ContextAccessorModes.WorkContext;
+        if (isGenericContextAccessor)
+        {
+            handlerGen.Generics.AddGeneric("TContext", i.ContextAccessorType!.Namespaces);
+            handlerGen.Where.Add(new WhereGenerator("TContext", i.ContextAccessorType.Name));
+        }
+
         // cria os campos e o construtor
         var ctorGen = new ConstructorGenerator(i.HandlerImplementationName);
         ctorGen.Modifiers.Public();
         if (i.HasWithUnitOfWork)
         {
             var uowType = new TypeDescriptor(
-                string.Format(UowAccessorType, i.ContextAccessorType!.Name),
-                [CommandNamespace, .. i.ContextAccessorType.Namespaces]);
+                string.Format(UowAccessorType, isGenericContextAccessor ? "TContext" : i.ContextAccessorType!.Name),
+                [CommandNamespace, .. i.ContextAccessorType!.Namespaces]);
 
             // adiciona o campo
             handlerGen.Fields.Add(new FieldGenerator(uowType, AccessorVarName, true));

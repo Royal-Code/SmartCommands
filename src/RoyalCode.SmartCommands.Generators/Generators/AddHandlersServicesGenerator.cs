@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static RoyalCode.SmartCommands.Generators.Generators.CommandHandlerInformation;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
@@ -67,13 +68,21 @@ public static class AddHandlersServicesGenerator
     public static void Generate(
         SourceProductionContext spc,
         AddHandlersServicesInformation left,
-        IEnumerable<ServiceTypeDescriptor> right)
+        IEnumerable<AddServiceDescriptor> right)
     {
         var classGenerator = new ClassGenerator(left.ClassType.Name, left.ClassType.Namespaces[0]);
         classGenerator.Modifiers.Public();
         classGenerator.Modifiers.Static();
         classGenerator.Modifiers.Partial();
 
+        // aqui é preciso olhar todos os serviços e verificar os modos genéricos.
+        // se houver modos genéricos distintos entre DbContext e WorkContext,
+        // deve ser gerado dois tipos genéricos, TDbContext e TWorkContext e o ServiceTypeDescriptor
+        // deve ser substituído o tipo genérico por TDbContext ou TWorkContext.
+        // Se houver apenas um modo genérico, deve ser usado o TContext.
+        // Se não houver modos genéricos, não se usa Generics no método.
+
+        // gera o método AddHandlersServices
         var method = new MethodGenerator($"Add{left.Title}HandlersServices", TypeDescriptor.Void());
         method.Modifiers.Public();
         method.Modifiers.Static();
@@ -86,9 +95,50 @@ public static class AddHandlersServicesGenerator
                 ThisModifier = true
             });
 
+        var hasWorkContextGeneric = right.Any(r => r.ContextAccessorMode == ContextAccessorModes.WorkContext);
+        var hasDbContextGeneric = right.Any(r => r.ContextAccessorMode == ContextAccessorModes.DbContext);
+        
+        var mustOverride = hasWorkContextGeneric && hasDbContextGeneric;
+
+        if (mustOverride)
+        {
+            method.Generics.AddGeneric("TWorkContext", ["RoyalCode.WorkContext"]);
+            method.Where.Add(new WhereGenerator("TWorkContext", "IWorkContext"));
+            method.Generics.AddGeneric("TDbContext", ["Microsoft.EntityFrameworkCore"]);
+            method.Where.Add(new WhereGenerator("TDbContext", "DbContext"));
+        }
+        else if (hasWorkContextGeneric)
+        {
+            method.Generics.AddGeneric("TContext", ["RoyalCode.WorkContext"]);
+            method.Where.Add(new WhereGenerator("TContext", "IWorkContext"));
+        }
+        else if (hasDbContextGeneric)
+        {
+            method.Generics.AddGeneric("TContext", ["Microsoft.EntityFrameworkCore"]);
+            method.Where.Add(new WhereGenerator("TContext", "DbContext"));
+        }
+
         foreach (var std in right)
         {
-            method.Commands.Add(new AddServiceCommand(std, "services"));
+            var serviceTypeDescriptor = std.ServiceTypeDescriptor;
+            if (std.ContextAccessorMode == ContextAccessorModes.DbContext)
+            {
+                serviceTypeDescriptor = new ServiceTypeDescriptor(
+                    serviceTypeDescriptor.InterfaceType,
+                    new TypeDescriptor(
+                        $"{serviceTypeDescriptor.HandlerType.Name}<{(mustOverride ? "TDbContext" : "TContext")}>",
+                        serviceTypeDescriptor.HandlerType.Namespaces));
+            }
+            else if (std.ContextAccessorMode == ContextAccessorModes.WorkContext)
+            {
+                serviceTypeDescriptor = new ServiceTypeDescriptor(
+                    serviceTypeDescriptor.InterfaceType,
+                    new TypeDescriptor(
+                        $"{serviceTypeDescriptor.HandlerType.Name}<{(mustOverride ? "TWorkContext" : "TContext")}>",
+                        serviceTypeDescriptor.HandlerType.Namespaces));
+            }
+
+            method.Commands.Add(new AddServiceCommand(serviceTypeDescriptor, "services"));
         }
 
         classGenerator.Methods.Add(method);

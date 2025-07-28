@@ -149,4 +149,28 @@ internal static class CmdDiagnostics
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor WithDbContextCannotBeUsedWithWithUnitOfWork = new(
+        id: "RCCMD018",
+        title: "WithDbContextAttribute cannot be used with WithUnitOfWorkAttribute",
+        messageFormat: "WithDbContextAttribute cannot be used with WithUnitOfWorkAttribute",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor WithWorkContextCannotBeUsedWithWithUnitOfWork = new(
+        id: "RCCMD019",
+        title: "WithWorkContextAttribute cannot be used with WithUnitOfWorkAttribute",
+        messageFormat: "WithWorkContextAttribute cannot be used with WithUnitOfWorkAttribute",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor WithWorkContextCannotBeUsedWithWithDbContext = new(
+        id: "RCCMD020",
+        title: "WithWorkContextAttribute cannot be used with WithDbContextAttribute",
+        messageFormat: "WithWorkContextAttribute cannot be used with WithDbContextAttribute",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

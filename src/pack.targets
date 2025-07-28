@@ -16,7 +16,7 @@
 		<PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
 	</PropertyGroup>
 	<PropertyGroup>
-		<SCmdVer>0.0.6</SCmdVer>
+		<SCmdVer>0.0.7</SCmdVer>
 		<SCmdPrev></SCmdPrev>
 		<Version>$(SCmdVer)$(SCmdPrev)</Version>
 		<AssemblyVersion>$(SCmdVer)</AssemblyVersion>

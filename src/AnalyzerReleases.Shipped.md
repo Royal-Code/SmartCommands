@@ -21,4 +21,7 @@ RCCMD013 | Usage   | Error    | CMD013_Invalid_use_of_MapApiHandlersAttribute, [
 RCCMD014 | Usage   | Error    | CMD014_Id_property_not_found, [Documentation](https://google.com)
 RCCMD015 | Usage   | Error    | CMD015_The_type_returned_by_the_command_was_not_found, [Documentation](https://google.com)
 RCCMD016 | Usage   | Error    | CMD016_Property_not_found_for_the_object_returned, [Documentation](https://google.com)
-RCCMD017 | Usage   | Error    | CMD016_Invalid_use_of_MapFindAttribute, [Documentation](https://google.com)
+RCCMD017 | Usage   | Error    | CMD017_Invalid_use_of_MapFindAttribute, [Documentation](https://google.com)
+RCCMD018 | Usage   | Error    | CMD018_WithDbContextAttribute_cannot_be_used_with_WithUnitOfWorkAttribute, [Documentation](https://google.com)
+RCCMD019 | Usage   | Error    | CMD019_WithWorkContextAttribute_cannot_be_used_with_WithUnitOfWorkAttribute, [Documentation](https://google.com)
+RCCMD020 | Usage   | Error    | CMD019_WithWorkContextAttribute_cannot_be_used_with_WithDbContextAttribute, [Documentation](https://google.com)

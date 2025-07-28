@@ -42,6 +42,7 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
 #nullable enable
 
     public TypeDescriptor? ContextAccessorType { get; internal set; }
+    public ContextAccessorModes ContextAccessorMode { get; internal set; }
     public TypeDescriptor? ProduceNewEntityType { get; internal set; }
     public EditTypeDescriptor? EditType { get; internal set; }
     public MapInformation? MapInformation { get; internal set; }
@@ -97,6 +98,7 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
                HasWithUnitOfWork == other.HasWithUnitOfWork &&
                HasWithFindEntities == other.HasWithFindEntities &&
                Equals(ContextAccessorType, other.ContextAccessorType) &&
+               ContextAccessorMode == other.ContextAccessorMode &&
                IdPropertiesBindings.SequenceEqual(other.IdPropertiesBindings) &&
                ProduceProblems.SequenceEqual(other.ProduceProblems) &&
                Equals(ProduceNewEntityType, other.ProduceNewEntityType) &&
@@ -130,10 +132,19 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
         hashCode = hashCode * -1521134295 + HasWithUnitOfWork.GetHashCode();
         hashCode = hashCode * -1521134295 + HasWithFindEntities.GetHashCode();
         hashCode = hashCode * -1521134295 + ContextAccessorType?.GetHashCode() ?? 0;
+        hashCode = hashCode * -1521134295 + ContextAccessorMode.GetHashCode();
         hashCode = hashCode * -1521134295 + ProduceNewEntityType?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + EditType?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + MapInformation?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + Errors?.GetHashCode() ?? 0;
         return hashCode;
+    }
+
+    public enum ContextAccessorModes
+    {
+        None,
+        Specified,
+        DbContext,
+        WorkContext
     }
 }

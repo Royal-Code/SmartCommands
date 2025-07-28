@@ -30,11 +30,13 @@ public class IncrementalGenerator : IIncrementalGenerator
         var pipelineCollectCommands = pipelineCommands.Collect();
         var pipelineCollectFinds = pipelineFindCommands.Collect();
 
+        // gerador dos comandos
         context.RegisterSourceOutput(pipelineCommands, static (context, model) =>
         {
             model.Generate(context);
         });
 
+        // gerador do AddHandlersServices
         context.RegisterSourceOutput(pipelineAddServices.Combine(pipelineCollectCommands), static (context, source) =>
         {
             var (addServices, models) = source;
@@ -45,13 +47,17 @@ public class IncrementalGenerator : IIncrementalGenerator
                     var interfaceType = new TypeDescriptor(m.HandlerInterfaceName, [m.Namespace]);
                     var handlerType = new TypeDescriptor(m.HandlerImplementationName,
                         [$"{m.Namespace}.Internals"]);
-                    return new ServiceTypeDescriptor(interfaceType, handlerType);
+                    
+                    return new AddServiceDescriptor(
+                        new ServiceTypeDescriptor(interfaceType, handlerType),
+                        m.ContextAccessorMode);
                 })
                 .ToList();
 
             addServices.Generate(context, services);
         });
 
+        // combinação dos comandos e finds para gerar os MapInformation
         var pipelineMapInformation = pipelineCollectCommands.Combine(pipelineCollectFinds)
             .Select((source, ct) =>
             {
@@ -64,6 +70,7 @@ public class IncrementalGenerator : IIncrementalGenerator
                     .ToList();
             });
 
+        // gerador dos MapApiHandlers
         context.RegisterSourceOutput(pipelineMapApiHandlers.Collect().Combine(pipelineMapInformation),
             static (context, source) =>
             {
