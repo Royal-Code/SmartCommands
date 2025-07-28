@@ -12,6 +12,7 @@
 		<RepositoryType>Git</RepositoryType>
 		<Configurations>Debug;Release</Configurations>
 		<PackageIcon>icon.png</PackageIcon>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
 	</PropertyGroup>
 	<PropertyGroup>
