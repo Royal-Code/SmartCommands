@@ -10,7 +10,7 @@
 		<PackageReference Include="RoyalCode.SmartProblems.ApiResults" Version="$(SmartProblemsVer)" />
 		<PackageReference Include="RoyalCode.SmartProblems.Http" Version="$(SmartProblemsVer)" />
 		<PackageReference Include="RoyalCode.WorkContext.EntityFramework" Version="$(WorkContextVer)" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.20" />
 	</ItemGroup>
 
 	<ItemGroup>

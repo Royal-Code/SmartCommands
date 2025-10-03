@@ -6,14 +6,14 @@
 	</PropertyGroup>
 	<PropertyGroup>
 		<Authors>Royal Code</Authors>
-		<Copyright>Royal Code Copyright ©  2025</Copyright>
+		<Copyright>Royal Code Copyright ©  $([System.DateTime]::UtcNow.ToString("yyyy"))</Copyright>
 		<RepositoryUrl>https://github.com/Royal-Code/SmartCommands</RepositoryUrl>
 		<RepositoryType>Git</RepositoryType>
 		<Configurations>Debug;Release</Configurations>
 		<PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
 	</PropertyGroup>
 	<PropertyGroup>
-		<SmartProblemsVer>1.0.0-preview-4.4</SmartProblemsVer>
+		<SmartProblemsVer>1.0.0-preview-4.7</SmartProblemsVer>
 		<SmartValidationsVer>1.0.0-preview-2.0</SmartValidationsVer>
 		<WorkContextVer>0.8.5</WorkContextVer>
 		<ExSrcGenVer>0.1.4</ExSrcGenVer>
