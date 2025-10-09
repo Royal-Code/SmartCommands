@@ -5,6 +5,10 @@ using RoyalCode.SmartCommands.WorkContext.Extensions;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.Entities;
 using RoyalCode.SmartProblems.HttpResults;
+using RoyalCode.SmartSearch;
+using RoyalCode.SmartSearch.AspNetCore.HttpResults;
+using RoyalCode.SmartSearch.AspNetCore.Internals;
+using RoyalCode.SmartSearch.Exceptions;
 
 namespace RoyalCode.SmartCommands.Demo;
 
@@ -42,6 +46,25 @@ public static partial class ProgramExtensions
 
         // como seria um find
         produtosGroup.MapGet("manual/{id:guid}", FindProdutoAsync);
+
+
+        // com seria um search
+        produtosGroup.MapGet("search/manual", SearchProdutoAsync);
+        produtosGroup.MapSearch<Produto, ProdutoDetalhes, ProdutoFiltro>("search/auto");
+            
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
+    private static Task<MatchSearch<ProdutoDetalhes>> SearchProdutoAsync(
+        [AsParameters] ProdutoFiltro filter,
+        [AsParameters] SearchOptions options,
+        [FromQuery] Sorting[]? orderby,
+        [FromServices] ICriteria<Produto> criteria,
+        [FromServices] ILogger<ICriteria<Produto>> logger,
+        CancellationToken ct)
+    {
+        return Performer.SearchAsync<Produto, ProdutoDetalhes, ProdutoFiltro>(
+            filter, options, orderby, criteria, null, logger, ct);
     }
 
     [ProduceProblems(ProblemCategory.NotFound)]

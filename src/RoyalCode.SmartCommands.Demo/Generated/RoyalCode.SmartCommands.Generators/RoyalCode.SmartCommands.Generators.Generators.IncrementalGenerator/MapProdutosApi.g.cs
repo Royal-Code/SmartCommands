@@ -28,6 +28,7 @@ public static partial class MapProdutosApi
 
         group.MapGet("{id:guid}", FindProdutoHandleAsync)
             .WithName("Get product details")
+            .WithDescription("Get product details by ID")
             .WithOpenApi();
 
         return group;

@@ -12,6 +12,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="RoyalCode.SmartSearch.AspNetCore" Version="$(SmartSearchVer)" />
 		<PackageReference Include="RoyalCode.SmartProblems.ApiResults" Version="$(SmartProblemsVer)" />
 		<PackageReference Include="RoyalCode.SmartProblems.Http" Version="$(SmartProblemsVer)" />
 		<PackageReference Include="RoyalCode.WorkContext.EntityFramework" Version="$(WorkContextVer)" />
