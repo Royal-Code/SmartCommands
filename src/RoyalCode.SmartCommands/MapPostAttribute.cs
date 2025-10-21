@@ -4,34 +4,69 @@ namespace RoyalCode.SmartCommands;
 
 /// <summary>
 /// <para>
-///     Maps an endpoint to handle HTTP POST requests.
+///     Maps a command class to an HTTP <c>POST</c> endpoint in Minimal API.
 /// </para>
 /// <para>
-///     This attribute should be used in classes that define a command,
-///     and it is typically used to create or update resources.
+///     Use this attribute on a class that contains a method marked with <see cref="CommandAttribute"/>.
+///     It is typically used to create a new resource or to execute an action that does not map to a specific existing resource.
 /// </para>
 /// <para>
-///     To define a command, use the <see cref="CommandAttribute"/> in a method,
-///     and then use this attribute on the class to map the endpoint.
+///     Combine with <see cref="MapGroupAttribute"/> to group related endpoints; with
+///     <see cref="WithDescriptionAttribute"/> and <see cref="WithSummaryAttribute"/> to provide metadata; and with
+///     <see cref="WithAuthorizationAttribute"/> or <see cref="WithPolicyAttribute"/> to require authorization or policies.
 /// </para>
 /// <para>
-///     Use algo the <see cref="MapGroupAttribute"/> to group related endpoints,
-///     and the <see cref="WithDescriptionAttribute"/> to provide a description of the endpoint,
-///     and the <see cref="WithSummaryAttribute"/> to provide a summary of the endpoint.
-///     Use the <see cref="WithAuthorizationAttribute"/> to require authorization for the endpoint,
-///     or the <see cref="WithPolicyAttribute"/> to require a specific policy for the endpoint.
+///     To manipulate the response payload you can use <see cref="MapResponseValuesAttribute"/> to project specific properties
+///     or <see cref="MapIdResultValueAttribute"/> to expose the <c>Id</c> property of the returned object.
 /// </para>
 /// <para>
-///     To manipulate the response object, can be used the <see cref="MapResponseValuesAttribute"/>
-///     or the <see cref="MapIdResultValueAttribute"/>.
+///     When the command creates a new entity (using <see cref="ProduceNewEntityAttribute"/>) you may combine
+///     <see cref="MapCreatedRouteAttribute"/> so the generated handler returns <c>201 Created</c> and sets the <c>Location</c> header.
+///     When editing an existing entity (using <see cref="EditEntityAttribute{TEntity, TId}"/>) the handler will usually return <c>200 OK</c>.
 /// </para>
 /// <para>
-///     For creation of a new resource, the endpoint should return a 201 Created status code,
-///     then the <see cref="MapCreatedRouteAttribute"/> can be used to specify the route
-///     of the newly created resource (location header).
+///     To generate the endpoint handler code use <see cref="MapApiHandlersAttribute"/> in a static partial class.
 /// </para>
+/// <para>Examples:</para>
 /// <para>
-///     To generate the endpoint code, use the <see cref="MapApiHandlersAttribute"/> in a static partial class.
+/// <code>
+/// // Basic command without entity creation
+/// [MapGroup("api/products")]
+/// [MapPost("/", "create-product")]
+/// public class CreateProduct
+/// {
+///     public string Name { get; set; }
+///
+///     [Command]
+///     internal Result Execute() => Result.Ok();
+/// }
+///
+/// // Creating a new entity and returning 201 Created with Location
+/// [MapGroup("api/products")]
+/// [MapPost("/", "create-product")]
+/// [MapCreatedRoute("{0}", "Id")]
+/// public class CreateProductWithEntity
+/// {
+///     public string Name { get; set; }
+///
+///     [Command, ProduceNewEntity, WithUnitOfWork{AppDbContext}]
+///     internal Product Execute(AppDbContext db)
+///         => new Product { Name = Name, Active = true };
+/// }
+///
+/// // Creating from an existing entity (EditEntity + MapCreatedRoute)
+/// [MapGroup("api/products")]
+/// [MapPost("/{sourceId}", "duplicate-product")]
+/// [MapCreatedRoute("{0}", "Id")]
+/// public class DuplicateProduct
+/// {
+///     public string sourceId { get; set; }
+///
+///     [Command, EditEntity{Product, int}, WithUnitOfWork{AppDbContext}]
+///     internal Product Execute(Product source, AppDbContext db)
+///         => new Product { Name = source.Name, Active = source.Active };
+/// }
+/// </code>
 /// </para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
@@ -41,12 +76,11 @@ public class MapPostAttribute : Attribute
     /// Initializes a new instance of the <see cref="MapPostAttribute"/> class.
     /// </summary>
     /// <param name="endpointRoutePattern">
-    ///     The route pattern for the endpoint, 
-    ///     e.g. <c>""</c> for the root endpoint that creates a new entity/resource,
-    ///     or <c>"{id}/something"</c> for an endpoint that handles a specific resource.
+    ///     The route pattern for the endpoint. For creation usually <c>"/"</c> (root of the group),
+    ///     or a pattern like <c>"{id}/action"</c> for commands that act relative to an existing resource.
     /// </param>
     /// <param name="endpointName">
-    ///     The name of the endpoint, e.g. <c>"create-entity"</c>.
+    ///     A unique name for the endpoint (used by Minimal API metadata), e.g. <c>"create-product"</c>.
     /// </param>
     public MapPostAttribute([StringSyntax("Route")] string endpointRoutePattern, string endpointName) { }
 }

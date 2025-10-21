@@ -27,8 +27,14 @@ public class IncrementalGenerator : IIncrementalGenerator
             predicate: FindGenerator.Predicate,
             transform: FindGenerator.Transform);
 
+        var pipelineSearchCommands = context.SyntaxProvider.ForAttributeWithMetadataName(
+            fullyQualifiedMetadataName: SearchGenerator.SearchAttributeName,
+            predicate: SearchGenerator.Predicate,
+            transform: SearchGenerator.Transform);
+
         var pipelineCollectCommands = pipelineCommands.Collect();
         var pipelineCollectFinds = pipelineFindCommands.Collect();
+        var pipelineCollectSearches = pipelineSearchCommands.Collect();
 
         // gerador dos comandos
         context.RegisterSourceOutput(pipelineCommands, static (context, model) =>
@@ -57,8 +63,9 @@ public class IncrementalGenerator : IIncrementalGenerator
             addServices.Generate(context, services);
         });
 
-        // combinação dos comandos e finds para gerar os MapInformation
-        var pipelineMapInformation = pipelineCollectCommands.Combine(pipelineCollectFinds)
+        // combinação dos comandos, finds e searches para gerar os MapInformation
+        var pipelineMapInformation = pipelineCollectCommands
+            .Combine(pipelineCollectFinds)
             .Select((source, ct) =>
             {
                 var (commands, finds) = source;
@@ -66,7 +73,14 @@ public class IncrementalGenerator : IIncrementalGenerator
                 return commands
                     .Where(m => m.MapInformation is not null)
                     .Select(m => (IMapEndpointGenerator)m.MapInformation!)
-                    .Concat(finds)
+                    .Concat(finds);
+            })
+            .Combine(pipelineCollectSearches)
+            .Select((source, ct) =>
+            {
+                var (mapEndpoints, searches) = source;
+                return mapEndpoints
+                    .Concat(searches)
                     .ToList();
             });
 

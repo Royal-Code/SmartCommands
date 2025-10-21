@@ -49,13 +49,14 @@ public static partial class ProgramExtensions
 
 
         // com seria um search
-        produtosGroup.MapGet("search/manual", SearchProdutoAsync);
+        produtosGroup.MapGet("search/manual", SearchProdutoProdutoFiltroAsync);
         produtosGroup.MapSearch<Produto, ProdutoDetalhes, ProdutoFiltro>("search/auto");
-            
+
+        var x = Exemplo_SearchProdutoAsync;
     }
 
     [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
-    private static Task<MatchSearch<ProdutoDetalhes>> SearchProdutoAsync(
+    private static Task<MatchSearch<ProdutoDetalhes>> SearchProdutoProdutoFiltroAsync(
         [AsParameters] ProdutoFiltro filter,
         [AsParameters] SearchOptions options,
         [FromQuery] Sorting[]? orderby,
@@ -66,6 +67,29 @@ public static partial class ProgramExtensions
         return Performer.SearchAsync<Produto, ProdutoDetalhes, ProdutoFiltro>(
             filter, options, orderby, criteria, null, logger, ct);
     }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
+    private static Task<MatchSearch<ProdutoDetalhes>> Exemplo_SearchProdutoAsync(
+        [AsParameters] ExemploProdutoFiltro filter,
+        [AsParameters] SearchOptions options,
+        [FromQuery] Sorting[]? orderby,
+        [FromServices] ICriteria<Produto> criteria,
+        [FromServices] ILogger<ICriteria<Produto>> logger,
+        [FromServices] HttpContext context,
+        [FromRoute] int id,
+        CancellationToken ct)
+    {
+        Action<ICriteria<Produto>>? configure = (criteria) =>
+        {
+            filter.ConfigureSearch(criteria, context, id);
+        };
+
+        return Performer.SearchAsync<Produto, ProdutoDetalhes, ExemploProdutoFiltro>(
+            filter, options, orderby, criteria, configure, logger, ct);
+    }
+
+
+
 
     [ProduceProblems(ProblemCategory.NotFound)]
     private static async Task<OkMatch<ProdutoDetalhes>> FindProdutoAsync(

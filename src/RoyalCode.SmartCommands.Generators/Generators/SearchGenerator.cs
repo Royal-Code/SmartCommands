@@ -3,12 +3,13 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public static class FindGenerator
+internal static class SearchGenerator
 {
-    public const string FindAttributeName = "RoyalCode.SmartCommands.MapFindAttribute";
-    
-    private const string MapFindAttributeName = "MapFind";
-    private const string EntityReferenceAttributeName = "EntityReference";
+    public const string SearchAttributeName = "RoyalCode.SmartCommands.MapSearchAttribute";
+
+    private const string MapSearchAttributeName = "MapSearch";
+    private const string SearchReferenceAttributeAttributeName = "SearchReference";
+
     private const string MapGroupAttributeName = "MapGroup";
     private const string WithDescriptionAttributeName = "WithDescription";
     private const string WithSummaryAttributeName = "WithSummary";
@@ -17,36 +18,36 @@ public static class FindGenerator
 
     public static bool Predicate(SyntaxNode node, CancellationToken _) => node is ClassDeclarationSyntax;
 
-    public static FindInformation Transform(
+    public static SearchInformation Transform(
         GeneratorAttributeSyntaxContext context,
         CancellationToken _)
     {
         // classe que contém o atributo
         var classDeclaration = (ClassDeclarationSyntax)context.TargetNode;
 
-        // lê o atributo MapFindAttribute
-        if (!classDeclaration.TryGetAttribute(MapFindAttributeName, out AttributeSyntax? mapFindAttribute))
+        // lê o atributo MapSearch
+        if (!classDeclaration.TryGetAttribute(MapSearchAttributeName, out AttributeSyntax? mapSearchAttribute))
         {
             var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
                 location: classDeclaration.Identifier.GetLocation(),
-                "The MapFindAttribute is not present in the class");
+                "The MapSearchAttribute is not present in the class");
 
-            return new FindInformation(diagnostic);
+            return new SearchInformation(diagnostic);
         }
 
-        // lê o atributo EntityReferenceAttribute
-        if (!classDeclaration.TryGetAttribute(EntityReferenceAttributeName, out AttributeSyntax? entityReferenceAttribute))
+        // lê o atributo SearchReferenceAttribute
+        if (!classDeclaration.TryGetAttribute(SearchReferenceAttributeAttributeName, out AttributeSyntax? searchReferenceAttribute))
         {
             var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
                 location: classDeclaration.Identifier.GetLocation(),
-                "The EntityReferenceAttribute is not present in the class");
+                "The SearchReferenceAttribute is not present in the class");
 
-            return new FindInformation(diagnostic);
+            return new SearchInformation(diagnostic);
         }
 
         // deve ler os parâmetros do atributo
-        var endpointRoutePattern = mapFindAttribute!.ArgumentList?.Arguments[0].Expression.ToString();
-        var endpointName = mapFindAttribute.ArgumentList?.Arguments[1].Expression.ToString();
+        var endpointRoutePattern = mapSearchAttribute!.ArgumentList?.Arguments[0].Expression.ToString();
+        var endpointName = mapSearchAttribute.ArgumentList?.Arguments[1].Expression.ToString();
 
         string? description = null;
         string? summary = null;
@@ -93,23 +94,17 @@ public static class FindGenerator
         }
 
         // extrai o tipo da entidade buscada
-        var syntax = (GenericNameSyntax)entityReferenceAttribute!.Name;
+        var syntax = (GenericNameSyntax)searchReferenceAttribute!.Name;
         var entitySyntaxType = syntax.TypeArgumentList.Arguments[0];
-        var idSyntaxType = syntax.TypeArgumentList.Arguments[1];
+
+        TypeSyntax? selectSyntaxType = null;
+        if (syntax.TypeArgumentList.Arguments.Count is 2)
+            selectSyntaxType = syntax.TypeArgumentList.Arguments[1];
 
         var entityType = TypeDescriptor.Create(entitySyntaxType, context.SemanticModel);
-        var idType = TypeDescriptor.Create(idSyntaxType, context.SemanticModel);
-        var modelType = new TypeDescriptor(classDeclaration.Identifier.Text, [classDeclaration.GetNamespace()]);
+        var selectType = selectSyntaxType is null ? null : TypeDescriptor.Create(selectSyntaxType, context.SemanticModel);
+        var filterType = new TypeDescriptor(classDeclaration.Identifier.Text, [classDeclaration.GetNamespace()]);
 
-        return new FindInformation(
-            entityType,
-            idType,
-            modelType,
-            endpointRoutePattern ?? string.Empty,
-            endpointName ?? string.Empty,
-            description,
-            summary,
-            authorizationPolicies,
-            groupName);
+        throw new NotImplementedException();
     }
 }
