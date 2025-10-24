@@ -1,12 +1,17 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
 using RoyalCode.SmartCommands;
 using RoyalCode.SmartCommands.Demo.Commands.Produtos;
 using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.Entities;
 using RoyalCode.SmartProblems.HttpResults;
+using RoyalCode.SmartSearch;
+using RoyalCode.SmartSearch.AspNetCore.HttpResults;
+using RoyalCode.SmartSearch.AspNetCore.Internals;
 
 namespace RoyalCode.SmartCommands.Demo;
 
@@ -29,6 +34,14 @@ public static partial class MapProdutosApi
         group.MapGet("{id:guid}", FindProdutoHandleAsync)
             .WithName("Get product details")
             .WithDescription("Get product details by ID")
+            .WithOpenApi();
+
+        group.MapGet("", SearchProdutoByProdutoFiltroAsync)
+            .WithName("Listagem paginada de produtos")
+            .WithOpenApi();
+
+        group.MapGet("/{id:int}", SearchProdutoByExemploProdutoFiltroAsync)
+            .WithName("Listagem paginada de produtos exemplos")
             .WithOpenApi();
 
         return group;
@@ -66,5 +79,34 @@ public static partial class MapProdutosApi
             return notfoundProblem;
 
         return findResult.Entity;
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
+    private static Task<MatchSearch<ProdutoDetalhes>> SearchProdutoByProdutoFiltroAsync(
+        [AsParameters]  ProdutoFiltro filter, 
+        [AsParameters]  SearchOptions options, 
+        [FromQuery]  Sorting[]? orderby, 
+        [FromServices]  ICriteria<Produto> criteria, 
+        [FromServices]  ILogger<ICriteria<Produto>> logger, 
+        CancellationToken ct)
+    {
+        Action<ICriteria<Produto>>? configure = null;
+        return Performer.SearchAsync<Produto, ProdutoDetalhes, ProdutoFiltro>(filter, options, orderby, criteria, configure, logger, ct);
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
+    private static Task<MatchSearch<ProdutoDetalhes>> SearchProdutoByExemploProdutoFiltroAsync(
+        [AsParameters]  ExemploProdutoFiltro filter, 
+        [AsParameters]  SearchOptions options, 
+        [FromQuery]  Sorting[]? orderby, 
+        [FromServices]  ICriteria<Produto> criteria, 
+        [FromServices]  ILogger<ICriteria<Produto>> logger, 
+        HttpContext context, 
+        [FromServices]  SomeService some, 
+        [FromRoute]  int id, 
+        CancellationToken ct)
+    {
+        Action<ICriteria<Produto>>? configure = (criteria) => filter.ConfigureSearch(criteria, context, some, id);
+        return Performer.SearchAsync<Produto, ProdutoDetalhes, ExemploProdutoFiltro>(filter, options, orderby, criteria, configure, logger, ct);
     }
 }

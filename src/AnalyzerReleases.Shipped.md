@@ -24,4 +24,7 @@ RCCMD016 | Usage   | Error    | CMD016_Property_not_found_for_the_object_returne
 RCCMD017 | Usage   | Error    | CMD017_Invalid_use_of_MapFindAttribute, [Documentation](https://google.com)
 RCCMD018 | Usage   | Error    | CMD018_WithDbContextAttribute_cannot_be_used_with_WithUnitOfWorkAttribute, [Documentation](https://google.com)
 RCCMD019 | Usage   | Error    | CMD019_WithWorkContextAttribute_cannot_be_used_with_WithUnitOfWorkAttribute, [Documentation](https://google.com)
-RCCMD020 | Usage   | Error    | CMD019_WithWorkContextAttribute_cannot_be_used_with_WithDbContextAttribute, [Documentation](https://google.com)
+RCCMD020 | Usage   | Error    | CMD020_WithWorkContextAttribute_cannot_be_used_with_WithDbContextAttribute, [Documentation](https://google.com)
+RCCMD021 | Usage   | Error    | CMD021_Invalid_use_of_the_MapFind_attribute, [Documentation](https://google.com)
+RCCMD022 | Usage   | Error    | CMD022_Invalid_use_of_the_MapSearch_attribute, [Documentation](https://google.com)
+RCCMD023 | Usage   | Error    | CMD023_Invalid_use_of_the_WithFilter_attribute, [Documentation](https://google.com)

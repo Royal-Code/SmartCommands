@@ -8,7 +8,7 @@ using RoyalCode.SmartProblems.HttpResults;
 using RoyalCode.SmartSearch;
 using RoyalCode.SmartSearch.AspNetCore.HttpResults;
 using RoyalCode.SmartSearch.AspNetCore.Internals;
-using RoyalCode.SmartSearch.Exceptions;
+using RoyalCode.SmartSearch.Defaults;
 
 namespace RoyalCode.SmartCommands.Demo;
 
@@ -64,8 +64,10 @@ public static partial class ProgramExtensions
         [FromServices] ILogger<ICriteria<Produto>> logger,
         CancellationToken ct)
     {
+        Action<ICriteria<Produto>>? configure = null;
+
         return Performer.SearchAsync<Produto, ProdutoDetalhes, ProdutoFiltro>(
-            filter, options, orderby, criteria, null, logger, ct);
+            filter, options, orderby, criteria, configure, logger, ct);
     }
 
     [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
@@ -75,21 +77,24 @@ public static partial class ProgramExtensions
         [FromQuery] Sorting[]? orderby,
         [FromServices] ICriteria<Produto> criteria,
         [FromServices] ILogger<ICriteria<Produto>> logger,
-        [FromServices] HttpContext context,
+        [FromServices] SomeService some,
         [FromRoute] int id,
+        HttpContext context,
         CancellationToken ct)
     {
         Action<ICriteria<Produto>>? configure = (criteria) =>
         {
-            filter.ConfigureSearch(criteria, context, id);
+            filter.ConfigureSearch(criteria, context, some, id);
+        };
+
+        Func<ICriteria<Produto>, Task>? conf = async (criteria) =>
+        {
+            await filter.AnotherMethod();
         };
 
         return Performer.SearchAsync<Produto, ProdutoDetalhes, ExemploProdutoFiltro>(
             filter, options, orderby, criteria, configure, logger, ct);
     }
-
-
-
 
     [ProduceProblems(ProblemCategory.NotFound)]
     private static async Task<OkMatch<ProdutoDetalhes>> FindProdutoAsync(

@@ -173,4 +173,29 @@ internal static class CmdDiagnostics
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+
+    public static readonly DiagnosticDescriptor InvalidMapFindUsage = new(
+        id: "RCCMD021",
+        title: "Invalid use of the MapFind attribute",
+        messageFormat: "Invalid use of MapFindAttribute: {0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidMapSearchUsage = new(
+        id: "RCCMD022",
+        title: "Invalid use of the MapSearch attribute",
+        messageFormat: "Invalid use of MapSearchAttribute: {0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidWithFilterUsage = new(
+        id: "RCCMD023",
+        title: "Invalid use of the WithFilter attribute",
+        messageFormat: "Invalid use of WithFilterAttribute: {0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

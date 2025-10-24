@@ -30,7 +30,7 @@ public class CompleteUnitOfWorkCommand : GeneratorNode
         this.hasDecorators = hasDecorators;
     }
 
-    public override void Write(StringBuilder sb, int ident = 0)
+    public override void Write(StringBuilder sb, int indent = 0)
     {
         // se não tem decorators e se for void, executa o método e completa o UnitOfWork
         if (!hasDecorators && (commandReturnType.IsVoid || commandReturnType.IsVoidTask))
@@ -39,14 +39,14 @@ public class CompleteUnitOfWorkCommand : GeneratorNode
             { 
                 Await = commandReturnType.IsVoidTask,
                 NewLine = true,
-            }.Write(sb, ident);
+            }.Write(sb, indent);
             
             var invokeCompleteAsync = new MethodInvokeGenerator($"this.{accessorVarName}", "CompleteAsync", "ct")
             {
                 Await = true
             };
 
-            new ReturnCommand(invokeCompleteAsync).Write(sb, ident);
+            new ReturnCommand(invokeCompleteAsync).Write(sb, indent);
 
             return;
         }
@@ -113,19 +113,19 @@ public class CompleteUnitOfWorkCommand : GeneratorNode
 
         if (assignValueCommand is not null)
         {
-            assignValueCommand.Write(sb, ident);
+            assignValueCommand.Write(sb, indent);
             sb.AppendLine();
 
             if (invokeAddEntityAsync is not null)
             {
-                // invoke não é comando, então não gera ident, nem new line, nem ';'
+                // invoke não é comando, então não gera indent, nem new line, nem ';'
                 // então é necessário escrever aqui
-                sb.Ident(ident);
-                invokeAddEntityAsync.Write(sb, ident);
+                sb.Indent(indent);
+                invokeAddEntityAsync.Write(sb, indent);
                 sb.AppendLine(";").AppendLine();
             }
         }
 
-        new ReturnCommand(final).Write(sb, ident);
+        new ReturnCommand(final).Write(sb, indent);
     }
 }

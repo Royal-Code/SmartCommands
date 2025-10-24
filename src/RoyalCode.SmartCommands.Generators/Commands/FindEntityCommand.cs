@@ -38,8 +38,8 @@ public class FindEntityCommand : GeneratorNode, IWithNamespaces
     /// </code>
     /// </summary>
     /// <param name="sb"></param>
-    /// <param name="ident"></param>
-    public override void Write(StringBuilder sb, int ident = 0)
+    /// <param name="indent"></param>
+    public override void Write(StringBuilder sb, int indent = 0)
     {
         bool entityVarDeclared = false;
 
@@ -48,20 +48,20 @@ public class FindEntityCommand : GeneratorNode, IWithNamespaces
         if (property.Type.MayBeNull)
         {
             // a variável do parâmetro deve ser declarada antes do if
-            sb.Ident(ident);
+            sb.Indent(indent);
             sb.Append(parameter.Type.Name).Append(' ').Append(parameter.Name).Append(" = null;").AppendLine();
             entityVarDeclared = true;
 
             // declaração do if
-            sb.Ident(ident);
+            sb.Indent(indent);
             sb.Append("if (").Append(modelVarName).Append('.').Append(property.Name).Append(" is not null)").AppendLine();
-            sb.Ident(ident);
+            sb.Indent(indent);
             sb.AppendLine("{");
 
-            ident++;
+            indent++;
         }
 
-        sb.Ident(ident);
+        sb.Indent(indent);
         sb.Append("var ").Append(parameter.Name).Append("Entry = ")
             .Append("await this.").Append(accessorVarName).Append(".FindEntityAsync<")
             .Append(parameter.Type.UnderlyingType).Append(", ")
@@ -74,21 +74,21 @@ public class FindEntityCommand : GeneratorNode, IWithNamespaces
         sb.Append(", ct);")
             .AppendLine();
 
-        sb.Ident(ident);
+        sb.Indent(indent);
         sb.Append("if (").Append(parameter.Name).Append("Entry.NotFound(out notFoundProblem))").AppendLine();
 
-        sb.IdentPlus(ident);
+        sb.IndentPlus(indent);
         sb.AppendLine("return notFoundProblem;");
 
-        sb.Ident(ident);
+        sb.Indent(indent);
         if (!entityVarDeclared)
             sb.Append("var ");
         sb.Append(parameter.Name).Append(" = ").Append(parameter.Name).AppendLine("Entry.Entity;");
 
         if (property.Type.MayBeNull)
         {
-            ident--;
-            sb.Ident(ident);
+            indent--;
+            sb.Indent(indent);
             sb.AppendLine("}");
         }
 

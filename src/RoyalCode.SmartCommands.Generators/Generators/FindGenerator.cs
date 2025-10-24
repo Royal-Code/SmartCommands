@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public static class FindGenerator
+internal static class FindGenerator
 {
     public const string FindAttributeName = "RoyalCode.SmartCommands.MapFindAttribute";
     
@@ -27,7 +27,7 @@ public static class FindGenerator
         // lê o atributo MapFindAttribute
         if (!classDeclaration.TryGetAttribute(MapFindAttributeName, out AttributeSyntax? mapFindAttribute))
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidMapFindUsage,
                 location: classDeclaration.Identifier.GetLocation(),
                 "The MapFindAttribute is not present in the class");
 
@@ -37,7 +37,7 @@ public static class FindGenerator
         // lê o atributo EntityReferenceAttribute
         if (!classDeclaration.TryGetAttribute(EntityReferenceAttributeName, out AttributeSyntax? entityReferenceAttribute))
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidMapFindUsage,
                 location: classDeclaration.Identifier.GetLocation(),
                 "The EntityReferenceAttribute is not present in the class");
 
@@ -68,7 +68,7 @@ public static class FindGenerator
         }
         else
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidMapFindUsage,
                 location: classDeclaration.Identifier.GetLocation(),
                 "The MapGroupAttribute is not present in the class");
         }

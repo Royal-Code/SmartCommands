@@ -38,8 +38,8 @@ public class FindEntitiesCommand : GeneratorNode, IWithNamespaces
     /// </code>
     /// </summary>
     /// <param name="sb"></param>
-    /// <param name="ident"></param>
-    public override void Write(StringBuilder sb, int ident = 0)
+    /// <param name="indent"></param>
+    public override void Write(StringBuilder sb, int indent = 0)
     {
         // Obtém o tipo da entidade, a qual vem do parâmetro,
         // como é coleção, o parâmetro pode ser um array ou uma lista.
@@ -54,7 +54,7 @@ public class FindEntitiesCommand : GeneratorNode, IWithNamespaces
             : property.Type.GenericType;
 
         // declaração da variável que armazenará as entidades
-        sb.Ident(ident);
+        sb.Indent(indent);
         sb.Append("List<").Append(entityType).Append("> ").Append(parameter.Name).AppendLine(" = [];");
 
 
@@ -63,24 +63,24 @@ public class FindEntitiesCommand : GeneratorNode, IWithNamespaces
         if (property.Type.MayBeNull)
         {
             // declaração do if
-            sb.Ident(ident);
+            sb.Indent(indent);
             sb.Append("if (").Append(modelVarName).Append('.').Append(property.Name).Append(" is not null)").AppendLine();
-            sb.Ident(ident);
+            sb.Indent(indent);
             sb.AppendLine("{");
 
-            ident++;
+            indent++;
         }
 
         var idVarName = $"{entityVarName}Id";
 
         // foreach para buscar as entidades
-        sb.Ident(ident);
+        sb.Indent(indent);
         sb.Append("foreach (var ").Append(idVarName).Append(" in ").Append(modelVarName).Append('.').Append(property.Name).AppendLine(")");
-        sb.Ident(ident);
+        sb.Indent(indent);
         sb.AppendLine("{");
-        ident++;
+        indent++;
 
-        sb.Ident(ident);
+        sb.Indent(indent);
         sb.Append("var ").Append(entityVarName).Append("Entry = ")
             .Append("await this.").Append(accessorVarName).Append(".FindEntityAsync<")
             .Append(entityType).Append(", ")
@@ -89,24 +89,24 @@ public class FindEntitiesCommand : GeneratorNode, IWithNamespaces
             .Append(", ct);")
             .AppendLine();
 
-        sb.Ident(ident);
+        sb.Indent(indent);
         sb.Append("if (").Append(entityVarName).Append("Entry.NotFound(out notFoundProblem))").AppendLine();
 
-        sb.IdentPlus(ident);
+        sb.IndentPlus(indent);
         sb.AppendLine("return notFoundProblem;");
 
-        sb.Ident(ident);
+        sb.Indent(indent);
         sb.Append(parameter.Name).Append(".Add(").Append(entityVarName).AppendLine("Entry.Entity);");
 
         // finaliza o foreach
-        ident--;
-        sb.Ident(ident);
+        indent--;
+        sb.Indent(indent);
         sb.AppendLine("}");
 
         if (property.Type.MayBeNull)
         {
-            ident--;
-            sb.Ident(ident);
+            indent--;
+            sb.Indent(indent);
             sb.AppendLine("}");
         }
 

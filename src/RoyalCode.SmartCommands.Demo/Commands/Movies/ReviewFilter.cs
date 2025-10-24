@@ -16,13 +16,8 @@ public class ReviewFilter
 
     public int? Rating { get; set; }
 
-    //[WithSearchAction]
-    // Com esse atributo, seria executado automaticamente este método.
-    // Pode receber de parâmetros o que for necessário, inclusive serviços injetados.
-    // o criteria seria do endpoint de search,
-    // parametros que tem nome igual ao da rota são atribuídos automaticamente
-    // os outros parâmetros são injetados pelo container de DI.
-    internal void Configure(int movieId, ICriteria<Review> criteria)
+    [WithFilter]
+    internal void Configure([WithParameter] int movieId, ICriteria<Review> criteria)
     {
         MovieId = movieId;
     }

@@ -1,12 +1,17 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
 using RoyalCode.SmartCommands;
 using RoyalCode.SmartCommands.Demo.Commands.Movies;
 using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.Entities;
 using RoyalCode.SmartProblems.HttpResults;
+using RoyalCode.SmartSearch;
+using RoyalCode.SmartSearch.AspNetCore.HttpResults;
+using RoyalCode.SmartSearch.AspNetCore.Internals;
 
 namespace RoyalCode.SmartCommands.Demo;
 
@@ -18,6 +23,10 @@ public static partial class MapMoviesApi
 
         group.MapGet("{id:int}", FindReviewHandleAsync)
             .WithName("Get review details")
+            .WithOpenApi();
+
+        group.MapGet("/{movieId}/reviews", SearchReviewByReviewFilterAsync)
+            .WithName("Listagem paginada de produtos")
             .WithOpenApi();
 
         return group;
@@ -34,5 +43,19 @@ public static partial class MapMoviesApi
             return notfoundProblem;
 
         return findResult.Entity;
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
+    private static Task<MatchSearch<ReviewDetails>> SearchReviewByReviewFilterAsync(
+        [AsParameters]  ReviewFilter filter, 
+        [AsParameters]  SearchOptions options, 
+        [FromQuery]  Sorting[]? orderby, 
+        [FromServices]  ICriteria<Review> criteria, 
+        [FromServices]  ILogger<ICriteria<Review>> logger, 
+        [FromRoute]  int movieId, 
+        CancellationToken ct)
+    {
+        Action<ICriteria<Review>>? configure = (criteria) => filter.Configure(movieId, criteria);
+        return Performer.SearchAsync<Review, ReviewDetails, ReviewFilter>(filter, options, orderby, criteria, configure, logger, ct);
     }
 }

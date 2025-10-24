@@ -51,9 +51,9 @@ public class MediatorCreateCommand : GeneratorNode
         return new AssignValueCommand(varName, invoke);
     }
 
-    public override void Write(StringBuilder sb, int ident = 0)
+    public override void Write(StringBuilder sb, int indent = 0)
     {
-        sb.Ident(ident).Append("var ").Append(varIdentifier).Append(" = ")
+        sb.Indent(indent).Append("var ").Append(varIdentifier).Append(" = ")
             .Append("new Mediator<")
             .Append(modelType)
             .Append(", ")
@@ -61,10 +61,10 @@ public class MediatorCreateCommand : GeneratorNode
             .Append(">")
             .AppendLine("(");
 
-        sb.IdentPlus(ident).Append(decorators.GetValue(ident)).AppendLine(",");
-        sb.IdentPlus(ident).Append(handler.GetValue(ident)).AppendLine(",");
-        sb.IdentPlus(ident).Append(modelIdentifier).AppendLine(",");
-        sb.IdentPlus(ident).Append(ctIdentifier).AppendLine(");");
+        sb.IndentPlus(indent).Append(decorators.GetValue(indent)).AppendLine(",");
+        sb.IndentPlus(indent).Append(handler.GetValue(indent)).AppendLine(",");
+        sb.IndentPlus(indent).Append(modelIdentifier).AppendLine(",");
+        sb.IndentPlus(indent).Append(ctIdentifier).AppendLine(");");
 
         sb.AppendLine();
     }

@@ -33,8 +33,8 @@ public class FindEditEntityCommand : GeneratorNode, IWithNamespaces
     /// </code>
     /// </summary>
     /// <param name="sb"></param>
-    /// <param name="ident"></param>
-    public override void Write(StringBuilder sb, int ident = 0)
+    /// <param name="indent"></param>
+    public override void Write(StringBuilder sb, int indent = 0)
     {
         bool entityVarDeclared = false;
         var idParamName = $"{descriptor.Parameter.Name}Id";
@@ -44,20 +44,20 @@ public class FindEditEntityCommand : GeneratorNode, IWithNamespaces
         if (descriptor.IdType.MayBeNull)
         {
             // a variável do parâmetro deve ser declarada antes do if
-            sb.Ident(ident);
+            sb.Indent(indent);
             sb.Append(descriptor.Parameter.Name).Append(' ').Append(descriptor.Parameter.Name).Append(" = null;").AppendLine();
             entityVarDeclared = true;
 
             // declaração do if
-            sb.Ident(ident);
+            sb.Indent(indent);
             sb.Append("if (").Append(idParamName).Append(" is not null)").AppendLine();
-            sb.Ident(ident);
+            sb.Indent(indent);
             sb.AppendLine("{");
 
-            ident++;
+            indent++;
         }
 
-        sb.Ident(ident);
+        sb.Indent(indent);
         sb.Append("var ").Append(descriptor.Parameter.Name).Append("Entry = ")
             .Append("await this.").Append(accessorVarName).Append(".FindEntityAsync<")
             .Append(descriptor.Parameter.Type.UnderlyingType).Append(", ")
@@ -70,21 +70,21 @@ public class FindEditEntityCommand : GeneratorNode, IWithNamespaces
         sb.Append(", ct);")
             .AppendLine();
 
-        sb.Ident(ident);
+        sb.Indent(indent);
         sb.Append("if (").Append(descriptor.Parameter.Name).Append("Entry.NotFound(out notFoundProblem))").AppendLine();
 
-        sb.IdentPlus(ident);
+        sb.IndentPlus(indent);
         sb.AppendLine("return notFoundProblem;");
 
-        sb.Ident(ident);
+        sb.Indent(indent);
         if (!entityVarDeclared)
             sb.Append("var ");
         sb.Append(descriptor.Parameter.Name).Append(" = ").Append(descriptor.Parameter.Name).AppendLine("Entry.Entity;");
 
         if (descriptor.IdType.MayBeNull)
         {
-            ident--;
-            sb.Ident(ident);
+            indent--;
+            sb.Indent(indent);
             sb.AppendLine("}");
         }
 

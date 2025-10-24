@@ -2,7 +2,7 @@
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerator
+internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenerator
 {
     private readonly List<Diagnostic>? errors;
 
