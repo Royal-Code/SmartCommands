@@ -13,11 +13,11 @@
 		<PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
 	</PropertyGroup>
 	<PropertyGroup>
-		<SmartProblemsVer>1.0.0-preview-4.9</SmartProblemsVer>
-		<SmartValidationsVer>1.0.0-preview-2.2</SmartValidationsVer>
-		<WorkContextVer>0.8.5</WorkContextVer>
-		<SmartSearchVer>0.8.6</SmartSearchVer>
-		<SmartSelectVer>0.3.0</SmartSelectVer>
-		<ExSrcGenVer>0.1.12</ExSrcGenVer>
+		<SmartProblemsVer>1.0.0-preview-6.0</SmartProblemsVer>
+		<SmartValidationsVer>1.0.0-preview-4.0</SmartValidationsVer>
+		<WorkContextVer>0.8.6</WorkContextVer>
+		<SmartSearchVer>0.9.0</SmartSearchVer>
+		<SmartSelectVer>0.4.0</SmartSelectVer>
+		<ExSrcGenVer>0.1.13</ExSrcGenVer>
 	</PropertyGroup>
 </Project>
