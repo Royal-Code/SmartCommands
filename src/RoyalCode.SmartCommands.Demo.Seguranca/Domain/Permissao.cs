@@ -1,3 +1,4 @@
+using RoyalCode.Entities;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 using System.Diagnostics.CodeAnalysis;
@@ -7,7 +8,7 @@ namespace RoyalCode.SmartCommands.Demo.Seguranca.Domain;
 /// <summary>
 /// Entidade de domínio que representa uma permissão de acesso.
 /// </summary>
-public class Permissao
+public class Permissao : Entity<Guid>
 {
     // campos privados
 
@@ -31,15 +32,11 @@ public class Permissao
 #nullable enable
 
     // Propriedades
-    /// <summary>
-    /// Identificador da permissão.
-    /// </summary>
-    public Guid Id { get; private set; }
 
     /// <summary>
     /// Código único da permissão.
     /// </summary>
-    public string Codigo { get; private set; } = string.Empty;
+    public string Codigo { get; private set; }
 
     /// <summary>
     /// Descrição opcional da permissão.
@@ -67,8 +64,11 @@ public class Permissao
     /// </summary>
     public Result Ativar()
     {
+        if (Ativo)
+            return Problems.InvalidState("A permissão já está ativa.");
+
         Ativo = true;
-        return default;
+        return Result.Ok();
     }
 
     /// <summary>
@@ -76,7 +76,10 @@ public class Permissao
     /// </summary>
     public Result Desativar()
     {
+        if (!Ativo)
+            return Problems.InvalidState("A permissão já está inativa.");
+
         Ativo = false;
-        return default;
+        return Result.Ok();
     }
 }

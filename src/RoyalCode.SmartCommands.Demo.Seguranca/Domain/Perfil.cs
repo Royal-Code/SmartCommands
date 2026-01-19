@@ -1,4 +1,6 @@
+using RoyalCode.Entities;
 using RoyalCode.SmartProblems;
+using RoyalCode.SmartSearch.Core.Extensions;
 using RoyalCode.SmartValidations;
 using System.Diagnostics.CodeAnalysis;
 
@@ -7,30 +9,24 @@ namespace RoyalCode.SmartCommands.Demo.Seguranca.Domain;
 /// <summary>
 /// Agregado de domínio que representa um perfil de acesso, composto por um conjunto de permissões.
 /// </summary>
-public class Perfil
+public class Perfil : Entity<Guid>
 {
     // campos privados
-    private readonly HashSet<string> _permissoes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<Permissao> _permissoes = new();
 
     // Construtores
 
     /// <summary>
     /// Cria um perfil com nome e permissões iniciais.
     /// </summary>
-    public Perfil(string nome, IEnumerable<string>? permissoes = null, bool ativo = true)
+    public Perfil(string nome, IEnumerable<Permissao>? permissoes = null, bool ativo = true)
     {
         Id = Guid.CreateVersion7();
         Nome = nome?.Trim() ?? string.Empty;
         Ativo = ativo;
 
-        if (permissoes != null)
-        {
-            foreach (var p in permissoes)
-            {
-                if (!string.IsNullOrWhiteSpace(p))
-                    _permissoes.Add(p.Trim());
-            }
-        }
+        if (permissoes is not null)
+            _permissoes.AddRange(permissoes);
     }
 
 #nullable disable
@@ -41,10 +37,6 @@ public class Perfil
 #nullable enable
 
     // Propriedades
-    /// <summary>
-    /// Identificador do perfil.
-    /// </summary>
-    public Guid Id { get; private set; }
 
     /// <summary>
     /// Nome do perfil.
@@ -59,7 +51,7 @@ public class Perfil
     /// <summary>
     /// Coleção de códigos de permissões concedidas ao perfil.
     /// </summary>
-    public IReadOnlyCollection<string> Permissoes => _permissoes;
+    public IReadOnlyCollection<Permissao> Permissoes => _permissoes;
 
     // Métodos
     /// <summary>
@@ -73,22 +65,32 @@ public class Perfil
     }
 
     /// <summary>
-    /// Verifica se o perfil concede uma permissão específica.
-    /// </summary>
-    public bool Concede(string codigoPermissao) => _permissoes.Contains(codigoPermissao);
-
-    /// <summary>
     /// Concede uma permissão ao perfil.
     /// </summary>
-    public Result Conceder(string codigoPermissao)
+    public Result Conceder(Permissao codigoPermissao)
     {
-        var valid = RuleSet.For<Perfil>()
-            .NotEmpty(codigoPermissao)
-            .HasProblems(out var problems);
-        if (valid) return problems!;
+        // valida se já foi concedida
+        if (_permissoes.Any(p => p.Codigo == codigoPermissao.Codigo))
+        {
+            return Problems.InvalidState(
+                $"Permissão '{codigoPermissao.Codigo}' já concedida ao perfil '{Nome}'.");
+        }
 
-        _permissoes.Add(codigoPermissao.Trim());
-        return default;
+        _permissoes.Add(codigoPermissao);
+        return Result.Ok();
+    }
+
+    /// <summary>
+    /// Verifica se o perfil concede uma permissão específica.
+    /// </summary>
+    public bool Concede(string codigoPermissao)
+    {
+        if (codigoPermissao.IsEmpty())
+        {
+            return false;
+        }
+
+        return _permissoes.Any(p => p.Codigo == codigoPermissao.Trim());
     }
 
     /// <summary>
@@ -96,13 +98,31 @@ public class Perfil
     /// </summary>
     public Result Revogar(string codigoPermissao)
     {
-        var valid = RuleSet.For<Perfil>()
-            .NotEmpty(codigoPermissao)
-            .HasProblems(out var problems);
-        if (valid) return problems!;
+        var permissão = _permissoes.FirstOrDefault(p => p.Codigo == codigoPermissao.Trim());
+        if (permissão is null)
+        {
+            return Problems.InvalidState(
+                $"Permissão '{codigoPermissao}' não concedida ao perfil '{Nome}'.");
+        }
 
-        _permissoes.Remove(codigoPermissao.Trim());
-        return default;
+        _permissoes.Remove(permissão);
+        return Result.Ok();
+    }
+
+    /// <summary>
+    /// Revoga uma permissão do perfil.
+    /// </summary>
+    public Result Revogar(Guid permissaoId)
+    {
+        var permissão = _permissoes.FirstOrDefault(p => p.Id == permissaoId);
+        if (permissão is null)
+        {
+            return Problems.InvalidState(
+                $"Permissão '{permissaoId}' não concedida ao perfil '{Nome}'.");
+        }
+
+        _permissoes.Remove(permissão);
+        return Result.Ok();
     }
 
     /// <summary>
@@ -110,8 +130,11 @@ public class Perfil
     /// </summary>
     public Result Ativar()
     {
+        if (Ativo)
+            return Problems.InvalidState($"Perfil '{Nome}' já está ativo.");
+
         Ativo = true;
-        return default;
+        return Result.Ok();
     }
 
     /// <summary>
@@ -119,7 +142,10 @@ public class Perfil
     /// </summary>
     public Result Desativar()
     {
+        if (!Ativo)
+            return Problems.InvalidState($"Perfil '{Nome}' já está desativado.");   
+
         Ativo = false;
-        return default;
+        return Result.Ok();
     }
 }

@@ -12,4 +12,7 @@
 		<PackageReference Include="RoyalCode.SmartSelector" Version="$(SmartSelectVer)" />
 		<PackageReference Include="RoyalCode.SmartSelector.Generators" Version="$(SmartSelectVer)" />
 	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="$(PGVer)" />
+	</ItemGroup>
 </Project>

@@ -21,13 +21,14 @@
 	<PropertyGroup>
 		<SmartProblemsVer>1.0.0-preview-6.0</SmartProblemsVer>
 		<SmartValidationsVer>1.0.0-preview-4.0</SmartValidationsVer>
-		<WorkContextVer>0.8.6</WorkContextVer>
-		<SmartSearchVer>0.9.0</SmartSearchVer>
+		<WorkContextVer>0.8.7</WorkContextVer>
+		<SmartSearchVer>0.9.1</SmartSearchVer>
 		<SmartSelectVer>0.4.0</SmartSelectVer>
 		<ExSrcGenVer>0.1.13</ExSrcGenVer>
 	</PropertyGroup>
 	<PropertyGroup>
 		<CodeAnalysisVer>4.14.0</CodeAnalysisVer>
+		<PGVer>10.0.0</PGVer>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
 		<AspVer>8.0.23</AspVer>

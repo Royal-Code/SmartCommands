@@ -41,6 +41,30 @@ public readonly record struct Email : IValidable
         }
     }
 
+    public static implicit operator string(Email email) => email.Value;
+
+    public static implicit operator Email(string value) => new(value);
+
+    // ??
+    public IQueryable<T> ApplyFilter<T>(IQueryable<T> query, System.Linq.Expressions.Expression<Func<T, Email>> propertyExpression)
+    {
+        if (string.IsNullOrWhiteSpace(Value))
+            return query;
+
+        var parameter = propertyExpression.Parameters[0];
+        var body = System.Linq.Expressions.Expression.Call(
+            System.Linq.Expressions.Expression.Call(
+                propertyExpression.Body,
+                nameof(string.ToLowerInvariant),
+                Type.EmptyTypes),
+            nameof(string.Contains),
+            Type.EmptyTypes,
+            System.Linq.Expressions.Expression.Constant(Value.ToLowerInvariant()));
+        
+        var lambda = System.Linq.Expressions.Expression.Lambda<Func<T, bool>>(body, parameter);
+        return query.Where(lambda);
+    }
+
     public bool HasProblems([NotNullWhen(true)] out Problems? problems)
     {
         return RuleSet.For<Email>()

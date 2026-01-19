@@ -1,3 +1,4 @@
+using RoyalCode.Entities;
 using RoyalCode.SmartCommands.Demo.Seguranca.Domain.ValueObjects;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
@@ -8,24 +9,24 @@ namespace RoyalCode.SmartCommands.Demo.Seguranca.Domain;
 /// <summary>
 /// Agregado de domínio que representa um usuário do sistema com controle de acesso por perfis.
 /// </summary>
-public class Usuario
+public class Usuario : Entity<Guid>
 {
     // campos privados
-    private readonly HashSet<Guid> _perfilIds = new();
+    private readonly HashSet<Perfil> _perfis = [];
 
     // Construtores
     
     /// <summary>
     /// Cria um usuário com nome, e-mail e senha.
     /// </summary>
-    public Usuario(string nome, Email email, SenhaHash senhaHash, bool ativo = true)
+    public Usuario(string nome, Email email, Senha senha)
     {
         Id = Guid.CreateVersion7();
         Nome = nome?.Trim() ?? string.Empty;
         Email = email;
-        SenhaHash = senhaHash;
-        Ativo = ativo;
-        CriadoEm = DateTimeOffset.UtcNow;
+        Senha = senha;
+        Bloqueio = new();
+        Ativo = true;
     }
 
 #nullable disable
@@ -36,10 +37,6 @@ public class Usuario
 #nullable enable
 
     // Propriedades
-    /// <summary>
-    /// Identificador do usuário.
-    /// </summary>
-    public Guid Id { get; private set; }
 
     /// <summary>
     /// Nome do usuário.
@@ -52,9 +49,14 @@ public class Usuario
     public Email Email { get; private set; }
 
     /// <summary>
-    /// Hash da senha do usuário.
+    /// Dados da senha do usuário.
     /// </summary>
-    public SenhaHash SenhaHash { get; private set; }
+    public Senha Senha { get; private set; }
+
+    /// <summary>
+    /// Dados de bloqueio do usuário, caso aplicável.
+    /// </summary>
+    public BloqueioUsuario Bloqueio { get; private set; }
 
     /// <summary>
     /// Indica se o usuário está ativo.
@@ -62,19 +64,9 @@ public class Usuario
     public bool Ativo { get; private set; }
 
     /// <summary>
-    /// Data de criação do usuário.
-    /// </summary>
-    public DateTimeOffset CriadoEm { get; private set; }
-
-    /// <summary>
-    /// Data de última atualização.
-    /// </summary>
-    public DateTimeOffset? AtualizadoEm { get; private set; }
-
-    /// <summary>
     /// Identificadores de perfis vinculados ao usuário.
     /// </summary>
-    public IReadOnlyCollection<Guid> Perfis => _perfilIds;
+    public IReadOnlyCollection<Perfil> Perfis => _perfis;
 
     // Métodos
     /// <summary>
@@ -86,7 +78,7 @@ public class Usuario
             .NotEmpty(Nome)
             .MaxLength(Nome, 128)
             .Validate(Email)
-            .Validate(SenhaHash)
+            .Validate(Senha)
             .HasProblems(out problems);
     }
 
@@ -102,7 +94,6 @@ public class Usuario
         if (has) return problems!;
 
         Nome = nome.Trim();
-        AtualizadoEm = DateTimeOffset.UtcNow;
         return default;
     }
 
@@ -115,20 +106,18 @@ public class Usuario
             return problems;
 
         Email = email;
-        AtualizadoEm = DateTimeOffset.UtcNow;
         return default;
     }
 
     /// <summary>
     /// Altera a senha do usuário.
     /// </summary>
-    public Result AlterarSenha(SenhaHash novaSenhaHash)
+    public Result AlterarSenha(Senha novaSenhaHash)
     {
         if (novaSenhaHash.HasProblems(out var problems))
             return problems;
 
-        SenhaHash = novaSenhaHash;
-        AtualizadoEm = DateTimeOffset.UtcNow;
+        Senha = novaSenhaHash;
         return default;
     }
 
@@ -138,7 +127,6 @@ public class Usuario
     public Result Ativar()
     {
         Ativo = true;
-        AtualizadoEm = DateTimeOffset.UtcNow;
         return default;
     }
 
@@ -148,21 +136,24 @@ public class Usuario
     public Result Desativar()
     {
         Ativo = false;
-        AtualizadoEm = DateTimeOffset.UtcNow;
         return default;
     }
 
     /// <summary>
     /// Vincula um perfil ao usuário.
     /// </summary>
-    public Result VincularPerfil(Guid perfilId)
+    public Result VincularPerfil(Perfil perfil)
     {
-        if (perfilId == Guid.Empty)
-            return Problems.InvalidParameter("perfilId", "Perfil inválido.");
+        if (perfil == null)
+            return Problems.InvalidParameter("perfil", "Perfil inválido.");
 
-        _perfilIds.Add(perfilId);
-        AtualizadoEm = DateTimeOffset.UtcNow;
-        return default;
+        // valida se já está vinculado
+        if (_perfis.Any(p => p.Id == perfil.Id))
+            return Problems.InvalidState("Perfil já vinculado ao usuário.")
+                .With("perfilId", perfil.Id);
+
+        _perfis.Add(perfil);
+        return Result.Ok();
     }
 
     /// <summary>
@@ -170,11 +161,12 @@ public class Usuario
     /// </summary>
     public Result DesvincularPerfil(Guid perfilId)
     {
-        if (perfilId == Guid.Empty)
-            return Problems.InvalidParameter("perfilId", "Perfil inválido.");
+        var perfil = _perfis.FirstOrDefault(p => p.Id == perfilId);
+        if (perfil == null)
+            return Problems.InvalidState("Perfil não vinculado ao usuário.")
+                .With("perfilId", perfilId);
 
-        _perfilIds.Remove(perfilId);
-        AtualizadoEm = DateTimeOffset.UtcNow;
-        return default;
+        _perfis.Remove(perfil);
+        return Result.Ok();
     }
 }

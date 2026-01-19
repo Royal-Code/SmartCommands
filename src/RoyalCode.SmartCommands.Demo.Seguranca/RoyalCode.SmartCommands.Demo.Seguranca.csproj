@@ -5,8 +5,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <Folder Include="Contracts\" />
-	  <Folder Include="Infra\Data\" />
 	  <Folder Include="Infra\Security\" />
 	  <Folder Include="Handlers\" />
 	  <Folder Include="Web\" />
