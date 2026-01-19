@@ -14,13 +14,13 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
 
     public string EndpointName { get; set; }
 
+    public string GroupName { get; set; }
+
 #nullable enable
 
     public string? Description { get; set; }
 
     public string? Summary { get; set; }
-
-    public string? GroupName { get; set; }
 
     public MapCreatedInformation? CreatedInformation { get; set; }
 
@@ -70,14 +70,14 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
         return hashCode;
     }
 
-    public void Generate(SourceProductionContext spc, GeneratorNodeList commands, GeneratorNodeList methods)
+    public void Generate(SourceProductionContext spc, GeneratorNodeList commands, GeneratorNodeList methods, bool withOpenApi)
     {
         // nome do método que chamará o handler
         var handlerMethodName =
             $"{CommandInfo!.ModelType.Name}{(CommandInfo.HandlerMustBeAsync ? "HandleAsync" : "Handle")}";
 
         // Cria comando que invoca o método de mapeamento do handler
-        var methodInvoke = GenerateMapMethodInvoke(this, handlerMethodName);
+        var methodInvoke = GenerateMapMethodInvoke(this, handlerMethodName, withOpenApi);
         var invokeCommand = new Command(methodInvoke);
         commands.Add(invokeCommand);
 
@@ -93,7 +93,7 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
         }
     }
 
-    private static MethodInvokeGenerator GenerateMapMethodInvoke(MapInformation mapInfo, string handlerMethodName)
+    private static MethodInvokeGenerator GenerateMapMethodInvoke(MapInformation mapInfo, string handlerMethodName, bool withOpenApi)
     {
         var methodInvoke = new MethodInvokeGenerator("group", $"Map{mapInfo.HttpMethod}");
         methodInvoke.AddArgument(mapInfo.RoutePattern);
@@ -135,10 +135,13 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
         }
 
         // por fim, chama WithOpenApi
-        methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithOpenApi")
+        if (withOpenApi)
         {
-            LineIdent = true
-        };
+            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithOpenApi")
+            {
+                LineIdent = true
+            };
+        }
 
         return methodInvoke;
     }

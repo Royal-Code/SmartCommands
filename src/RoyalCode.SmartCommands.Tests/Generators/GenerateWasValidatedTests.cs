@@ -1,5 +1,5 @@
-﻿using FluentAssertions;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
+using Xunit;
 
 namespace RoyalCode.SmartCommands.Tests.Generators;
 
@@ -10,16 +10,16 @@ public class GenerateWasValidatedTests
     {
         Util.Compile(Code.MyCommand, out var output, out var diagnostics);
 
-        diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedInterface = output.SyntaxTrees.Skip(1).FirstOrDefault()?.ToString();
-        generatedInterface.Should().Be(Code.MyCommandInterface);
+        Assert.Equal(Code.MyCommandInterface, generatedInterface);
 
         var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
-        generatedHandler.Should().Be(Code.MyCommandHandler);
+        Assert.Equal(Code.MyCommandHandler, generatedHandler);
 
         var generatedPartial = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        generatedPartial.Should().Be(Code.MyCommandWasValidated);
+        Assert.Equal(Code.MyCommandWasValidated, generatedPartial);
     }
 }
 

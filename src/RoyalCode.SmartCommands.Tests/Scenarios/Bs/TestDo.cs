@@ -1,5 +1,5 @@
-using FluentAssertions;
 using Microsoft.CodeAnalysis;
+using Xunit;
 
 namespace RoyalCode.SmartCommands.Tests.Scenarios.Bs;
 
@@ -10,13 +10,13 @@ public class TestDo
     {
         Util.Compile(Code.Command, out var output, out var diagnostics);
 
-        diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedInterface = output.SyntaxTrees.Skip(1).FirstOrDefault()?.ToString();
-        generatedInterface.Should().Be(Code.Interface);
+        Assert.Equal(Code.Interface, generatedInterface);
 
         var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
-        generatedHandler.Should().Be(Code.Handler);
+        Assert.Equal(Code.Handler, generatedHandler);
     }
 }
 

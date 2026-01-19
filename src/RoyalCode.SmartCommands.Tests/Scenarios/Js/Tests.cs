@@ -1,5 +1,5 @@
-﻿using FluentAssertions;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
+using Xunit;
 
 namespace RoyalCode.SmartCommands.Tests.Scenarios.Js;
 
@@ -12,10 +12,10 @@ public class Tests
     {
         Util.Compile(findCode, out var output, out var diagnostics);
 
-        diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedApiHandlers = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        generatedApiHandlers.Should().Be(apiHandlersCode);
+        Assert.Equal(apiHandlersCode, generatedApiHandlers);
     }
 }
 
@@ -91,8 +91,7 @@ public static partial class MapProdutosApi
         var group = builder.MapGroup("produtos");
 
         group.MapGet("{id:guid}", FindProdutoHandleAsync)
-            .WithName("Get product details")
-            .WithOpenApi();
+            .WithName("Get product details");
 
         return group;
     }
@@ -192,8 +191,7 @@ public static partial class MapProdutosApi
             .WithName("Get product details")
             .WithDescription("Get product details by ID")
             .WithSummary("Find product")
-            .RequireAuthorization("Admin")
-            .WithOpenApi();
+            .RequireAuthorization("Admin");
 
         return group;
     }

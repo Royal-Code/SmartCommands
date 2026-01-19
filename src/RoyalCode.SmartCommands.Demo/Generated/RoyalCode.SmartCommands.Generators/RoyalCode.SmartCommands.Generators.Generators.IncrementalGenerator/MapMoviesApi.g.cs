@@ -22,12 +22,10 @@ public static partial class MapMoviesApi
         var group = builder.MapGroup("movies");
 
         group.MapGet("{id:int}", FindReviewHandleAsync)
-            .WithName("Get review details")
-            .WithOpenApi();
+            .WithName("Get review details");
 
         group.MapGet("/{movieId}/reviews", SearchReviewByReviewFilterAsync)
-            .WithName("Listagem paginada de produtos")
-            .WithOpenApi();
+            .WithName("Listagem paginada de produtos");
 
         return group;
     }

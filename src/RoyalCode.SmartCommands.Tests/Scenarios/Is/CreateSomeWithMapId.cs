@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.HttpResults;
@@ -40,8 +39,7 @@ public static partial class MapSomeApi
         var group = builder.MapGroup("some");
 
         group.MapPost("", CreateSomeHandleAsync)
-            .WithName("create-some")
-            .WithOpenApi();
+            .WithName("create-some");
 
         return group;
     }
@@ -91,7 +89,7 @@ public class CreateSome
     }
 }
 
-[MapApiHandlers]
+[MapApiHandlers, WithOpenApi]
 public static partial class VaultApis { }
 """;
 
@@ -164,7 +162,7 @@ public class CreateSome
     }
 }
 
-[MapApiHandlers]
+[MapApiHandlers, WithOpenApi]
 public static partial class VaultApis { }
 """;
 
@@ -238,7 +236,7 @@ public class CreateSome
     }
 }
 
-[MapApiHandlers]
+[MapApiHandlers, WithOpenApi]
 public static partial class VaultApis { }
 """;
 
@@ -312,7 +310,7 @@ public class CreateSome
     }
 }
 
-[MapApiHandlers]
+[MapApiHandlers, WithOpenApi]
 public static partial class VaultApis { }
 """;
 
@@ -386,7 +384,7 @@ public class CreateSome
     }
 }
 
-[MapApiHandlers]
+[MapApiHandlers, WithOpenApi]
 public static partial class VaultApis { }
 """;
 
@@ -460,7 +458,7 @@ public class CreateSome
     }
 }
 
-[MapApiHandlers]
+[MapApiHandlers, WithOpenApi]
 public static partial class VaultApis { }
 """;
 

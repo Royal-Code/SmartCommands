@@ -1,9 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
-using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartProblems;
 using RuleSet = RoyalCode.SmartValidations.RuleSet;
+using Xunit;
 
 namespace RoyalCode.SmartCommands.Tests.Generators;
 
@@ -17,13 +17,13 @@ public class GenerateFindEntitiesTests
     {
         Util.Compile(commandCode, out var output, out var diagnostics);
 
-        diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedInterface = output.SyntaxTrees.Skip(1).FirstOrDefault()?.ToString();
-        generatedInterface.Should().Be(interfaceCode);
+        Assert.Equal(interfaceCode, generatedInterface);
 
         var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
-        generatedHandler.Should().Be(handlerCode);
+        Assert.Equal(handlerCode, generatedHandler);
     }
 }
 

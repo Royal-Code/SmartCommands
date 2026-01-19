@@ -6,5 +6,5 @@ public interface IMapEndpointGenerator
 {
     public string GroupName { get; }
 
-    public void Generate(SourceProductionContext spc, GeneratorNodeList commands, GeneratorNodeList methods);
+    public void Generate(SourceProductionContext spc, GeneratorNodeList commands, GeneratorNodeList methods, bool withOpenApi);
 }

@@ -1,5 +1,5 @@
-using FluentAssertions;
 using Microsoft.CodeAnalysis;
+using Xunit;
 
 namespace RoyalCode.SmartCommands.Tests.Scenarios.Hs;
 
@@ -17,19 +17,19 @@ public class Tests
     {
         Util.Compile(commandCode, out var output, out var diagnostics);
 
-        diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedInterface = output.SyntaxTrees.Skip(1).FirstOrDefault()?.ToString();
-        generatedInterface.Should().Be(interfaceCode);
+        Assert.Equal(interfaceCode, generatedInterface);
 
         var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
-        generatedHandler.Should().Be(handlerCode);
+        Assert.Equal(handlerCode, generatedHandler);
 
         var generatedAddServices = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        generatedAddServices.Should().Be(addServicesCode);
+        Assert.Equal(addServicesCode, generatedAddServices);
 
         var generatedApiHandlers = output.SyntaxTrees.Skip(4).FirstOrDefault()?.ToString();
-        generatedApiHandlers.Should().Be(apiHandlersCode);
+        Assert.Equal(apiHandlersCode, generatedApiHandlers);
     }
 }
 
@@ -56,7 +56,7 @@ public class CreateSome
     }
 }
 
-[AddHandlersServices(""), MapApiHandlers]
+[AddHandlersServices(""), MapApiHandlers, WithOpenApi]
 public static partial class ProgramExtensions
 { }
 """;
@@ -167,7 +167,7 @@ public class CreateSome
     }
 }
 
-[AddHandlersServices(""), MapApiHandlers]
+[AddHandlersServices(""), MapApiHandlers, WithOpenApi]
 public static partial class ProgramExtensions
 { }
 """;

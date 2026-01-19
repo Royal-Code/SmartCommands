@@ -103,7 +103,7 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
         return hashCode;
     }
 
-    public void Generate(SourceProductionContext spc, GeneratorNodeList commands, GeneratorNodeList methods)
+    public void Generate(SourceProductionContext spc, GeneratorNodeList commands, GeneratorNodeList methods, bool withOpenApi)
     {
         if (errors is not null && errors.Count > 0)
         {
@@ -114,7 +114,7 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
         var handlerMethodName = $"Find{EntityType.Name}HandleAsync";
 
         // Cria comando que invoca o método de mapeamento do handler
-        var methodInvoke = GenerateMapMethodInvoke(this, handlerMethodName);
+        var methodInvoke = GenerateMapMethodInvoke(this, handlerMethodName, withOpenApi);
         var invokeCommand = new Command(methodInvoke);
         commands.Add(invokeCommand);
 
@@ -123,7 +123,7 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
         methods.Add(handlerMethod);
     }
 
-    private static MethodInvokeGenerator GenerateMapMethodInvoke(FindInformation mapInfo, string handlerMethodName)
+    private static MethodInvokeGenerator GenerateMapMethodInvoke(FindInformation mapInfo, string handlerMethodName, bool withOpenApi)
     {
         var methodInvoke = new MethodInvokeGenerator("group", $"MapGet");
         methodInvoke.AddArgument(mapInfo.EndpointRoutePattern);
@@ -165,10 +165,13 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
         }
 
         // por fim, chama WithOpenApi
-        methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithOpenApi")
+        if (withOpenApi)
         {
-            LineIdent = true
-        };
+            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithOpenApi")
+            {
+                LineIdent = true
+            };
+        }
 
         return methodInvoke;
     }

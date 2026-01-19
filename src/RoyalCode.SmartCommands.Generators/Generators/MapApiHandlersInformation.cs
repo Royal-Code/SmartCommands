@@ -4,15 +4,18 @@ namespace RoyalCode.SmartCommands.Generators.Generators;
 
 public sealed class MapApiHandlersInformation: TransformationGeneratorBase<IMapEndpointGenerator>, IEquatable<MapApiHandlersInformation>
 {
-    public MapApiHandlersInformation(TypeDescriptor classType, List<Diagnostic>? diagnostics)
+    public MapApiHandlersInformation(TypeDescriptor classType, bool withOpenApi, List<Diagnostic>? diagnostics)
     {
         ClassType = classType;
+        WithOpenApi = withOpenApi;
 
         if (diagnostics is not null && diagnostics.Count > 0)
             Errors = diagnostics;
     }
 
     public TypeDescriptor ClassType { get; set; }
+
+    public bool WithOpenApi { get; set; }
 
     public bool Equals(MapApiHandlersInformation? other)
     {

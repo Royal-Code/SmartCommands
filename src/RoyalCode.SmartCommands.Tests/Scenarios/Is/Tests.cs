@@ -1,5 +1,5 @@
-using FluentAssertions;
 using Microsoft.CodeAnalysis;
+using Xunit;
 
 namespace RoyalCode.SmartCommands.Tests.Scenarios.Is;
 
@@ -16,10 +16,10 @@ public class Tests
     {
         Util.Compile(commandCode, out var output, out var diagnostics);
 
-        diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedMap = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        generatedMap.Should().Be(mapCode);
+        Assert.Equal(mapCode, generatedMap);
     }
 
     [Theory]
@@ -28,12 +28,12 @@ public class Tests
     {
         Util.Compile(commandCode, out var output, out var diagnostics);
 
-        diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedResponseModel = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        generatedResponseModel.Should().Be(responseModel);
+        Assert.Equal(responseModel, generatedResponseModel);
 
         var generatedMap = output.SyntaxTrees.Skip(4).FirstOrDefault()?.ToString();
-        generatedMap.Should().Be(mapCode);
+        Assert.Equal(mapCode, generatedMap);
     }
 }

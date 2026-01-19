@@ -24,25 +24,20 @@ public static partial class MapProdutosApi
         group.MapPost("/", CriarProduto2HandleAsync)
             .WithName("criar-produto")
             .WithDescription("Cria um novo produto com o nome informado.")
-            .WithSummary("Criar Produto")
-            .WithOpenApi();
+            .WithSummary("Criar Produto");
 
         group.MapPut("/{id}", EditarProdutoHandleAsync)
-            .WithName("Editar Produto")
-            .WithOpenApi();
+            .WithName("Editar Produto");
 
         group.MapGet("{id:guid}", FindProdutoHandleAsync)
             .WithName("Get product details")
-            .WithDescription("Get product details by ID")
-            .WithOpenApi();
+            .WithDescription("Get product details by ID");
 
         group.MapGet("", SearchProdutoByProdutoFiltroAsync)
-            .WithName("Listagem paginada de produtos")
-            .WithOpenApi();
+            .WithName("Listagem paginada de produtos");
 
         group.MapGet("/{id:int}", SearchProdutoByExemploProdutoFiltroAsync)
-            .WithName("Listagem paginada de produtos exemplos")
-            .WithOpenApi();
+            .WithName("Listagem paginada de produtos exemplos");
 
         return group;
     }

@@ -3,7 +3,7 @@
 	<Import Project="../pack.targets"/>
 	
 	<PropertyGroup>
-		<TargetFramework>net8.0</TargetFramework>
+		<TargetFrameworks>$(LibFrwkVer)</TargetFrameworks>
 	</PropertyGroup>
 
 	<ItemGroup>

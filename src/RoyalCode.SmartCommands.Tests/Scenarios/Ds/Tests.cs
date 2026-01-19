@@ -1,5 +1,5 @@
-using FluentAssertions;
 using Microsoft.CodeAnalysis;
+using Xunit;
 
 namespace RoyalCode.SmartCommands.Tests.Scenarios.Ds;
 
@@ -22,12 +22,12 @@ public class Tests
     {
         Util.Compile(commandCode, out var output, out var diagnostics);
 
-        diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedInterface = output.SyntaxTrees.Skip(1).FirstOrDefault()?.ToString();
-        generatedInterface.Should().Be(interfaceCode);
+        Assert.Equal(interfaceCode, generatedInterface);
 
         var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
-        generatedHandler.Should().Be(handlerCode);
+        Assert.Equal(handlerCode, generatedHandler);
     }
 }

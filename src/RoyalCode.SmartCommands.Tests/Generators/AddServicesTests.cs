@@ -1,7 +1,7 @@
-﻿using FluentAssertions;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using RoyalCode.SmartProblems;
+using Xunit;
 
 namespace RoyalCode.SmartCommands.Tests.Generators;
 
@@ -13,18 +13,18 @@ public class AddServicesTests
     {
         Util.Compile(Code.Command, out var output, out var diagnostics);
 
-        diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedInterface = output.SyntaxTrees.Skip(1).FirstOrDefault()?.ToString();
-        generatedInterface.Should().Be(Code.Interface);
+        Assert.Equal(Code.Interface, generatedInterface);
 
         var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
-        generatedHandler.Should().Be(Code.Handler);
+        Assert.Equal(Code.Handler, generatedHandler);
 
         var generatedPartial = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        generatedPartial.Should().Be(Code.AddServices);
+        Assert.Equal(Code.AddServices, generatedPartial);
 
-        output.SyntaxTrees.Count().Should().Be(4);
+        Assert.Equal(4, output.SyntaxTrees.Count());
     }
 
     [Fact]
@@ -32,18 +32,18 @@ public class AddServicesTests
     {
         Util.Compile(CodeWithDbContext.Command, out var output, out var diagnostics);
 
-        diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedInterface = output.SyntaxTrees.Skip(1).FirstOrDefault()?.ToString();
-        generatedInterface.Should().Be(CodeWithDbContext.Interface);
+        Assert.Equal(CodeWithDbContext.Interface, generatedInterface);
 
         var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
-        generatedHandler.Should().Be(CodeWithDbContext.Handler);
+        Assert.Equal(CodeWithDbContext.Handler, generatedHandler);
 
         var generatedPartial = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        generatedPartial.Should().Be(CodeWithDbContext.AddServices);
+        Assert.Equal(CodeWithDbContext.AddServices, generatedPartial);
 
-        output.SyntaxTrees.Count().Should().Be(4);
+        Assert.Equal(4, output.SyntaxTrees.Count());
     }
 }
 

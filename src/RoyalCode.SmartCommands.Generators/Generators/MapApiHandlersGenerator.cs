@@ -7,6 +7,7 @@ namespace RoyalCode.SmartCommands.Generators.Generators;
 public static class MapApiHandlersGenerator
 {
     public const string AddHandlersServicesAttributeName = "RoyalCode.SmartCommands.MapApiHandlersAttribute";
+    public const string WithOpenApiAttributeName = "WithOpenApi";
 
     public static bool Predicate(SyntaxNode node, CancellationToken token) => node is ClassDeclarationSyntax;
 
@@ -38,8 +39,12 @@ public static class MapApiHandlersGenerator
             errors.Add(diagnostic);
         }
 
+        // verifica se a classe tem o atributo WithOpenApi
+
+        var withOpenApi = classSyntax.TryGetAttribute(WithOpenApiAttributeName, out AttributeSyntax? _);
+
         var handlerType = new TypeDescriptor(classSyntax.Identifier.Text, [classSyntax.GetNamespace()]);
-        return new MapApiHandlersInformation(handlerType, errors);
+        return new MapApiHandlersInformation(handlerType, withOpenApi, errors);
     }
 
     public static void Generate(
@@ -79,7 +84,7 @@ public static class MapApiHandlersGenerator
             // para o método que mapeia o handlers, será criado um comando de mapeamento.
             foreach (var mapInformation in group)
             {
-                mapInformation.Generate(spc, methodGenerator.Commands, classGenerator.Methods);
+                mapInformation.Generate(spc, methodGenerator.Commands, classGenerator.Methods, left.WithOpenApi);
             }
 
             // por fim, finaliza o método retornando o group

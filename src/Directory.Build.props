@@ -1,5 +1,11 @@
 <Project>
 	<PropertyGroup>
+		<LibFrwkVer>net8.0;net9.0;net10.0</LibFrwkVer>
+		<TestFrwkVer>net10.0</TestFrwkVer>
+		<DemoFrwkVer>net10.0</DemoFrwkVer>
+		<GenFrwkVer>netstandard2.0</GenFrwkVer>
+	</PropertyGroup>
+	<PropertyGroup>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
@@ -19,5 +25,23 @@
 		<SmartSearchVer>0.9.0</SmartSearchVer>
 		<SmartSelectVer>0.4.0</SmartSelectVer>
 		<ExSrcGenVer>0.1.13</ExSrcGenVer>
+	</PropertyGroup>
+	<PropertyGroup>
+		<CodeAnalysisVer>4.14.0</CodeAnalysisVer>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
+		<AspVer>8.0.23</AspVer>
+		<ExtVer>8.0.2</ExtVer>
+		<EFVer>8.0.10</EFVer>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net9.0'">
+		<AspVer>9.0.0</AspVer>
+		<ExtVer>9.0.0</ExtVer>
+		<EFVer>9.0.0</EFVer>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+		<AspVer>10.0.0</AspVer>
+		<ExtVer>10.0.0</ExtVer>
+		<EFVer>10.0.0</EFVer>
 	</PropertyGroup>
 </Project>

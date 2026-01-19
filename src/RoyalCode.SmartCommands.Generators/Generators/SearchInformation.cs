@@ -99,7 +99,7 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
         return hashCode;
     }
 
-    public void Generate(SourceProductionContext spc, GeneratorNodeList commands, GeneratorNodeList methods)
+    public void Generate(SourceProductionContext spc, GeneratorNodeList commands, GeneratorNodeList methods, bool withOpenApi)
     {
         if (errors is not null && errors.Count > 0)
         {
@@ -110,12 +110,12 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
         var handlerMethod = GenerateHandlerMethod();
         methods.Add(handlerMethod);
 
-        var mapMethodInvoke = GenerateMapMethodInvoke();
+        var mapMethodInvoke = GenerateMapMethodInvoke(withOpenApi);
         var invokeCommand = new Command(mapMethodInvoke);
         commands.Add(invokeCommand);
     }
 
-    private MethodInvokeGenerator GenerateMapMethodInvoke()
+    private MethodInvokeGenerator GenerateMapMethodInvoke(bool withOpenApi)
     {
         var handlerMethodName = $"Search{EntityType.Name}By{FilterType.Name}Async";
 
@@ -159,10 +159,13 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
         }
 
         // por fim, chama WithOpenApi
-        methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithOpenApi")
+        if (withOpenApi)
         {
-            LineIdent = true
-        };
+            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithOpenApi")
+            {
+                LineIdent = true
+            };
+        }
 
         return methodInvoke;
     }

@@ -14,8 +14,7 @@ public static partial class MapLojasApi
         var group = builder.MapGroup("lojas");
 
         group.MapPost("/", CriarLojaHandleAsync)
-            .WithName("loja-criar")
-            .WithOpenApi();
+            .WithName("loja-criar");
 
         return group;
     }
