@@ -2,21 +2,16 @@ namespace RoyalCode.SmartCommands.Demo.Seguranca.Domain.Servicos;
 
 public sealed class AcessoService : IAcessoService
 {
-    public bool UsuarioTemPermissao(Usuario usuario, string codigoPermissao, IEnumerable<Perfil> perfisDisponiveis)
+    public bool UsuarioTemPermissao(Usuario usuario, string codigoPermissao)
     {
-        if (!usuario.Ativo) return false;
-        if (string.IsNullOrWhiteSpace(codigoPermissao)) return false;
+        if (!usuario.Ativo) 
+            return false;
 
-        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(codigoPermissao)) 
+            return false;
 
-        foreach (var perfilId in usuario.Perfis)
-        {
-            var perfil = perfisDisponiveis.FirstOrDefault(p => p.Id == perfilId && p.Ativo);
-            if (perfil is null) continue;
-            foreach (var p in perfil.Permissoes)
-                set.Add(p);
-        }
+        var exists = usuario.Perfis.Any(p => p.Permissoes.Any(pp => pp.Codigo.Equals(codigoPermissao)));
 
-        return set.Contains(codigoPermissao.Trim());
+        return exists;
     }
 }

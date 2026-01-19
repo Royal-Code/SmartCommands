@@ -45,9 +45,7 @@ public partial class CriarUsuario : IValidable
     [Command, WithValidateModel, WithWorkContext]
     internal Result<Usuario> Create(IWorkContext workContext, IPasswordHasher passwordHasher)
     {
-        workContext.QueryAsync
-
-        usuario.SetSenha(Senha);
-        return Result.Ok(usuario);
+        // TODO: Implementar a lógica para criar um novo usuário.
+        return (Usuario)null;
     }
 }

@@ -13,9 +13,6 @@ public static class SegurancaConfigureWorkContext
             .AddRepositories(typeof(SegurancaConfigureWorkContext).Assembly)
             .ConfigureSearches(typeof(SegurancaConfigureWorkContext).Assembly)
             .ConfigureCommands(typeof(SegurancaConfigureWorkContext).Assembly)
-            .ConfigureQueries(c =>
-            {
-                c.AddHandlersFromAssembly(typeof(SegurancaConfigureWorkContext).Assembly);
-            });
+            .ConfigureQueries(typeof(SegurancaConfigureWorkContext).Assembly);
     }
 }
