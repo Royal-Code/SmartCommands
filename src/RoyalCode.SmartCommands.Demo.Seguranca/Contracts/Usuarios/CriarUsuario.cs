@@ -42,6 +42,17 @@ public partial class CriarUsuario : IValidable
             .HasProblems(out problems);
     }
 
+    /// <summary>
+    /// <para>
+    ///     Aplica validações adicionais que dependem do contexto de trabalho.
+    /// </para>
+    /// <para>
+    ///     É validado se o E-Mail já está cadastrado para outro usuário.
+    /// </para>
+    /// </summary>
+    /// <param name="workContext"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
     public async Task<Result> ValidateAsync(IWorkContext workContext, CancellationToken ct)
     {
         var emailExiste = await workContext.Criteria<Usuario>().FilterBy(new UsuarioFiltro
@@ -58,10 +69,18 @@ public partial class CriarUsuario : IValidable
         return Result.Ok();
     }
 
+    /// <summary>
+    /// Execução do comando para criar um novo usuário.
+    /// </summary>
+    /// <param name="workContext"></param>
+    /// <param name="passwordHasher"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
     [Command, WithValidateModel, WithWorkContext]
     internal async Task<Result<Usuario>> Create(IWorkContext workContext, IPasswordHasher passwordHasher, CancellationToken ct)
     {
         WasValidated();
+
         var validationResult = await ValidateAsync(workContext, ct);
         if (validationResult.HasProblems(out var problems))
             return problems;
