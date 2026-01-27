@@ -1,7 +1,10 @@
+using RoyalCode.SmartCommands.Demo.Seguranca.Domain.ValueObjects;
+
 namespace RoyalCode.SmartCommands.Demo.Seguranca.Domain;
 
 public interface IPasswordHasher
 {
-    string Hash(string plainTextPassword);
-    bool Verify(string plainTextPassword, string passwordHash);
+    Senha Hash(string plainTextPassword);
+
+    bool Verify(string plainTextPassword, Senha senhaAtual);
 }

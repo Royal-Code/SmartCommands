@@ -42,10 +42,32 @@ public partial class CriarUsuario : IValidable
             .HasProblems(out problems);
     }
 
-    [Command, WithValidateModel, WithWorkContext]
-    internal Result<Usuario> Create(IWorkContext workContext, IPasswordHasher passwordHasher)
+    public async Task<Result> ValidateAsync(IWorkContext workContext, CancellationToken ct)
     {
-        // TODO: Implementar a lógica para criar um novo usuário.
-        return (Usuario)null;
+        var emailExiste = await workContext.Criteria<Usuario>().FilterBy(new UsuarioFiltro
+        {
+            Email = Email.Value
+        }).ExistsAsync(ct);
+        
+        if (emailExiste)
+        {
+            return Problems.InvalidParameter("E-Mail já cadastrado para outro usuário", "Email")
+                .With("email", Email.Value);
+        }
+
+        return Result.Ok();
+    }
+
+    [Command, WithValidateModel, WithWorkContext]
+    internal async Task<Result<Usuario>> Create(IWorkContext workContext, IPasswordHasher passwordHasher, CancellationToken ct)
+    {
+        WasValidated();
+        var validationResult = await ValidateAsync(workContext, ct);
+        if (validationResult.HasProblems(out var problems))
+            return problems;
+
+        Senha senha = passwordHasher.Hash(Senha.Nova!);
+
+        return new Usuario(Nome, Email, senha);
     }
 }

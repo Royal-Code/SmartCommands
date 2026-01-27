@@ -18,6 +18,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".Items", ".Items", "{A1FA5B
 		demo.targets = demo.targets
 		Directory.Build.props = Directory.Build.props
 		pack.targets = pack.targets
+		..\README.md = ..\README.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libs", "Libs", "{E04FC64D-9C28-4377-8F4D-428FDDAAAB99}"
@@ -53,6 +54,17 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoyalCode.SmartCommands.Demo.PrecosPromocoes", "RoyalCode.SmartCommands.Demo.PrecosPromocoes\RoyalCode.SmartCommands.Demo.PrecosPromocoes.csproj", "{F3863418-473F-4B12-A00D-E5655CD05322}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoyalCode.SmartCommands.Demo.Seguranca", "RoyalCode.SmartCommands.Demo.Seguranca\RoyalCode.SmartCommands.Demo.Seguranca.csproj", "{8A2DB6F5-B1CF-427F-BF91-414F32F0F12E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{FA111863-16CD-4C29-9723-E3F569FD5F09}"
+	ProjectSection(SolutionItems) = preProject
+		.docs\commands.md = .docs\commands.md
+		.docs\domain.md = .docs\domain.md
+		.docs\problems.md = .docs\problems.md
+		.docs\search.md = .docs\search.md
+		.docs\selector.md = .docs\selector.md
+		.docs\validations.md = .docs\validations.md
+		.docs\workcontext.md = .docs\workcontext.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -151,6 +163,7 @@ Global
 		{4259B819-66D5-4826-9BBD-89618D847AAD} = {62035A8D-F9E0-4A3A-812C-65F52B0E723F}
 		{F3863418-473F-4B12-A00D-E5655CD05322} = {62035A8D-F9E0-4A3A-812C-65F52B0E723F}
 		{8A2DB6F5-B1CF-427F-BF91-414F32F0F12E} = {62035A8D-F9E0-4A3A-812C-65F52B0E723F}
+		{FA111863-16CD-4C29-9723-E3F569FD5F09} = {A1FA5B28-9CA6-4FE6-8BB9-B6394D5D801D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CF9BC81C-4207-433A-A60F-C5345F9D646A}
