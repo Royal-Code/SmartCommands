@@ -198,4 +198,20 @@ internal static class CmdDiagnostics
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor RetryOnConcurrencyRequiresWorkContext = new(
+        id: "RCCMD024",
+        title: "WithRetryOnConcurrencyAttribute requires WithWorkContextAttribute",
+        messageFormat: "WithRetryOnConcurrencyAttribute is only supported together with WithWorkContextAttribute",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor RetryOnConcurrencyInvalidMaxAttempts = new(
+        id: "RCCMD025",
+        title: "Invalid maximum number of attempts for WithRetryOnConcurrencyAttribute",
+        messageFormat: "The maximum number of attempts for WithRetryOnConcurrencyAttribute must be greater than zero",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

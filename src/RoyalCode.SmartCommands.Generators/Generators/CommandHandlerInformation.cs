@@ -47,6 +47,16 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
     public EditTypeDescriptor? EditType { get; internal set; }
     public MapInformation? MapInformation { get; internal set; }
 
+    /// <summary>
+    /// Whether the command body must be wrapped in an optimistic-concurrency retry loop (opt-in via attribute).
+    /// </summary>
+    public bool HasRetryOnConcurrency { get; internal set; }
+
+    /// <summary>
+    /// The explicit maximum number of attempts taken from the attribute argument, or <c>null</c> to read it from the configured options.
+    /// </summary>
+    public int? RetryMaxAttempts { get; internal set; }
+
     protected override void Generate(SourceProductionContext spc, bool hasErrors)
     {
         if (!canGenerate || hasErrors)
@@ -104,6 +114,8 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
                Equals(ProduceNewEntityType, other.ProduceNewEntityType) &&
                Equals(EditType, other.EditType) &&
                Equals(MapInformation, other.MapInformation) &&
+               HasRetryOnConcurrency == other.HasRetryOnConcurrency &&
+               RetryMaxAttempts == other.RetryMaxAttempts &&
                EqualErrors(other);
     }
 
@@ -136,6 +148,8 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
         hashCode = hashCode * -1521134295 + ProduceNewEntityType?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + EditType?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + MapInformation?.GetHashCode() ?? 0;
+        hashCode = hashCode * -1521134295 + HasRetryOnConcurrency.GetHashCode();
+        hashCode = hashCode * -1521134295 + RetryMaxAttempts.GetHashCode();
         hashCode = hashCode * -1521134295 + Errors?.GetHashCode() ?? 0;
         return hashCode;
     }

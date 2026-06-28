@@ -19,6 +19,7 @@ public static class CommandHandlerGenerator
     private const string WithUnitOfWorkAttributeName = "WithUnitOfWork";
     private const string WithDbContextAttributeName = "WithDbContext";
     private const string WithWorkContextAttributeName = "WithWorkContext";
+    private const string WithRetryOnConcurrencyAttributeName = "WithRetryOnConcurrency";
     private const string WithFindEntitiesAttributeName = "WithFindEntities";
     private const string ProduceNewEntityAttributeName = "ProduceNewEntity";
     private const string MapIdResultValueAttributeName = "MapIdResultValue";
@@ -43,6 +44,7 @@ public static class CommandHandlerGenerator
     private const string CommandResultVarName = "commandResult";
     private const string DecoratorType = "IEnumerable<IDecorator<{0}, {1}>>";
     private const string AccessorVarName = "accessor";
+    private const string RetryOptionsVarName = "retryOptions";
     private const string UowAccessorType = "IUnitOfWorkAccessor<{0}>";
     private const string RepoAccessorType = "IRepositoriesAccessor<{0}>";
 
@@ -196,6 +198,38 @@ public static class CommandHandlerGenerator
             hasUow = true;
             contextAccessorMode = ContextAccessorModes.WorkContext;
             accessorType = new TypeDescriptor("IWorkContext", ["RoyalCode.WorkContext"]);
+        }
+
+        // verifica se tem WithRetryOnConcurrency (opt-in; só suportado com WorkContext nesta versão)
+        var hasRetryOnConcurrency = method.TryGetAttribute(WithRetryOnConcurrencyAttributeName, out AttributeSyntax? retryAttr);
+        int? retryMaxAttempts = null;
+        if (hasRetryOnConcurrency)
+        {
+            if (!hasWorkContext)
+            {
+                // retry exige o auto-save do WorkContext (laço envolve Begin → finds → Execute → Complete)
+                error = Diagnostic.Create(
+                    CmdDiagnostics.RetryOnConcurrencyRequiresWorkContext,
+                    location: method.Identifier.GetLocation());
+                errors.Add(error);
+                hasRetryOnConcurrency = false;
+            }
+            else if (retryAttr!.ArgumentList?.Arguments.Count > 0
+                && retryAttr.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax { Token.Value: int maxAttempts })
+            {
+                // valor explícito no atributo sobrescreve as options; <= 0 é inválido
+                if (maxAttempts <= 0)
+                {
+                    error = Diagnostic.Create(
+                        CmdDiagnostics.RetryOnConcurrencyInvalidMaxAttempts,
+                        location: method.Identifier.GetLocation());
+                    errors.Add(error);
+                }
+                else
+                {
+                    retryMaxAttempts = maxAttempts;
+                }
+            }
         }
 
         // verifica se tem WithFindEntities (se tiver hasUow, não precisa verificar)
@@ -498,7 +532,9 @@ public static class CommandHandlerGenerator
             ProduceProblems = produceProblems,
             ProduceNewEntityType = newEntityType,
             EditType = editType,
-            MapInformation = mapInformation
+            MapInformation = mapInformation,
+            HasRetryOnConcurrency = hasRetryOnConcurrency,
+            RetryMaxAttempts = retryMaxAttempts
         };
 
         if (mapInformation is not null)
@@ -774,6 +810,20 @@ public static class CommandHandlerGenerator
             // adiciona comando de atribuição
             ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(DecoratorsVarName));
         }
+        if (i.HasRetryOnConcurrency && i.RetryMaxAttempts is null)
+        {
+            // sem valor explícito no atributo, o número de tentativas vem das options (appsettings)
+            var optionsType = new TypeDescriptor(
+                "IOptions<RetryOnConcurrencyOptions>",
+                ["Microsoft.Extensions.Options", "RoyalCode.SmartCommands.WorkContext.Options"]);
+
+            // adiciona o campo
+            handlerGen.Fields.Add(new FieldGenerator(optionsType, RetryOptionsVarName, true));
+            // adiciona o parameter
+            ctorGen.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(optionsType, RetryOptionsVarName)));
+            // adiciona comando de atribuição
+            ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(RetryOptionsVarName));
+        }
 
         // para cada parâmetro do método do comando, valida se é necessário adicionar como campo do construtor.
         foreach (var p in i.Parameters)
@@ -815,24 +865,28 @@ public static class CommandHandlerGenerator
 
         // adiciona comandos da implementação do método
 
-        // comando de validação
+        // comando de validação (fica sempre fora do laço de retry)
         if (i.HasWithValidateModel)
             handlerMethodImpl.Commands.Add(new ValidateHasProblemsCommand(ModelVarName));
 
+        // quando há retry de concorrência, o corpo {Begin → finds → Execute → Complete} é coletado à parte
+        // para ser envolvido por uma lambda passada à primitiva; senão, vai direto no corpo do método.
+        var bodyTarget = i.HasRetryOnConcurrency ? new GeneratorNodeList() : handlerMethodImpl.Commands;
+
         // comando unit of work begin
         if (i.HasWithUnitOfWork)
-            handlerMethodImpl.Commands.Add(new BeginUnitOfWorkCommand(AccessorVarName));
+            bodyTarget.Add(new BeginUnitOfWorkCommand(AccessorVarName));
 
         // se tem entidades com Id, então cria variável de notFound
         if (i.IdPropertiesBindings.Count > 0 || i.EditType is not null)
         {
-            handlerMethodImpl.Commands.Add(new DeclareNotFoundProblemsCommand());
+            bodyTarget.Add(new DeclareNotFoundProblemsCommand());
 
             // carrega o parâmetro do entidade a ser editada (quando existe EditEntityAttribute)
             if (i.EditType is not null)
             {
                 var findEditEntity = new FindEditEntityCommand(i.EditType, AccessorVarName);
-                handlerMethodImpl.Commands.Add(findEditEntity);
+                bodyTarget.Add(findEditEntity);
             }
 
             // carrega os parâmetros que são entidades vinculados a propriedades
@@ -848,7 +902,7 @@ public static class CommandHandlerGenerator
                 };
 
                 if (findCmd is not null)
-                    handlerMethodImpl.Commands.Add(findCmd);
+                    bodyTarget.Add(findCmd);
             }
         }
 
@@ -938,7 +992,7 @@ public static class CommandHandlerGenerator
                 "ct");
 
             // adiciona o comando que cria nova instância do mediador.
-            handlerMethodImpl.Commands.Add(newMediator);
+            bodyTarget.Add(newMediator);
 
             // a invocação do mediador passa a ser a geração final
             final = newMediator.CreateInvokeNextAsync();
@@ -966,7 +1020,18 @@ public static class CommandHandlerGenerator
         if (useReturn)
             final = new ReturnCommand(final);
 
-        handlerMethodImpl.Commands.Add(final);
+        bodyTarget.Add(final);
+
+        // quando há retry, envolve o corpo coletado numa lambda passada à primitiva RetryOnConcurrencyAsync
+        if (i.HasRetryOnConcurrency)
+        {
+            var optionsArgument = i.RetryMaxAttempts is int maxAttempts
+                ? $"new RetryOnConcurrencyOptions {{ MaxAttempts = {maxAttempts} }}"
+                : $"this.{RetryOptionsVarName}.Value";
+
+            handlerMethodImpl.Commands.Add(
+                new RetryOnConcurrencyCommand(bodyTarget, AccessorVarName, optionsArgument));
+        }
 
         return handlerGen;
     }

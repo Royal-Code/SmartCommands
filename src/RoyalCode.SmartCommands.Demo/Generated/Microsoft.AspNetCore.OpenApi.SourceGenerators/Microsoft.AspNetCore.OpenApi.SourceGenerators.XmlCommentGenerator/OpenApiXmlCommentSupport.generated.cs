@@ -69,7 +69,6 @@ namespace Microsoft.AspNetCore.OpenApi.Generated
         private static Dictionary<string, XmlComment> GenerateCacheEntries()
         {
             var cache = new Dictionary<string, XmlComment>();
-
             cache.Add(@"T:RoyalCode.SmartCommands.EntityReferenceAttribute`2", new XmlComment(@"Attribute used to reference an entity and its ID type.
 Used together with MapFindAttribute.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.IRepositoriesAccessor`1", new XmlComment(@"A service that provides access to the repositories and the context of the database (unit of work).", null, null, null, null, false, null, null, null));
@@ -308,6 +307,15 @@ public class MyCommand { }```"], null, null));
 so this attribute is not necessary in most scenarios.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithPolicyAttribute", new XmlComment(@"Applies a policy requirement to an endpoint generated from a command.", null, null, null, null, false, null, null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.WithPolicyAttribute.#ctor(System.String[])", new XmlComment(@"Initializes a new instance of the WithPolicyAttribute class with the specified policy.", null, null, null, null, false, null, [new XmlParameterComment(@"policy", @"A string array of policy names to apply to the endpoint.", null, false)], null));
+            cache.Add(@"T:RoyalCode.SmartCommands.WithRetryOnConcurrencyAttribute", new XmlComment(@"    Opt-in attribute that makes the generated command handler retry the command body on optimistic-concurrency
+conflicts. It is only supported together with WithWorkContextAttribute.
+    When applied, the generated handler wraps { Begin → find entities → Execute → Complete } in a retry
+loop: a concurrency conflict rolls back the transaction (if any), clears the change tracker and re-runs the
+body with fresh state, up to the configured number of attempts. The model validation stays outside the loop.
+    With no argument, the number of attempts comes from the configured RetryOnConcurrencyOptions.MaxAttempts
+(deployment level). With an explicit maxAttempts, that value is used instead.", null, null, null, null, false, null, null, null));
+            cache.Add(@"M:RoyalCode.SmartCommands.WithRetryOnConcurrencyAttribute.#ctor", new XmlComment(@"Uses the number of attempts from the configured `RetryOnConcurrencyOptions`.", null, null, null, null, false, null, null, null));
+            cache.Add(@"M:RoyalCode.SmartCommands.WithRetryOnConcurrencyAttribute.#ctor(System.Int32)", new XmlComment(@"Uses a fixed number of attempts, overriding the configured options.", null, null, null, null, false, null, [new XmlParameterComment(@"maxAttempts", @"The maximum number of attempts (initial execution plus retries). Must be greater than zero.", null, false)], null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithSummaryAttribute", new XmlComment(@"Specifies a summary for an endpoint generated from a command.", null, null, null, null, false, null, null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.WithSummaryAttribute.#ctor(System.String)", new XmlComment(@"Initializes a new instance of the WithSummaryAttribute class with the specified summary.", null, null, null, null, false, null, [new XmlParameterComment(@"summary", @"The summary of the endpoint.", null, false)], null));
 
@@ -323,11 +331,34 @@ so this attribute is not necessary in most scenarios.", null, null, null, null, 
             cache.Add(@"M:RoyalCode.SmartCommands.WorkContext.Extensions.CommandsWorkContextExtensions.AddUnitOfWorkAccessor``1(RoyalCode.WorkContext.EntityFramework.Configurations.IWorkContextBuilder{``0},System.Action{RoyalCode.SmartCommands.WorkContext.Options.WorkContextAdapterOptions})", new XmlComment(@"Adds the UnitOfWorkAccessor&lt;TWorkContext&gt; as a service to the IServiceCollection.", null, null, @"The same builder for chaining.", null, false, null, [new XmlParameterComment(@"builder", @"The IUnitOfWorkBuilder&lt;TDbContext&gt; instance.", null, false), new XmlParameterComment(@"configureOptions", @"An optional action to configure the WorkContextAdapterOptions.", null, false)], null));
             cache.Add(@"M:RoyalCode.SmartCommands.WorkContext.Extensions.CommandsWorkContextExtensions.AddUnitOfWorkAccessor``1(Microsoft.Extensions.DependencyInjection.IServiceCollection)", new XmlComment(@"Adds the UnitOfWorkAccessor&lt;TWorkContext&gt; as a service to the IServiceCollection.", null, null, @"The same services for chaining.", null, false, null, [new XmlParameterComment(@"services", @"The IServiceCollection instance.", null, false)], null));
             cache.Add(@"M:RoyalCode.SmartCommands.WorkContext.Extensions.CommandsWorkContextExtensions.ConfigureWorkContextAdapterOptions(Microsoft.Extensions.DependencyInjection.IServiceCollection,System.Action{RoyalCode.SmartCommands.WorkContext.Options.WorkContextAdapterOptions})", new XmlComment(@"Configures the WorkContextAdapterOptions for the IWorkContext adapter.", null, null, @"The same services for chaining.", null, false, null, [new XmlParameterComment(@"services", @"The IServiceCollection instance.", null, false), new XmlParameterComment(@"configureOptions", @"The action to configure the options.", null, false)], null));
+            cache.Add(@"T:RoyalCode.SmartCommands.WorkContext.Options.RetryOnConcurrencyOptions", new XmlComment(@"    Options for the optimistic-concurrency retry primitive applied around unit-of-work command bodies.
+    These options are meant to be configured at deployment level (e.g. appsettings) and are read by the
+command handlers generated for commands annotated with the retry attribute, unless a specific value
+is provided on the attribute itself.", null, null, null, null, false, null, null, null));
+            cache.Add(@"F:RoyalCode.SmartCommands.WorkContext.Options.RetryOnConcurrencyOptions.DefaultMaxAttempts", new XmlComment(@"The default number of attempts (`3`) used when nothing is configured.", null, null, null, null, false, null, null, null));
+            cache.Add(@"P:RoyalCode.SmartCommands.WorkContext.Options.RetryOnConcurrencyOptions.MaxAttempts", new XmlComment(@"    The maximum number of attempts (the initial execution plus retries) for a command body
+under optimistic-concurrency conflicts.
+    The default value is int RetryOnConcurrencyOptions.DefaultMaxAttempts (3), without backoff: market practice for
+optimistic-concurrency retry is a small, immediate retry budget (the next attempt simply reloads and
+re-applies). Do not confuse it with transient-failure retry (e.g. EF EnableRetryOnFailure).
+    Values lower than 1 are treated as 1 (a single attempt, no retry).", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.WorkContext.Options.WorkContextAdapterOptions", new XmlComment(@"Options for configuring the IWorkContext adapter.", null, null, null, null, false, null, null, null));
             cache.Add(@"P:RoyalCode.SmartCommands.WorkContext.Options.WorkContextAdapterOptions.BeginTransactions", new XmlComment(@"    Determine whether to begin transactions for commands.
     The default value is false.
 This means that commands will not be executed entirely in a transaction,
 but will use the entity framework change tracking to save changes.", null, null, null, null, false, null, null, null));
+            cache.Add(@"F:RoyalCode.WorkContext.ConcurrencyRetryExtensions.ConcurrencyConflictDetail", new XmlComment(@"    Generic detail used when the retry budget is exhausted and no custom problem is provided.
+    A fixed, generic message is used on purpose: the original ConcurrencyException message
+carries provider/EF detail that should not leak to callers.", null, null, null, null, false, null, null, null));
+            cache.Add(@"M:RoyalCode.WorkContext.ConcurrencyRetryExtensions.RetryOnConcurrencyAsync(RoyalCode.UnitOfWork.IUnitOfWork,System.Func{System.Threading.Tasks.Task{RoyalCode.SmartProblems.Result}},RoyalCode.SmartCommands.WorkContext.Options.RetryOnConcurrencyOptions,System.Func{RoyalCode.SmartProblems.Problem},System.Threading.CancellationToken)", new XmlComment(@"    Executes body and retries it when an optimistic-concurrency conflict
+(ConcurrencyException) is raised while saving, up to int RetryOnConcurrencyOptions.MaxAttempts.
+    Between attempts, any current transaction is rolled back (so partial work from the failed attempt is
+undone) and the change tracker is cleared via void IUnitOfWork.CleanUp(bool force = true), so the body
+reloads fresh state from the store on the next attempt.", null, null, @"The result of body, or a conflict problem when the attempts are exhausted.", null, false, null, [new XmlParameterComment(@"unitOfWork", @"The unit of work being retried; owns the change tracker and the transaction, if any.", null, false), new XmlParameterComment(@"body", @"The operation to execute on each attempt; typically begins the unit of work, (re)loads the aggregate,
+mutates it and saves. It must return a Result and must not include any non-idempotent,
+immediately-committed side effect (e.g. single-use token consumption). The cancellation token is
+captured by the caller, so the body has no token parameter.", null, false), new XmlParameterComment(@"options", @"The retry policy. int RetryOnConcurrencyOptions.MaxAttempts values lower than `1` are treated as `1`.", null, false), new XmlParameterComment(@"onExhausted", @"Optional factory for the Problem returned when the retry budget is exhausted.
+When `null`, a generic Problem Problems.InvalidState(string detail, string? property = null, string? typeId = null) (409) problem is returned.", null, false), new XmlParameterComment(@"ct", @"The cancellation token used to roll back the transaction between attempts.", null, false)], null));
 
 
             return cache;
