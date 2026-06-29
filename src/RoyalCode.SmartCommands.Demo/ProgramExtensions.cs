@@ -9,6 +9,7 @@ using RoyalCode.SmartSearch;
 using RoyalCode.SmartSearch.AspNetCore.HttpResults;
 using RoyalCode.SmartSearch.AspNetCore.Internals;
 using RoyalCode.SmartSearch.Defaults;
+using RoyalCode.WorkContext;
 
 namespace RoyalCode.SmartCommands.Demo;
 
@@ -20,7 +21,7 @@ public static partial class ProgramExtensions
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
-        builder.Services.AddHandlersServices();
+        builder.Services.AddHandlersServices<IWorkContext>();
 
         builder.Services.AddWorkContext<CineDbContext>()
             .AddUnitOfWorkAccessor()

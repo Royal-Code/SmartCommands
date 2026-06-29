@@ -10,9 +10,10 @@ public class RetryOnConcurrencyTests
     {
         Util.Compile(Code.CommandWithOptions, out var output, out var diagnostics);
 
-        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertNoErrors(diagnostics);
+        AssertNoErrors(output.GetDiagnostics());
 
-        var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
+        var generatedHandler = FindGeneratedSource(output, "ChangePasswordHandler.g.cs");
         Assert.Equal(Normalize(Code.HandlerWithOptions), Normalize(generatedHandler));
     }
 
@@ -21,10 +22,27 @@ public class RetryOnConcurrencyTests
     {
         Util.Compile(Code.CommandWithValue, out var output, out var diagnostics);
 
-        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertNoErrors(diagnostics);
+        AssertNoErrors(output.GetDiagnostics());
 
-        var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
+        var generatedHandler = FindGeneratedSource(output, "ChangePasswordHandler.g.cs");
         Assert.Equal(Normalize(Code.HandlerWithValue), Normalize(generatedHandler));
+    }
+
+    private static string? FindGeneratedSource(Compilation compilation, string fileName)
+    {
+        return compilation.SyntaxTrees
+            .FirstOrDefault(t => Path.GetFileName(t.FilePath).Equals(fileName, StringComparison.Ordinal))
+            ?.ToString();
+    }
+
+    private static void AssertNoErrors(IEnumerable<Diagnostic> diagnostics)
+    {
+        var errors = diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToArray();
+
+        Assert.True(errors.Length == 0, string.Join(Environment.NewLine, errors.Select(d => d.ToString())));
     }
 
     // snapshot comparison must be independent of line endings (raw strings may be LF, generator emits CRLF)
@@ -51,6 +69,10 @@ file static class Code
 {
     public const string CommandWithOptions =
 """
+global using System;
+global using System.Threading;
+global using System.Threading.Tasks;
+
 using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext;
@@ -101,7 +123,7 @@ public class ChangePasswordHandler<TContext> : IChangePasswordHandler
                 return await command.Execute(this.accessor.Context, ct).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
             },
             this.retryOptions.Value,
-            ct);
+            ct: ct);
     }
 }
 
@@ -109,6 +131,10 @@ public class ChangePasswordHandler<TContext> : IChangePasswordHandler
 
     public const string CommandWithValue =
 """
+global using System;
+global using System.Threading;
+global using System.Threading.Tasks;
+
 using RoyalCode.SmartCommands;
 using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext;
@@ -156,7 +182,7 @@ public class ChangePasswordHandler<TContext> : IChangePasswordHandler
                 return await command.Execute(this.accessor.Context, ct).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
             },
             new RetryOnConcurrencyOptions { MaxAttempts = 5 },
-            ct);
+            ct: ct);
     }
 }
 

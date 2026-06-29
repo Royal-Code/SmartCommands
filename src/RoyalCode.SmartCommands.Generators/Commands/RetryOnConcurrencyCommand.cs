@@ -45,6 +45,6 @@ public class RetryOnConcurrencyCommand : GeneratorNode, IWithNamespaces
         body.Write(sb, indent + 2);
         sb.Indent(indent + 1).AppendLine("},");
         sb.Indent(indent + 1).Append(optionsArgument).AppendLine(",");
-        sb.Indent(indent + 1).AppendLine("ct);");
+        sb.Indent(indent + 1).AppendLine("ct: ct);");
     }
 }

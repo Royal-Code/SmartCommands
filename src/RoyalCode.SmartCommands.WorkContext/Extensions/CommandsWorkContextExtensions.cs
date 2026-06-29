@@ -14,6 +14,8 @@ namespace RoyalCode.SmartCommands.WorkContext.Extensions;
 /// </summary>
 public static class CommandsWorkContextExtensions
 {
+    private const string RetryOnConcurrencySectionName = "RetryOnConcurrency";
+
     /// <summary>
     /// <para>
     ///     Adds the <see cref="UnitOfWorkAccessor{TWorkContext}"/> as a service to the <see cref="IServiceCollection"/>.
@@ -28,7 +30,9 @@ public static class CommandsWorkContextExtensions
         Action<WorkContextAdapterOptions>? configureOptions = null)
         where TDbContext : DbContext
     {
-         builder.Services
+        builder.Services.AddRetryOnConcurrencyOptions();
+
+        builder.Services
             .AddScoped<UnitOfWorkAccessor<IWorkContext<TDbContext>>>()
            .AddScoped<IUnitOfWorkAccessor<IWorkContext>>(
                sp => sp.GetRequiredService<UnitOfWorkAccessor<IWorkContext<TDbContext>>>())
@@ -63,6 +67,8 @@ public static class CommandsWorkContextExtensions
         Action<WorkContextAdapterOptions>? configureOptions = null)
         where TDbContext : DbContext
     {
+        builder.Services.AddRetryOnConcurrencyOptions();
+
         builder.Services
            .AddScoped<UnitOfWorkAccessor<IWorkContext<TDbContext>>>()
            .AddScoped<IUnitOfWorkAccessor<IWorkContext>>(
@@ -95,6 +101,8 @@ public static class CommandsWorkContextExtensions
     public static IServiceCollection AddUnitOfWorkAccessor<TWorkContext>(this IServiceCollection services)
         where TWorkContext : IWorkContext
     {
+        services.AddRetryOnConcurrencyOptions();
+
         services
             .AddScoped<UnitOfWorkAccessor<TWorkContext>>()
             .AddScoped<IUnitOfWorkAccessor<TWorkContext>>(
@@ -103,6 +111,14 @@ public static class CommandsWorkContextExtensions
                 sp => sp.GetRequiredService<UnitOfWorkAccessor<TWorkContext>>());
 
         services.AddTransient(typeof(IRepositoryAccessor<>), typeof(RepositoryAdapter<>));
+
+        return services;
+    }
+
+    private static IServiceCollection AddRetryOnConcurrencyOptions(this IServiceCollection services)
+    {
+        services.AddOptions<RetryOnConcurrencyOptions>()
+            .BindConfiguration(RetryOnConcurrencySectionName);
 
         return services;
     }

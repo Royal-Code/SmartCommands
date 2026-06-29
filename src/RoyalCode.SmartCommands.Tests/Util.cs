@@ -2,6 +2,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using RoyalCode.SmartCommands.Generators.Generators;
+using RoyalCode.SmartCommands.WorkContext.Options;
 using RoyalCode.SmartCommands.Tests.Models;
 
 namespace RoyalCode.SmartCommands.Tests;
@@ -16,24 +17,36 @@ internal static class Util
         // the source code to be compiled
         var syntaxTree = CSharpSyntaxTree.ParseText(sourceCode);
 
+        var trustedPlatformAssemblies = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))
+            ?.Split(Path.PathSeparator)
+            ?? [];
+
         // assemblies references requered to compile the source code
-        var references = new List<MetadataReference>
-        {
-            MetadataReference.CreateFromFile(typeof(Util).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(CommandHandlerGenerator).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(ICollection<>).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(CommandAttribute).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(RoyalCode.WorkContext.IWorkContext).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(RoyalCode.SmartProblems.Result).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Task).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(CancellationToken).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Produto).Assembly.Location)
-        };
+        var referencePaths = trustedPlatformAssemblies
+            .Concat(Directory.GetFiles(AppContext.BaseDirectory, "*.dll"))
+            .Concat(
+            [
+                typeof(Util).Assembly.Location,
+                typeof(object).Assembly.Location,
+                typeof(CommandHandlerGenerator).Assembly.Location,
+                typeof(Enumerable).Assembly.Location,
+                typeof(ICollection<>).Assembly.Location,
+                typeof(CommandAttribute).Assembly.Location,
+                typeof(RetryOnConcurrencyOptions).Assembly.Location,
+                typeof(Microsoft.Extensions.Options.IOptions<>).Assembly.Location,
+                typeof(RoyalCode.WorkContext.IWorkContext).Assembly.Location,
+                typeof(RoyalCode.SmartProblems.Result).Assembly.Location,
+                typeof(Task).Assembly.Location,
+                typeof(CancellationToken).Assembly.Location,
+                typeof(Produto).Assembly.Location
+            ])
+            .Where(File.Exists)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        var references = referencePaths.Select(path => MetadataReference.CreateFromFile(path));
 
         // create a compilation for the source code.
-        var compilation = CSharpCompilation.Create("SourceGeneratorTests", [syntaxTree], references, 
+        var compilation = CSharpCompilation.Create("SourceGeneratorTests", [syntaxTree], references,
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         // apply the source generator and collect the output

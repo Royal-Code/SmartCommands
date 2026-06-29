@@ -14,7 +14,7 @@ namespace RoyalCode.SmartCommands;
 /// </para>
 /// <para>
 ///     With no argument, the number of attempts comes from the configured <c>RetryOnConcurrencyOptions.MaxAttempts</c>
-///     (deployment level). With an explicit <paramref name="maxAttempts"/>, that value is used instead.
+///     (deployment level). With an explicit <c>maxAttempts</c>, that value is used instead.
 /// </para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, Inherited = false)]
