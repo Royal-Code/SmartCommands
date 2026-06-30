@@ -179,7 +179,11 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
         method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(handlerType, "handler")));
 
         // depois são os parâmetros do método do handler
-        CommandHandlerGenerator.AddRequiredParameters(commandInfo, method);
+        var editEntityRouteParameterName = commandInfo.EditType is not null
+            ? GetFirstRouteParameterName(mapInfo.RoutePattern)
+            : null;
+
+        CommandHandlerGenerator.AddRequiredParameters(commandInfo, method, editEntityRouteParameterName);
 
         // implementação do método
 
@@ -241,6 +245,30 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
         }
 
         return method;
+    }
+
+    private static string? GetFirstRouteParameterName(string routePattern)
+    {
+        var open = routePattern.IndexOf('{');
+        if (open < 0)
+            return null;
+
+        var close = routePattern.IndexOf('}', open + 1);
+        if (close < 0)
+            return null;
+
+        var parameter = routePattern.Substring(open + 1, close - open - 1).TrimStart('*').TrimEnd('?');
+        var constraintStart = parameter.IndexOf(':');
+        if (constraintStart >= 0)
+            parameter = parameter.Substring(0, constraintStart);
+
+        var defaultValueStart = parameter.IndexOf('=');
+        if (defaultValueStart >= 0)
+            parameter = parameter.Substring(0, defaultValueStart);
+
+        return string.IsNullOrWhiteSpace(parameter)
+            ? null
+            : parameter;
     }
 
     private static TypeDescriptor DiscoveryReturnType(CommandHandlerInformation commandInfo, MapInformation mapInfo)

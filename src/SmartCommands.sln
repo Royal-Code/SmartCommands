@@ -68,6 +68,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{FA111863-1
 		.docs\workcontext.md = .docs\workcontext.md
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoyalCode.SmartCommands.Demo.Tests", "RoyalCode.SmartCommands.Demo.Tests\RoyalCode.SmartCommands.Demo.Tests.csproj", "{9504ACE5-8135-49A2-8BEF-CC15B66AB96A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -142,6 +144,10 @@ Global
 		{8A2DB6F5-B1CF-427F-BF91-414F32F0F12E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8A2DB6F5-B1CF-427F-BF91-414F32F0F12E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8A2DB6F5-B1CF-427F-BF91-414F32F0F12E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9504ACE5-8135-49A2-8BEF-CC15B66AB96A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9504ACE5-8135-49A2-8BEF-CC15B66AB96A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9504ACE5-8135-49A2-8BEF-CC15B66AB96A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9504ACE5-8135-49A2-8BEF-CC15B66AB96A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -165,6 +171,7 @@ Global
 		{4259B819-66D5-4826-9BBD-89618D847AAD} = {62035A8D-F9E0-4A3A-812C-65F52B0E723F}
 		{F3863418-473F-4B12-A00D-E5655CD05322} = {62035A8D-F9E0-4A3A-812C-65F52B0E723F}
 		{8A2DB6F5-B1CF-427F-BF91-414F32F0F12E} = {62035A8D-F9E0-4A3A-812C-65F52B0E723F}
+		{9504ACE5-8135-49A2-8BEF-CC15B66AB96A} = {4F1FF377-9816-4FBD-9AB2-BC588DD2CFBA}
 		{FA111863-16CD-4C29-9723-E3F569FD5F09} = {A1FA5B28-9CA6-4FE6-8BB9-B6394D5D801D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution

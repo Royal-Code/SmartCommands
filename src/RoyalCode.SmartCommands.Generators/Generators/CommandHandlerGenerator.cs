@@ -1131,11 +1131,31 @@ public static class CommandHandlerGenerator
         return partialClass;
     }
 
-    public static void AddRequiredParameters(CommandHandlerInformation commandInfo, MethodGenerator method)
+    public static void AddRequiredParameters(
+        CommandHandlerInformation commandInfo,
+        MethodGenerator method,
+        string? editEntityRouteParameterName = null)
     {
         // parâmetro do id da entidade a ser editada, quando necessário
         if (commandInfo.EditType is not null)
-            method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(commandInfo.EditType.IdType, $"{commandInfo.EditType.Parameter.Name}Id")));
+        {
+            var idParameter = new ParameterGenerator(
+                new ParameterDescriptor(commandInfo.EditType.IdType, $"{commandInfo.EditType.Parameter.Name}Id"));
+
+            if (!string.IsNullOrWhiteSpace(editEntityRouteParameterName))
+            {
+                idParameter.Attributes.Add(
+                    new AttributeGenerator(
+                        "FromRoute",
+                        ["Microsoft.AspNetCore.Mvc"],
+                        new StringValueNode($"Name = \"{editEntityRouteParameterName}\""))
+                    {
+                        InLine = true
+                    });
+            }
+
+            method.Parameters.Add(idParameter);
+        }
 
         // parâmetro do commando.
         method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(commandInfo.ModelType, ModelVarName)));

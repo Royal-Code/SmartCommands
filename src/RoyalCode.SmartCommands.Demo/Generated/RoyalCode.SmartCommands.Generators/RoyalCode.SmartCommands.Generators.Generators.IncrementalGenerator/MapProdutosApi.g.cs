@@ -55,7 +55,7 @@ public static partial class MapProdutosApi
     [ProduceProblems(ProblemCategory.InvalidParameter)]
     private static async Task<OkMatch> EditarProdutoHandleAsync(
         IEditarProdutoHandler handler, 
-        Guid produtoId, 
+        [FromRoute(Name = "id")]  Guid produtoId, 
         EditarProduto command, 
         CancellationToken ct)
     {
