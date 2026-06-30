@@ -17,7 +17,7 @@ public class ProdutoFiltro
 
 
 [MapGroup("produtos")]
-[MapSearch("/{id:int}", "Listagem paginada de produtos exemplos")]
+[MapSearch("/filtro/{id:int}", "Listagem paginada de produtos exemplos")]
 [SearchReference<Produto, ProdutoDetalhes>]
 public class ExemploProdutoFiltro
 {
@@ -26,7 +26,11 @@ public class ExemploProdutoFiltro
     public bool? Ativo { get; set; }
 
     [WithFilter]
-    internal void ConfigureSearch(ICriteria<Produto> search, HttpContext context, SomeService some, [WithParameter] int id)
+    internal void ConfigureSearch(
+        ICriteria<Produto> search,
+        HttpContext context, 
+        SomeService some, 
+        [WithParameter] int id)
     {
         var user = context.User.Identity?.Name ?? "anonymous";
 

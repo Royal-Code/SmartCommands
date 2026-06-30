@@ -21,19 +21,20 @@
 	<PropertyGroup>
 		<SmartProblemsVer>1.0.0-preview-6.0</SmartProblemsVer>
 		<SmartValidationsVer>1.0.0-preview-4.0</SmartValidationsVer>
-		<WorkContextVer>0.8.8</WorkContextVer>
-		<SmartSearchVer>0.10.0</SmartSearchVer>
+		<WorkContextVer>0.8.12</WorkContextVer>
+		<SmartSearchVer>0.10.4</SmartSearchVer>
 		<SmartSelectVer>0.4.0</SmartSelectVer>
 		<ExSrcGenVer>0.1.13</ExSrcGenVer>
 	</PropertyGroup>
 	<PropertyGroup>
 		<CodeAnalysisVer>4.14.0</CodeAnalysisVer>
 		<PGVer>10.0.0</PGVer>
+		<SwashbuckleVer>10.2.3</SwashbuckleVer>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
-		<AspVer>8.0.23</AspVer>
+		<AspVer>8.0.11</AspVer>
 		<ExtVer>8.0.2</ExtVer>
-		<EFVer>8.0.10</EFVer>
+		<EFVer>8.0.11</EFVer>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(TargetFramework)' == 'net9.0'">
 		<AspVer>9.0.0</AspVer>

@@ -22,6 +22,7 @@ public static partial class ProgramExtensions
         builder.Services.AddSwaggerGen();
 
         builder.Services.AddHandlersServices<IWorkContext>();
+        builder.Services.AddTransient<SomeService>();
 
         builder.Services.AddWorkContext<CineDbContext>()
             .AddUnitOfWorkAccessor()
@@ -29,6 +30,12 @@ public static partial class ProgramExtensions
             .ConfigureRepositories(repos =>
             {
                 repos.Add<Produto>();
+                repos.Add<Loja>();
+            })
+            .ConfigureSearches(searches =>
+            {
+                searches.Add<Produto>();
+                searches.Add<Loja>();
             });
     }
 

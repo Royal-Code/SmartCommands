@@ -36,7 +36,7 @@ public static partial class MapProdutosApi
         group.MapGet("", SearchProdutoByProdutoFiltroAsync)
             .WithName("Listagem paginada de produtos");
 
-        group.MapGet("/{id:int}", SearchProdutoByExemploProdutoFiltroAsync)
+        group.MapGet("/filtro/{id:int}", SearchProdutoByExemploProdutoFiltroAsync)
             .WithName("Listagem paginada de produtos exemplos");
 
         return group;

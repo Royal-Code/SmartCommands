@@ -1,0 +1,34 @@
+Faça a documentação de
+
+
+Inclua os tópicos:
+1. Introdução: Explicação breve sobre as bibliotecas e elenca os Conceitos principais e os Benefícios principais.
+2. Funcionalidades Principais: Listagem das funcionalidades principais.
+3. Exemplos de uso: Problems
+  - Listar as categorias, descrever o tipo de retorno (status code), descrever o que significa o status code e descrever quando usar a categoria.
+  - Exemplos de criação de problemas por categoria.
+  - Exemplos de casos reais:
+    - Validando com método HasProblems (`public bool HasProblems([NotNullWhen(true)] out Problems? problems)`)
+	- Outros exemplos de uso de Problems0 (conversões implicitas, operadores, outros métodos e recursos)
+  - Explicação do RFC 9457 e propriedade Type do `Problem`
+  - Exemplos de ProblemDetailsOptions e Categorya Custom.
+4. Exemplos de uso: Result
+  - Exemplos de como usar Result ou Result<T>
+    - Exemplos básicos.
+	- Conversores implicitos e operadores
+	- Casos reais em serviços.
+	- Uso do HasProblems HasValue
+	- Map, Continue, Match.
+5. Exemplos para Entidades (Id, Entry, TryFindAsync)
+6. Resultados de API (OkMatch, NoContentMatch, CreatedMatch)
+7. Cliente HTTP: ToResultAsync
+8. Exemplos de uso de validação base: Validação simples em um DTO usando `RuleSet` e retornando `Problems` via `HasProblems`.
+9. Exemplos de uso de validação com structs (IValidable)
+10. Exemplos de uso de validação aninhados (objetos e coleções)
+11. Exemplos de uso de validação avançados
+12. Referência da API
+  - Problems
+  - RuleSet
+13. Boas práticas
+14. Resumo
+15. Instruções para Ferramentas de IA (GitHub Copilot, Kiro, etc)

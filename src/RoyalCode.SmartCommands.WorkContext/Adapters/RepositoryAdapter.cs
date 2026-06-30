@@ -1,5 +1,4 @@
-﻿
-using RoyalCode.Repositories;
+﻿using RoyalCode.Repositories;
 using RoyalCode.SmartProblems.Entities;
 
 namespace RoyalCode.SmartCommands.WorkContext.Adapters;
