@@ -19,12 +19,18 @@ public class RetryOnConcurrencyCommand : GeneratorNode, IWithNamespaces
     private readonly GeneratorNode body;
     private readonly string accessorVarName;
     private readonly string optionsArgument;
+    private readonly string? onExhaustedArgument;
 
-    public RetryOnConcurrencyCommand(GeneratorNode body, string accessorVarName, string optionsArgument)
+    public RetryOnConcurrencyCommand(
+        GeneratorNode body,
+        string accessorVarName,
+        string optionsArgument,
+        string? onExhaustedArgument = null)
     {
         this.body = body;
         this.accessorVarName = accessorVarName;
         this.optionsArgument = optionsArgument;
+        this.onExhaustedArgument = onExhaustedArgument;
     }
 
     public IEnumerable<string> GetNamespaces()
@@ -45,6 +51,8 @@ public class RetryOnConcurrencyCommand : GeneratorNode, IWithNamespaces
         body.Write(sb, indent + 2);
         sb.Indent(indent + 1).AppendLine("},");
         sb.Indent(indent + 1).Append(optionsArgument).AppendLine(",");
+        if (onExhaustedArgument is not null)
+            sb.Indent(indent + 1).Append("onExhausted: () => ").Append(onExhaustedArgument).AppendLine(",");
         sb.Indent(indent + 1).AppendLine("ct: ct);");
     }
 }

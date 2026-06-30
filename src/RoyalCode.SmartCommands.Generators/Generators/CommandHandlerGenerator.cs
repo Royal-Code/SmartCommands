@@ -45,6 +45,7 @@ public static class CommandHandlerGenerator
     private const string DecoratorType = "IEnumerable<IDecorator<{0}, {1}>>";
     private const string AccessorVarName = "accessor";
     private const string RetryOptionsVarName = "retryOptions";
+    private const string RetryProblemFactoryVarName = "retryProblemFactory";
     private const string UowAccessorType = "IUnitOfWorkAccessor<{0}>";
     private const string RepoAccessorType = "IRepositoriesAccessor<{0}>";
 
@@ -203,6 +204,7 @@ public static class CommandHandlerGenerator
         // verifica se tem WithRetryOnConcurrency (opt-in; só suportado com WorkContext nesta versão)
         var hasRetryOnConcurrency = method.TryGetAttribute(WithRetryOnConcurrencyAttributeName, out AttributeSyntax? retryAttr);
         int? retryMaxAttempts = null;
+        string? retryOperation = null;
         if (hasRetryOnConcurrency)
         {
             if (!hasWorkContext)
@@ -214,20 +216,58 @@ public static class CommandHandlerGenerator
                 errors.Add(error);
                 hasRetryOnConcurrency = false;
             }
-            else if (retryAttr!.ArgumentList?.Arguments.Count > 0
-                && retryAttr.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax { Token.Value: int maxAttempts })
+            else if (retryAttr!.ArgumentList?.Arguments.Count > 0)
             {
-                // valor explícito no atributo sobrescreve as options; <= 0 é inválido
-                if (maxAttempts <= 0)
+                foreach (var argument in retryAttr.ArgumentList.Arguments)
                 {
-                    error = Diagnostic.Create(
-                        CmdDiagnostics.RetryOnConcurrencyInvalidMaxAttempts,
-                        location: method.Identifier.GetLocation());
-                    errors.Add(error);
-                }
-                else
-                {
-                    retryMaxAttempts = maxAttempts;
+                    var argumentName = argument.NameEquals?.Name.Identifier.Text
+                        ?? argument.NameColon?.Name.Identifier.Text;
+
+                    var constant = context.SemanticModel.GetConstantValue(argument.Expression);
+                    if (!constant.HasValue)
+                        continue;
+
+                    var isMaxAttemptsArgument = argumentName is null
+                        || string.Equals(argumentName, "maxAttempts", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(argumentName, "MaxAttempts", StringComparison.Ordinal);
+
+                    if (isMaxAttemptsArgument && constant.Value is int maxAttempts)
+                    {
+                        // valor explícito no atributo sobrescreve as options; <= 0 é inválido
+                        if (maxAttempts <= 0)
+                        {
+                            error = Diagnostic.Create(
+                                CmdDiagnostics.RetryOnConcurrencyInvalidMaxAttempts,
+                                location: method.Identifier.GetLocation());
+                            errors.Add(error);
+                        }
+                        else
+                        {
+                            retryMaxAttempts = maxAttempts;
+                        }
+
+                        continue;
+                    }
+
+                    var isOperationArgument = argumentName is null
+                        || string.Equals(argumentName, "operation", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(argumentName, "Operation", StringComparison.Ordinal);
+
+                    if (isOperationArgument && constant.Value is string operation)
+                    {
+                        if (string.IsNullOrWhiteSpace(operation))
+                        {
+                            error = Diagnostic.Create(
+                                CmdDiagnostics.InvalidCommandType,
+                                location: method.Identifier.GetLocation(),
+                                "The retry operation must not be empty");
+                            errors.Add(error);
+                        }
+                        else
+                        {
+                            retryOperation = operation;
+                        }
+                    }
                 }
             }
         }
@@ -534,7 +574,8 @@ public static class CommandHandlerGenerator
             EditType = editType,
             MapInformation = mapInformation,
             HasRetryOnConcurrency = hasRetryOnConcurrency,
-            RetryMaxAttempts = retryMaxAttempts
+            RetryMaxAttempts = retryMaxAttempts,
+            RetryOperation = retryOperation
         };
 
         if (mapInformation is not null)
@@ -824,6 +865,19 @@ public static class CommandHandlerGenerator
             // adiciona comando de atribuição
             ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(RetryOptionsVarName));
         }
+        if (i.HasRetryOnConcurrency && i.RetryOperation is not null)
+        {
+            var problemFactoryType = new TypeDescriptor(
+                "IConcurrencyRetryProblemFactory",
+                ["RoyalCode.SmartCommands.WorkContext"]);
+
+            // adiciona o campo
+            handlerGen.Fields.Add(new FieldGenerator(problemFactoryType, RetryProblemFactoryVarName, true));
+            // adiciona o parameter
+            ctorGen.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(problemFactoryType, RetryProblemFactoryVarName)));
+            // adiciona comando de atribuição
+            ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(RetryProblemFactoryVarName));
+        }
 
         // para cada parâmetro do método do comando, valida se é necessário adicionar como campo do construtor.
         foreach (var p in i.Parameters)
@@ -1029,8 +1083,12 @@ public static class CommandHandlerGenerator
                 ? $"new RetryOnConcurrencyOptions {{ MaxAttempts = {maxAttempts} }}"
                 : $"this.{RetryOptionsVarName}.Value";
 
+            var onExhaustedArgument = i.RetryOperation is not null
+                ? $"this.{RetryProblemFactoryVarName}.Create({ModelVarName}, {SymbolDisplay.FormatLiteral(i.RetryOperation, quote: true)})"
+                : null;
+
             handlerMethodImpl.Commands.Add(
-                new RetryOnConcurrencyCommand(bodyTarget, AccessorVarName, optionsArgument));
+                new RetryOnConcurrencyCommand(bodyTarget, AccessorVarName, optionsArgument, onExhaustedArgument));
         }
 
         return handlerGen;

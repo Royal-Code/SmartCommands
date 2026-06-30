@@ -22,6 +22,11 @@ public static partial class ProgramExtensions
         builder.Services.AddSwaggerGen();
 
         builder.Services.AddHandlersServices<IWorkContext>();
+        builder.Services.AddConcurrencyRetryProblem<EditarProduto>(
+            "demo.produtos.editar",
+            static (_, _) => Problems.InvalidState(
+                "O produto foi alterado por outro processo.",
+                typeId: "demo.concurrency_conflict"));
         builder.Services.AddTransient<SomeService>();
 
         builder.Services.AddWorkContext<CineDbContext>()

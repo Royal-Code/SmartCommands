@@ -22,7 +22,7 @@ public partial class EditarProduto
         return result;
     }
 
-    [Command, WithValidateModel, EditEntity<Produto, Guid>, WithWorkContext, WithRetryOnConcurrency]
+    [Command, WithValidateModel, EditEntity<Produto, Guid>, WithWorkContext, WithRetryOnConcurrency(Operation = "demo.produtos.editar")]
     internal void Execute(Produto produto)
     {
         WasValidated();

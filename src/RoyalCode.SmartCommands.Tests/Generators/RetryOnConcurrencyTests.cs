@@ -29,6 +29,18 @@ public class RetryOnConcurrencyTests
         Assert.Equal(Normalize(Code.HandlerWithValue), Normalize(generatedHandler));
     }
 
+    [Fact]
+    public void WithRetryOnConcurrency_WithOperation_UsesProblemFactory()
+    {
+        Util.Compile(Code.CommandWithOperation, out var output, out var diagnostics);
+
+        AssertNoErrors(diagnostics);
+        AssertNoErrors(output.GetDiagnostics());
+
+        var generatedHandler = FindGeneratedSource(output, "ChangePasswordHandler.g.cs");
+        Assert.Equal(Normalize(Code.HandlerWithOperation), Normalize(generatedHandler));
+    }
+
     private static string? FindGeneratedSource(Compilation compilation, string fileName)
     {
         return compilation.SyntaxTrees
@@ -182,6 +194,72 @@ public class ChangePasswordHandler<TContext> : IChangePasswordHandler
                 return await command.Execute(this.accessor.Context, ct).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
             },
             new RetryOnConcurrencyOptions { MaxAttempts = 5 },
+            ct: ct);
+    }
+}
+
+""";
+
+    public const string CommandWithOperation =
+"""
+global using System;
+global using System.Threading;
+global using System.Threading.Tasks;
+
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartProblems;
+using RoyalCode.WorkContext;
+
+namespace Tests.Scenarios.Retry;
+
+public class ChangePassword
+{
+    [Command, WithWorkContext, WithRetryOnConcurrency(Operation = "user_account.change_password")]
+    public async Task<Result> Execute(IWorkContext context, CancellationToken ct)
+    {
+        await Task.CompletedTask;
+        return Result.Ok();
+    }
+}
+""";
+
+    public const string HandlerWithOperation =
+"""
+using Microsoft.Extensions.Options;
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.WorkContext;
+using RoyalCode.SmartCommands.WorkContext.Options;
+using RoyalCode.SmartProblems;
+using RoyalCode.WorkContext;
+using Tests.Scenarios.Retry;
+
+namespace Tests.Scenarios.Retry.Internals;
+
+public class ChangePasswordHandler<TContext> : IChangePasswordHandler
+    where TContext : IWorkContext
+{
+    private readonly IUnitOfWorkAccessor<TContext> accessor;
+    private readonly IOptions<RetryOnConcurrencyOptions> retryOptions;
+    private readonly IConcurrencyRetryProblemFactory retryProblemFactory;
+
+    public ChangePasswordHandler(IUnitOfWorkAccessor<TContext> accessor, IOptions<RetryOnConcurrencyOptions> retryOptions, IConcurrencyRetryProblemFactory retryProblemFactory)
+    {
+        this.accessor = accessor;
+        this.retryOptions = retryOptions;
+        this.retryProblemFactory = retryProblemFactory;
+    }
+
+    public async Task<Result> HandleAsync(ChangePassword command, CancellationToken ct)
+    {
+        return await this.accessor.Context.RetryOnConcurrencyAsync(
+            async () =>
+            {
+                await this.accessor.BeginAsync(ct);
+
+                return await command.Execute(this.accessor.Context, ct).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
+            },
+            this.retryOptions.Value,
+            onExhausted: () => this.retryProblemFactory.Create(command, "user_account.change_password"),
             ct: ct);
     }
 }

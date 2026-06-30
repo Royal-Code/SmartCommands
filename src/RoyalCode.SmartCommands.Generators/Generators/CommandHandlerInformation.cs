@@ -57,6 +57,11 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
     /// </summary>
     public int? RetryMaxAttempts { get; internal set; }
 
+    /// <summary>
+    /// The semantic operation key used to create a custom problem when the retry budget is exhausted.
+    /// </summary>
+    public string? RetryOperation { get; internal set; }
+
     protected override void Generate(SourceProductionContext spc, bool hasErrors)
     {
         if (!canGenerate || hasErrors)
@@ -116,6 +121,7 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
                Equals(MapInformation, other.MapInformation) &&
                HasRetryOnConcurrency == other.HasRetryOnConcurrency &&
                RetryMaxAttempts == other.RetryMaxAttempts &&
+               RetryOperation == other.RetryOperation &&
                EqualErrors(other);
     }
 
@@ -150,6 +156,7 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
         hashCode = hashCode * -1521134295 + MapInformation?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + HasRetryOnConcurrency.GetHashCode();
         hashCode = hashCode * -1521134295 + RetryMaxAttempts.GetHashCode();
+        hashCode = hashCode * -1521134295 + (RetryOperation?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + Errors?.GetHashCode() ?? 0;
         return hashCode;
     }

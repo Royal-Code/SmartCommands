@@ -32,4 +32,14 @@ public class RetryOnConcurrencyOptions
     /// </para>
     /// </summary>
     public int MaxAttempts { get; set; } = DefaultMaxAttempts;
+
+    /// <summary>
+    /// Optional problem type id used by the default retry-exhausted problem factory.
+    /// </summary>
+    public string? ExhaustedProblemTypeId { get; set; }
+
+    /// <summary>
+    /// Optional detail used by the default retry-exhausted problem factory.
+    /// </summary>
+    public string? ExhaustedProblemDetail { get; set; }
 }

@@ -16,6 +16,10 @@ namespace RoyalCode.SmartCommands;
 ///     With no argument, the number of attempts comes from the configured <c>RetryOnConcurrencyOptions.MaxAttempts</c>
 ///     (deployment level). With an explicit <c>maxAttempts</c>, that value is used instead.
 /// </para>
+/// <para>
+///     When <see cref="Operation"/> is provided, the generated handler asks the registered retry problem factory
+///     to create the problem returned when the retry budget is exhausted.
+/// </para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, Inherited = false)]
 [Conditional("COMPILE_TIME_ONLY")]
@@ -31,4 +35,22 @@ public sealed class WithRetryOnConcurrencyAttribute : Attribute
     /// </summary>
     /// <param name="maxAttempts">The maximum number of attempts (initial execution plus retries). Must be greater than zero.</param>
     public WithRetryOnConcurrencyAttribute(int maxAttempts) { }
+
+    /// <summary>
+    /// Uses the configured number of attempts and the specified operation key for exhausted retry problems.
+    /// </summary>
+    /// <param name="operation">The semantic operation key used by the retry problem factory.</param>
+    public WithRetryOnConcurrencyAttribute(string operation) { }
+
+    /// <summary>
+    /// Uses a fixed number of attempts and the specified operation key for exhausted retry problems.
+    /// </summary>
+    /// <param name="operation">The semantic operation key used by the retry problem factory.</param>
+    /// <param name="maxAttempts">The maximum number of attempts (initial execution plus retries). Must be greater than zero.</param>
+    public WithRetryOnConcurrencyAttribute(string operation, int maxAttempts) { }
+
+    /// <summary>
+    /// The semantic operation key used by the retry problem factory when the retry budget is exhausted.
+    /// </summary>
+    public string? Operation { get; set; }
 }

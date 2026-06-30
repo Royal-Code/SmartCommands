@@ -2,6 +2,7 @@
 using RoyalCode.SmartCommands;
 using RoyalCode.SmartCommands.Demo.Commands.Produtos;
 using RoyalCode.SmartCommands.Tests.Models;
+using RoyalCode.SmartCommands.WorkContext;
 using RoyalCode.SmartCommands.WorkContext.Options;
 using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext;
@@ -13,11 +14,13 @@ public class EditarProdutoHandler<TContext> : IEditarProdutoHandler
 {
     private readonly IUnitOfWorkAccessor<TContext> accessor;
     private readonly IOptions<RetryOnConcurrencyOptions> retryOptions;
+    private readonly IConcurrencyRetryProblemFactory retryProblemFactory;
 
-    public EditarProdutoHandler(IUnitOfWorkAccessor<TContext> accessor, IOptions<RetryOnConcurrencyOptions> retryOptions)
+    public EditarProdutoHandler(IUnitOfWorkAccessor<TContext> accessor, IOptions<RetryOnConcurrencyOptions> retryOptions, IConcurrencyRetryProblemFactory retryProblemFactory)
     {
         this.accessor = accessor;
         this.retryOptions = retryOptions;
+        this.retryProblemFactory = retryProblemFactory;
     }
 
     public async Task<Result> HandleAsync(Guid produtoId, EditarProduto command, CancellationToken ct)
@@ -42,6 +45,7 @@ public class EditarProdutoHandler<TContext> : IEditarProdutoHandler
                 return await this.accessor.CompleteAsync(ct);
             },
             this.retryOptions.Value,
+            onExhausted: () => this.retryProblemFactory.Create(command, "demo.produtos.editar"),
             ct: ct);
     }
 }
