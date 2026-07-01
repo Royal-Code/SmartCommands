@@ -1,0 +1,12 @@
+﻿using RoyalCode.SmartCommands.Demo.Domain;
+
+namespace RoyalCode.SmartCommands.Demo.Commands.Pedidos;
+
+public partial class CriarPedidoResponse(Guid id, PedidoStatus status, decimal total)
+{
+    public Guid Id { get; } = id;
+
+    public PedidoStatus Status { get; } = status;
+
+    public decimal Total { get; } = total;
+}

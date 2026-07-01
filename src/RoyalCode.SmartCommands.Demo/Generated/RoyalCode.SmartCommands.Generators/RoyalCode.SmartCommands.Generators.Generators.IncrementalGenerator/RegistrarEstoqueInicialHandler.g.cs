@@ -1,9 +1,6 @@
-﻿using Microsoft.Extensions.Options;
-using RoyalCode.SmartCommands;
+﻿using RoyalCode.SmartCommands;
 using RoyalCode.SmartCommands.Demo.Commands.Estoques;
 using RoyalCode.SmartCommands.Demo.Domain;
-using RoyalCode.SmartCommands.WorkContext;
-using RoyalCode.SmartCommands.WorkContext.Options;
 using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext;
 
@@ -13,15 +10,11 @@ public class RegistrarEstoqueInicialHandler<TContext> : IRegistrarEstoqueInicial
     where TContext : IWorkContext
 {
     private readonly IUnitOfWorkAccessor<TContext> accessor;
-    private readonly IOptions<RetryOnConcurrencyOptions> retryOptions;
-    private readonly IConcurrencyRetryProblemFactory retryProblemFactory;
     private readonly DemoDbContext db;
 
-    public RegistrarEstoqueInicialHandler(IUnitOfWorkAccessor<TContext> accessor, IOptions<RetryOnConcurrencyOptions> retryOptions, IConcurrencyRetryProblemFactory retryProblemFactory, DemoDbContext db)
+    public RegistrarEstoqueInicialHandler(IUnitOfWorkAccessor<TContext> accessor, DemoDbContext db)
     {
         this.accessor = accessor;
-        this.retryOptions = retryOptions;
-        this.retryProblemFactory = retryProblemFactory;
         this.db = db;
     }
 
@@ -30,22 +23,15 @@ public class RegistrarEstoqueInicialHandler<TContext> : IRegistrarEstoqueInicial
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        return await this.accessor.Context.RetryOnConcurrencyAsync(
-            async () =>
-            {
-                await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(ct);
 
-                Problem? notFoundProblem;
+        Problem? notFoundProblem;
 
-                var produtoEntry = await this.accessor.FindEntityAsync<Produto, Guid>(produtoId, ct);
-                if (produtoEntry.NotFound(out notFoundProblem))
-                    return notFoundProblem;
-                var produto = produtoEntry.Entity;
+        var produtoEntry = await this.accessor.FindEntityAsync<Produto, Guid>(produtoId, ct);
+        if (produtoEntry.NotFound(out notFoundProblem))
+            return notFoundProblem;
+        var produto = produtoEntry.Entity;
 
-                return await command.Execute(produto, db, ct).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
-            },
-            this.retryOptions.Value,
-            onExhausted: () => this.retryProblemFactory.Create(command, "demo.estoques.registrar"),
-            ct: ct);
+        return await command.Execute(produto, db, ct).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
     }
 }

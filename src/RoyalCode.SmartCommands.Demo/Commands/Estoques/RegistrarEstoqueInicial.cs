@@ -19,7 +19,7 @@ public partial class RegistrarEstoqueInicial
 			.HasProblems(out problems);
 	}
 
-	[Command, WithValidateModel, EditEntity<Produto, Guid>, WithWorkContext, WithRetryOnConcurrency(Operation = "demo.estoques.registrar")]
+	[Command, WithValidateModel, EditEntity<Produto, Guid>, WithWorkContext]
 	internal async Task<Result> Execute(Produto produto, DemoDbContext db, CancellationToken ct)
 	{
 		if (await db.Estoques.AnyAsync(e => e.ProdutoId == produto.Id, ct))

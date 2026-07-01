@@ -65,6 +65,20 @@ public class EstoqueTests
 	}
 
 	[Fact]
+	public async Task AdicionarEntrada_SemEstoqueRegistrado_RetornaProblema()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var produtoId = await CreateProductAsync(client);
+
+		var entrada = await client.PostAsJsonAsync($"/produtos/{produtoId}/estoque/entradas", new { Quantidade = 1 });
+
+		await entrada.AssertProblemAsync(HttpStatusCode.Conflict, "ainda nao foi registrado");
+	}
+
+	[Fact]
 	public async Task Reservar_AcimaDoDisponivel_RetornaProblema()
 	{
 		using var app = new DemoApiFactory();
@@ -80,6 +94,20 @@ public class EstoqueTests
 	}
 
 	[Fact]
+	public async Task Reservar_SemEstoqueRegistrado_RetornaProblema()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var produtoId = await CreateProductAsync(client);
+
+		var reserva = await client.PostAsJsonAsync($"/produtos/{produtoId}/estoque/reservas", new { Quantidade = 1 });
+
+		await reserva.AssertProblemAsync(HttpStatusCode.Conflict, "ainda nao foi registrado");
+	}
+
+	[Fact]
 	public async Task Reservar_ProdutoInexistente_Retorna404()
 	{
 		using var app = new DemoApiFactory();
@@ -89,6 +117,25 @@ public class EstoqueTests
 		var reserva = await client.PostAsJsonAsync($"/produtos/{Guid.NewGuid()}/estoque/reservas", new { Quantidade = 1 });
 
 		await reserva.AssertProblemAsync(HttpStatusCode.NotFound);
+	}
+
+	[Fact]
+	public async Task LiberarReserva_AcimaDoReservado_RetornaProblema()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var produtoId = await CreateProductAsync(client);
+		await RegistrarEstoqueInicialAsync(client, produtoId, 10);
+
+		var liberacao = await client.PostAsJsonAsync($"/produtos/{produtoId}/estoque/liberacoes", new { Quantidade = 1 });
+
+		await liberacao.AssertProblemAsync(HttpStatusCode.Conflict, "Reserva insuficiente");
+
+		var estoque = await GetEstoqueAsync(client, produtoId);
+		Assert.Equal(10, estoque.Disponivel);
+		Assert.Equal(0, estoque.Reservado);
 	}
 
 	[Fact]

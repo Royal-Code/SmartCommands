@@ -15,6 +15,8 @@ public class DemoDbContext : DbContext
 
     public DbSet<ProdutoEstoque> Estoques { get; set; } = null!;
 
+    public DbSet<Pedido> Pedidos { get; set; } = null!;
+
     public DbSet<Loja> Lojas { get; set; } = null!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -43,6 +45,25 @@ public class DemoDbContext : DbContext
             .WithOne()
             .HasForeignKey<ProdutoEstoque>(e => e.ProdutoId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        var pedido = modelBuilder.Entity<Pedido>();
+        pedido.HasKey(p => p.Id);
+        pedido.Property(p => p.Status).IsRequired();
+        pedido.Property(p => p.Total).IsRequired();
+        pedido.Property(p => p.CriadoEm).IsRequired();
+        pedido.HasMany(p => p.Itens)
+            .WithOne()
+            .HasForeignKey(i => i.PedidoId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        var pedidoItem = modelBuilder.Entity<PedidoItem>();
+        pedidoItem.HasKey(i => i.Id);
+        pedidoItem.Property(i => i.ProdutoId).IsRequired();
+        pedidoItem.Property(i => i.ProdutoNome).IsRequired();
+        pedidoItem.Property(i => i.ProdutoSku).IsRequired();
+        pedidoItem.Property(i => i.Quantidade).IsRequired();
+        pedidoItem.Property(i => i.PrecoUnitario).IsRequired();
+        pedidoItem.Property(i => i.Total).IsRequired();
 
         var loja = modelBuilder.Entity<Loja>();
         loja.HasKey(l => l.Id);

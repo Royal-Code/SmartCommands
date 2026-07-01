@@ -93,6 +93,10 @@ public class DemoApiEndpointTests
 		Assert.Contains(routes, r => r.Pattern == "produtos/{id:guid}" && r.Name == "Get product details");
 		Assert.Contains(routes, r => r.Pattern == "produtos/" && r.Name == "Listagem paginada de produtos");
 		Assert.Contains(routes, r => r.Pattern == "produtos/filtro/{id:int}" && r.Name == "Listagem paginada de produtos exemplos");
+		Assert.Contains(routes, r => r.Pattern == "pedidos/" && r.Name == "criar-pedido");
+		Assert.Contains(routes, r => r.Pattern == "pedidos/{id:guid}/cancelar" && r.Name == "cancelar-pedido");
+		Assert.Contains(routes, r => r.Pattern == "pedidos/{id:guid}" && r.Name == "Get order details");
+		Assert.Contains(routes, r => r.Pattern == "pedidos/" && r.Name == "Listagem paginada de pedidos");
 		Assert.Contains(routes, r => r.Pattern == "lojas/" && r.Name == "loja-criar");
 	}
 

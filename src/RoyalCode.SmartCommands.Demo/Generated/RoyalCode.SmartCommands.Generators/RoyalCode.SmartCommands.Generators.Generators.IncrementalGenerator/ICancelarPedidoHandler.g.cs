@@ -1,0 +1,8 @@
+﻿using RoyalCode.SmartProblems;
+
+namespace RoyalCode.SmartCommands.Demo.Commands.Pedidos;
+
+public interface ICancelarPedidoHandler
+{
+    public Task<Result> HandleAsync(Guid pedidoId, CancelarPedido command, CancellationToken ct);
+}

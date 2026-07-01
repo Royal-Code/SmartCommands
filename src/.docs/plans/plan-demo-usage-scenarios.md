@@ -19,10 +19,11 @@ O objetivo nao e criar uma aplicacao comercial completa. O objetivo e usar a dem
 
 ## Status
 
-**Fases 1 (Catalogo) e 2 (Estoque e reserva) CONCLUIDAS.** Fases 3-6 pendentes. A demo ganhou dominio proprio (pasta
-`Domain/`: `Produto`, `ProdutoEstoque`, `Loja`, `DemoDbContext`), substituindo os entes de Tests.Models (decisao de
-base F2), com catalogo rico (SKU obrigatorio e unico, preco > 0, editar preservando SKU) e fluxo de estoque com saldo
-disponivel/reservado, token `Version` e retry de concorrencia. Detalhes nos "Resultados" das fases 1 e 2.
+**Fases 1 (Catalogo), 2 (Estoque e reserva) e 3 (Pedido simples) CONCLUIDAS.** Fases 4-6 pendentes. A demo ganhou
+dominio proprio (pasta `Domain/`: `Produto`, `ProdutoEstoque`, `Pedido`, `Loja`, `DemoDbContext`), substituindo os
+entes de Tests.Models (decisao de base F2), com catalogo rico (SKU obrigatorio e unico, preco > 0, editar preservando
+SKU), fluxo de estoque com saldo disponivel/reservado, token `Version` e retry de concorrencia, e fluxo de pedido com
+criacao atomica, reserva de estoque, cancelamento e consulta/listagem. Detalhes nos "Resultados" das fases 1, 2 e 3.
 
 Este plano e um **living plan**: cada fase concluida recebe status/notas, e o registro de gaps reflete o que foi achado
 e onde foi resolvido.
@@ -189,21 +190,30 @@ Entregue com `ProdutoEstoque` como agregado proprio da demo, contendo `Disponive
 
 Comandos/endpoints gerados em `/produtos/{id}/estoque`: registrar saldo inicial, adicionar entrada, reservar e liberar
 reserva. Todos usam `EditEntity<Produto, Guid>` para reaproveitar o `404` de produto inexistente, `WithValidateModel`
-para quantidade positiva, `WithWorkContext` para transacao e `[WithRetryOnConcurrency]` para conflitos de atualizacao.
+para quantidade positiva e `WithWorkContext` para transacao. Os comandos que alteram estoque existente usam
+`[WithRetryOnConcurrency]` para conflitos de atualizacao; `RegistrarEstoqueInicial` nao usa retry porque insere uma
+entidade nova, e a corrida real nesse endpoint e violacao de indice unico (`ProdutoId`), nao conflito de `Version`.
 As regras do agregado `ProdutoEstoque` retornam `Result`/`Result<ProdutoEstoque>`, evitando exception como fluxo de
 negocio e eliminando a duplicacao "checar antes, executar depois" nos comandos.
 
 A consulta `GET /produtos/{id}/estoque` e gerada por `MapFind` + `AutoSelect` sobre `ProdutoEstoqueDetalhes`. Como
 `ProdutoEstoque.Id == Produto.Id`, a rota continua usando o id do produto; se o estoque ainda nao foi registrado, o
-recurso `/estoque` retorna `404` em vez de saldo zerado sintetico.
+recurso `/estoque` retorna `404` em vez de saldo zerado sintetico. O DTO expoe `Version` de forma intencionalmente
+didatica para demonstrar o token de concorrencia; em API de produto real, preferir contrato explicito de versao ou
+ETag/`If-Match`.
 
 `ReservarEstoque` usa operation key `demo.estoques.reservar` com problem configurado para retry esgotado
 ("O estoque foi alterado por outro processo."). Estoque insuficiente e estoque nao registrado retornam `409` via
 `SmartProblems`.
 
-Testes: `EstoqueTests` cobre 8 cenarios (entrada, reserva, liberacao, consulta sem estoque registrado, estoque insuficiente,
-produto inexistente, conflito transitorio e conflito persistente com problem da operation key). Suite da demo:
-**33/33 verdes**. Suite completa: `RoyalCode.SmartCommands.Tests` **83/83** + demo **33/33**.
+Testes: `EstoqueTests` cobre 11 cenarios apos revisao posterior da Fase 3 (entrada, reserva, liberacao, consulta sem
+estoque registrado, estoque insuficiente, estoque nao registrado em entrada/reserva, reserva insuficiente na liberacao,
+produto inexistente, conflito transitorio e conflito persistente com problem da operation key). Suite atual:
+`RoyalCode.SmartCommands.Tests` **83/83** + demo **47/47**.
+
+**Defesa de dominio:** `ProdutoEstoque.RegistrarInicial` mantem guarda para `produto == null`, embora esse caminho nao
+seja alcancavel pelo endpoint HTTP porque `EditEntity<Produto, Guid>` retorna `404` antes. A guarda protege a fabrica
+caso o dominio seja usado diretamente por outro comando.
 
 **Gap descoberto** [Feature/Design] - `[WithRetryOnConcurrency]` no caminho atual funciona bem com `Result`, mas nao com
 comando mutacional retornando `Result<T>` dentro da primitiva de retry. A fase ficou intencionalmente como comandos
@@ -251,6 +261,33 @@ Construir um fluxo de pedido que combine catalogo e estoque, exercitando orquest
 - Ergonomia de comandos com colecoes complexas.
 - Padrao para orquestrar multiplos agregados sem esconder regra em handler gerado.
 - Necessidade de decorators especificos para carregamento de contexto.
+
+### Resultado - CONCLUIDA
+
+Entregue com agregado `Pedido` e itens (`PedidoItem`) no dominio proprio da demo. O pedido guarda snapshot de produto
+(`ProdutoNome`, `ProdutoSku`, `PrecoUnitario`) e calcula `Total` a partir do preco atual no momento da criacao. O status
+inicial e `Aberto`; cancelamento muda para `Cancelado`.
+
+Comandos/endpoints gerados em `/pedidos`: criar pedido, cancelar pedido, consultar detalhes e listar por status. A
+criacao valida lista de itens, produto existente/ativo e estoque registrado; reserva estoque e cria o pedido na mesma
+unidade de trabalho. Produto inexistente informado no body e tratado como `400 InvalidParameter` (referencia invalida);
+produto inativo, estoque nao registrado e estoque insuficiente continuam como `409 InvalidState`. As regras de estoque
+seguem retornando `Result`, sem exception como fluxo de negocio. O cancelamento usa
+`WithRetryOnConcurrency(Operation = "demo.pedidos.cancelar")`, carrega os itens do pedido, cancela e libera as reservas
+na mesma transacao.
+
+A consulta de detalhes usa `MapFind` com DTO projetado por `SelectExpression`; a listagem usa `SmartSearch` por
+`PedidoFiltro.Status`.
+
+Testes: `PedidoTests` cobre 11 cenarios (criar valido, item invalido, produto inexistente no body, produto inativo,
+estoque nao registrado, estoque insuficiente sem pedido parcial, cancelar liberando estoque, cancelar ja cancelado,
+pedido inexistente, retry transitorio no cancelamento e listagem por status). `DemoApiEndpointTests` tambem valida as
+rotas geradas de pedidos. Suite da demo:
+**47/47 verdes**.
+
+**Observacao de design:** a criacao de pedido orquestra dois agregados (`ProdutoEstoque` e `Pedido`) dentro do comando.
+Para este tamanho de exemplo ficou legivel; se fases futuras repetirem esse padrao com mais carregamentos, pode valer
+testar um decorator/helper de contexto para carregar agregados relacionados sem inflar o comando.
 
 ## Fase 4 - Busca avancada de produtos
 

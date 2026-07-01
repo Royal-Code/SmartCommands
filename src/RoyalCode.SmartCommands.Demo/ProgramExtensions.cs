@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using RoyalCode.SmartCommands.Demo.Commands.Estoques;
+using RoyalCode.SmartCommands.Demo.Commands.Pedidos;
 using RoyalCode.SmartCommands.Demo.Commands.Produtos;
 using RoyalCode.SmartCommands.Demo.Domain;
 using RoyalCode.SmartCommands.WorkContext.Extensions;
@@ -33,6 +34,11 @@ public static partial class ProgramExtensions
             static (_, _) => Problems.InvalidState(
                 "O estoque foi alterado por outro processo.",
                 typeId: "demo.estoque.concurrency_conflict"));
+        builder.Services.AddConcurrencyRetryProblem<CancelarPedido>(
+            "demo.pedidos.cancelar",
+            static (_, _) => Problems.InvalidState(
+                "O pedido ou o estoque foi alterado por outro processo.",
+                typeId: "demo.pedido.concurrency_conflict"));
         builder.Services.AddTransient<SomeService>();
 
         builder.Services.AddWorkContext<DemoDbContext>()
@@ -42,11 +48,13 @@ public static partial class ProgramExtensions
             {
                 repos.Add<Produto>();
                 repos.Add<ProdutoEstoque>();
+                repos.Add<Pedido>();
                 repos.Add<Loja>();
             })
             .ConfigureSearches(searches =>
             {
                 searches.Add<Produto>();
+                searches.Add<Pedido>();
                 searches.Add<Loja>();
             });
     }
@@ -61,6 +69,7 @@ public static partial class ProgramExtensions
         }
 
         var produtosGroup = app.MapProdutosGroup().WithTags("Produtos");
+        var pedidosGroup = app.MapPedidosGroup().WithTags("Pedidos");
         var lojasGroup = app.MapLojasGroup().WithTags("Lojas");
 
 
