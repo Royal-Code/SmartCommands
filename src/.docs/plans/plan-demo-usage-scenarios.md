@@ -19,11 +19,16 @@ O objetivo nao e criar uma aplicacao comercial completa. O objetivo e usar a dem
 
 ## Status
 
-**Fases 1 (Catalogo), 2 (Estoque e reserva) e 3 (Pedido simples) CONCLUIDAS.** Fases 4-6 pendentes. A demo ganhou
-dominio proprio (pasta `Domain/`: `Produto`, `ProdutoEstoque`, `Pedido`, `Loja`, `DemoDbContext`), substituindo os
-entes de Tests.Models (decisao de base F2), com catalogo rico (SKU obrigatorio e unico, preco > 0, editar preservando
-SKU), fluxo de estoque com saldo disponivel/reservado, token `Version` e retry de concorrencia, e fluxo de pedido com
-criacao atomica, reserva de estoque, cancelamento e consulta/listagem. Detalhes nos "Resultados" das fases 1, 2 e 3.
+**Fases 1 (Catalogo), 2 (Estoque e reserva), 3 (Pedido simples) e 5 (Soft delete e desativacao) CONCLUIDAS.
+Fase 4 (Busca avancada) PARCIAL. Fase 6 pendente.** A demo ganhou dominio proprio (pasta `Domain/`: `Produto`,
+`ProdutoEstoque`, `Pedido`, `Loja`, `DemoDbContext`), substituindo os entes de Tests.Models (decisao de base F2), com
+catalogo rico (SKU obrigatorio e unico, preco > 0, editar preservando SKU), fluxo de estoque com saldo
+disponivel/reservado, token `Version` e retry de concorrencia, e fluxo de pedido com criacao atomica, reserva de
+estoque, cancelamento e consulta/listagem. A Fase 4 entregou os filtros compostos (nome parcial, faixa de preco,
+disponibilidade em estoque) e paginacao; a **ordenacao HTTP ficou bloqueada por gaps do SmartSearch** (ver Resultado da
+Fase 4 e Registro de gaps). A Fase 5 adicionou soft delete: transicoes de estado nao idempotentes (`409`), listagem
+publica que esconde inativos por padrao e busca administrativa via `?incluirInativos=true`. Detalhes nos "Resultados"
+das fases 1, 2, 3, 4 e 5.
 
 Este plano e um **living plan**: cada fase concluida recebe status/notas, e o registro de gaps reflete o que foi achado
 e onde foi resolvido.
@@ -330,6 +335,46 @@ Expandir os exemplos de busca para cobrir filtros, ordenacao, paginacao e erros 
 - Como expor erros de parsing/ordenacao de forma padronizada.
 - Qualidade do OpenAPI gerado para endpoints de search.
 
+### Resultado - PARCIAL
+
+Reaproveitou o endpoint de busca ja existente (`GET /produtos`), enriquecendo `ProdutoFiltro` em vez de criar um
+segundo endpoint. Filtros entregues, todos via pipeline padrao do SmartSearch (sem gerador de expressao low-level):
+
+- **nome parcial** — `string Nome` (operador `Like`/`Contains` por convencao);
+- **SKU** — `string Sku` (convencao) e **status** — `bool? Ativo` (ja existiam da Fase 1);
+- **faixa de preco** — `PrecoMinimo`/`PrecoMaximo` (`decimal?`) com dois `[Criterion]` sobre o mesmo alvo `Produto.Preco`
+  (`GreaterThanOrEqual`/`LessThanOrEqual`); nulos ignorados (`IgnoreIfIsEmpty`), faixa aberta em qualquer ponta;
+- **disponibilidade em estoque** — `EstoqueDisponivelMinimo` (`int?`) com `[Criterion("Estoque.Disponivel", GreaterThanOrEqual)]`
+  via **caminho aninhado** na nova navegacao de leitura `Produto.Estoque`. Como `Disponivel` ja desconta o reservado,
+  um produto totalmente reservado (`Disponivel == 0`) ou sem estoque registrado (`Estoque == null`, LEFT JOIN nulo) nao
+  satisfaz o criterio — atende "considera estoque reservado".
+
+Mudancas de dominio: `Produto` ganhou `CriadoEm` (`DateTimeOffset`, no construtor) e a navegacao 1:1 de leitura
+`Estoque` (inverso configurado no `DemoDbContext` via `WithOne(p => p.Estoque)`); `ProdutoDetalhes` ganhou `CriadoEm` no
+shape. A navegacao existe so para o lado de consulta (busca por disponibilidade) e nao participa das invariantes de
+escrita do catalogo.
+
+**Paginacao entregue** — `?itemsPerPage=N&page=P` bind via `[AsParameters] SearchOptions`; o resultado carrega
+`count` (total), `itemsPerPage`, `taken`, `items` (contrato `IResultList`). Resultado vazio devolve **204 NoContent**
+(comportamento do `Performer`), nao 200 com lista vazia — os testes tratam isso.
+
+Testes: `BuscaProdutosTests` cobre nome parcial, faixa de preco (dentro e fora dos limites -> 204), paginacao (total +
+itens por pagina), disponibilidade considerando reserva, e **dois testes de caracterizacao** dos gaps de ordenacao
+(abaixo). Suite da demo: **54/54 verdes**; gerador **83/83**.
+
+**Ordenacao HTTP bloqueada por gaps do SmartSearch (outro repo).** Investiguei o contrato real de `?orderby` e ele nao
+funciona no stack atual (registrado em Gaps abertos):
+
+- `?orderby=<propriedade valida>` (ex.: `Preco`, `Nome`) e **ignorado**: a busca cai na ordenacao default (`Id`) e o
+  `sortings` do resultado reporta `Id`. Ou seja, ordenar por HTTP nao tem efeito hoje.
+- `?orderby=<propriedade invalida>` retorna **500** em vez de **400** (a excecao de ordenacao nao e do tipo capturado
+  pelo `Performer`).
+- nome de propriedade e **case-sensitive** (`preco` -> 500) e `DateTimeOffset` nao ordena no SQLite (`CriadoEm` -> 500).
+
+Por isso a Fase 4 fica **PARCIAL**: filtros + paginacao entregues e verdes; a ordenacao (e o "query invalida -> problema
+esperado") ficam como caracterizacao ate a correcao na lib `SmartSearch`. Depois de corrigida, promover os dois testes
+de caracterizacao a testes de ordenacao reais.
+
 ## Fase 5 - Soft delete e desativacao
 
 ### Objetivo
@@ -362,18 +407,43 @@ Modelar remocao logica/desativacao para exercitar filtros padrao, comandos de es
 - Busca administrativa retorna produto inativo quando solicitado.
 - Pedido com produto inativo falha sem reservar estoque.
 
-### Decisao requerida
+### Decisao tomada
 
-Definir se desativar produto ja inativo deve ser:
-
-- idempotente e retornar sucesso;
-- erro de estado invalido.
+Desativar um produto ja inativo (e reativar um ja ativo) e **erro de estado invalido (409)**, nao idempotente
+(decidido pelo autor). A regra fica no agregado (`Produto.Desativar`/`Reativar` retornam `Result` com `InvalidState`),
+e os comandos apenas propagam o `Result`.
 
 ### Gaps a observar
 
 - Suporte a filtros globais ou criterios padrao em `SmartSearch`/`WorkContext`.
 - Como diferenciar busca publica e administrativa sem duplicar muito codigo.
 - Padrao para comandos idempotentes.
+
+### Resultado - CONCLUIDA
+
+Transicoes de estado com regra no agregado: `Produto.Desativar()`/`Reativar()` passaram a retornar `Result` e devolvem
+`409 InvalidState` (`demo.produto.ja_inativo` / `demo.produto.ja_ativo`) quando o produto ja esta no estado alvo. Os
+comandos `DesativarProduto` (ajustado para retornar `Result`) e o novo `ReativarProduto` (`PATCH /produtos/{id}/reativar`,
+bodyless) so propagam o `Result` do agregado; ambos usam `EditEntity<Produto, Guid>` (404 se nao existe) + `WithWorkContext`
++ `WithRetryOnConcurrency`.
+
+**Busca publica x administrativa sem duplicar (decisao tomada).** Um unico endpoint `/produtos` com
+`ProdutoFiltro`: a listagem publica **esconde inativos por padrao** e a administrativa os inclui via
+`?incluirInativos=true`. Implementado com um metodo `[WithFilter] AplicarVisibilidade` que, quando o chamador nao pediu
+`IncluirInativos` e nao filtrou `Ativo` explicitamente, forca `Ativo = true` (reaproveitando o criterio `Ativo`
+existente). Funciona porque `FilterBy` so guarda o objeto de filtro e os valores sao lidos na execucao (`Prepare`),
+depois do `[WithFilter]` rodar — nao houve necessidade de "filtro global" na lib. Quem quer apenas inativos usa
+`?ativo=false`.
+
+**Detalhes de produto inativo (decisao tomada):** o find por id (`GET /produtos/{id}`) continua acessivel e retorna
+`200` com `ativo:false` — soft delete esconde da **listagem**, nao do acesso direto.
+
+**Pedido com produto inativo:** ja coberto desde a Fase 3 (`CriarPedido` valida `produto.Ativo` -> `409` inativo antes
+de reservar; `PedidoTests.CriarPedido_ComProdutoInativo_RetornaProblemaDeNegocio` assegura que o estoque nao muda).
+
+Testes: `SoftDeleteTests` cobre 7 cenarios (desativar ativo -> 200 + `ativo:false`; desativar ja inativo -> 409; reativar
+inativo -> 200; reativar ja ativo -> 409; detalhes de inativo -> 200; listagem publica esconde inativo; busca admin com
+`incluirInativos=true` inclui inativo). Suite da demo: **61/61 verdes**; gerador **83/83**.
 
 ## Fase 6 - Fluxo de aprovacao e publicacao
 
@@ -451,9 +521,36 @@ O registro pode ficar neste plano enquanto a fase estiver ativa. Se o gap cresce
   entidade lanca `ArgumentException: An item with the same key has already been added`. Contornado serializando os
   testes de integracao da demo (`DisableTestParallelization`). A correcao (tornar o cache thread-safe / usar
   `TryAdd`/`GetOrAdd`) pertence ao repo `SmartSearch`.
-- **[Feature/Design] `WithRetryOnConcurrency` com `Result<T>` (Fase 2).** O gerador/primitiva atual cobre o retry com
-  `Result` simples. Para comandos que mutam estado e precisam retornar DTO tipado no mesmo endpoint, falta suporte
-  generico. Contorno usado na demo: comando retorna `Result` e o estado e lido pelo GET.
+- **[Feature/Design] `WithRetryOnConcurrency` com `Result<T>` / `ProduceNewEntity` (Fases 2 e 3).** A primitiva
+  `RetryOnConcurrencyAsync` tem so a forma **sem valor** (`Func<Task<Result>> -> Task<Result>`). Comandos que mutam
+  estado e precisam **devolver um valor** no mesmo endpoint nao cabem: `Result<T>` em geral e, em especial,
+  `ProduceNewEntity` (que retorna a entidade criada para o `201 Created`). Por isso o gerador so embrulha em retry
+  quando o corpo da unidade de trabalho e `Result`; para `Result<T>` emite o encadeamento puro **sem retry**. Impacto
+  concreto: `CriarPedido` (Fase 3) muta `ProdutoEstoque` (token `Version`) ao reservar, mas fica **sem** protecao de
+  concorrencia — dois pedidos concorrentes no mesmo produto: um recebe `ConcurrencyException` cru -> **500**. Nao e
+  limitacao conceitual (o `CancelarPedido` ja muta varios agregados sob retry); falta so a implementacao. **Fix em duas
+  partes, na lib (outro repo), depois retomar a demo:** (1) overload generico `RetryOnConcurrencyAsync<T>(Func<Task<Result<T>>>) : Task<Result<T>>`
+  (mesmo laco; na exaustao `onExhausted?.Invoke() ?? Problems.InvalidState(...)` converte implicito p/ `Result<T>`);
+  (2) ramo no gerador (`CommandHandlerGenerator` + `RetryOnConcurrencyCommand`) que detecta retorno `Result<T>` e coloca
+  **todo** o encadeamento produtor de valor dentro da lambda (para `ProduceNewEntity`: `Execute -> AddEntityAsync -> CompleteAsync`).
+  Mantem a exigencia atual de corpo re-executavel (idempotente quanto ao que ja foi commitado). Contorno na demo hoje:
+  comando mutacional retorna `Result` e o estado e lido pelo GET; `CriarPedido` segue sem retry (comentado no codigo).
+- **[Bug] Ordenacao HTTP (`?orderby`) nao funciona no stack atual (Fase 4).** Ao investigar o contrato de ordenacao da
+  busca de produtos, `?orderby` por **propriedade valida** (ex.: `Preco`, `Nome`) e **ignorado**: a busca cai na
+  ordenacao default (`Id`) e `result.Sortings` reporta `Id`. Provavel relacao com o `OrderByProvider` (mesmo componente
+  do gap de thread-safety acima). Correcao pertence ao repo `SmartSearch`. Caracterizado por
+  `BuscaProdutosTests.Ordenacao_PorPropriedadeValida_AtualmenteNaoTemEfeito_GapConhecido`.
+- **[Bug] `orderby` invalido devolve 500 em vez de 400 (Fase 4).** `OrderByNotSupportedException : ArgumentException`
+  (lancada por `OrderByProvider.GetHandler`) nao e capturada pelo `Performer`, que so trata `OrderByException` -> vaza
+  como `Problems.InternalError` (500). O esperado seria `400 InvalidParameter`. Correcao no repo `SmartSearch` (capturar
+  tambem `OrderByNotSupportedException`, ou faze-la derivar de `OrderByException`). Caracterizado por
+  `BuscaProdutosTests.OrderByInvalido_AtualmenteRetornaErro_GapConhecido`.
+- **[Design] Ordenacao case-sensitive e `DateTimeOffset` no SQLite (Fase 4).** `?orderby=preco` (minusculo) -> 500 (o
+  `DefaultOrderByGenerator` resolve a propriedade de forma case-sensitive); `?orderby=CriadoEm` -> 500 no SQLite
+  (`DateTimeOffset` nao e ordenavel em `ORDER BY`). Ambos sao contratos pouco amigaveis para expor via HTTP.
+- **[Bug menor] `IResultList.Pages` parece usar divisao inteira (Fase 4).** Com `count=3` e `itemsPerPage=2`, o
+  resultado reporta `pages=1` (esperado `2` por arredondamento p/ cima). Nao afeta os itens/`taken`; os testes de
+  paginacao asseguram `count` e a quantidade por pagina, sem depender de `pages`.
 
 ## Fora de escopo
 

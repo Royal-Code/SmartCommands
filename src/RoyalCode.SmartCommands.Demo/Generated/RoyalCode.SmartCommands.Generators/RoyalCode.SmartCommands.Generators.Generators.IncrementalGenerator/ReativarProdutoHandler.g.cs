@@ -8,19 +8,19 @@ using RoyalCode.WorkContext;
 
 namespace RoyalCode.SmartCommands.Demo.Commands.Produtos.Internals;
 
-public class DesativarProdutoHandler<TContext> : IDesativarProdutoHandler
+public class ReativarProdutoHandler<TContext> : IReativarProdutoHandler
     where TContext : IWorkContext
 {
     private readonly IUnitOfWorkAccessor<TContext> accessor;
     private readonly IOptions<RetryOnConcurrencyOptions> retryOptions;
 
-    public DesativarProdutoHandler(IUnitOfWorkAccessor<TContext> accessor, IOptions<RetryOnConcurrencyOptions> retryOptions)
+    public ReativarProdutoHandler(IUnitOfWorkAccessor<TContext> accessor, IOptions<RetryOnConcurrencyOptions> retryOptions)
     {
         this.accessor = accessor;
         this.retryOptions = retryOptions;
     }
 
-    public async Task<Result> HandleAsync(Guid produtoId, DesativarProduto command, CancellationToken ct)
+    public async Task<Result> HandleAsync(Guid produtoId, ReativarProduto command, CancellationToken ct)
     {
         return await this.accessor.Context.RetryOnConcurrencyAsync(
             async () =>

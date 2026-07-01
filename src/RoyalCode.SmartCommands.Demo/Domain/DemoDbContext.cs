@@ -31,6 +31,7 @@ public class DemoDbContext : DbContext
         produto.HasKey(p => p.Id);
         produto.Property(p => p.Nome).IsRequired();
         produto.Property(p => p.Sku).IsRequired();
+        produto.Property(p => p.CriadoEm).IsRequired();
         // SKU unico no catalogo (defesa em profundidade; o comando tambem valida antes de gravar).
         produto.HasIndex(p => p.Sku).IsUnique();
 
@@ -42,7 +43,7 @@ public class DemoDbContext : DbContext
         estoque.Property(e => e.Reservado).IsRequired();
         estoque.Property(e => e.Version).IsConcurrencyToken();
         estoque.HasOne(e => e.Produto)
-            .WithOne()
+            .WithOne(p => p.Estoque)
             .HasForeignKey<ProdutoEstoque>(e => e.ProdutoId)
             .OnDelete(DeleteBehavior.Cascade);
 

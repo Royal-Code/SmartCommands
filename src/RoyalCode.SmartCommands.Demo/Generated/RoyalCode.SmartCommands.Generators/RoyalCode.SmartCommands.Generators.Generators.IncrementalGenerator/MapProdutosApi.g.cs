@@ -45,6 +45,9 @@ public static partial class MapProdutosApi
         group.MapPut("/{id}", EditarProdutoHandleAsync)
             .WithName("Editar Produto");
 
+        group.MapPatch("/{id}/reativar", ReativarProdutoHandleAsync)
+            .WithName("Reativar Produto");
+
         group.MapGet("{id:guid}/estoque", FindProdutoEstoqueHandleAsync)
             .WithName("Get product stock details");
 
@@ -155,6 +158,17 @@ public static partial class MapProdutosApi
         return result;
     }
 
+    private static async Task<OkMatch> ReativarProdutoHandleAsync(
+        IReativarProdutoHandler handler, 
+        [FromRoute(Name = "id")]  Guid produtoId, 
+        CancellationToken ct)
+    {
+        var command = new ReativarProduto();
+
+        var result = await handler.HandleAsync(produtoId, command, ct);
+        return result;
+    }
+
     [ProduceProblems(ProblemCategory.NotFound)]
     private static async Task<OkMatch<ProdutoEstoqueDetalhes>> FindProdutoEstoqueHandleAsync(
         Id<ProdutoEstoque, Guid> id, 
@@ -190,7 +204,7 @@ public static partial class MapProdutosApi
         [FromServices]  ILogger<ICriteria<Produto>> logger, 
         CancellationToken ct)
     {
-        Action<ICriteria<Produto>>? configure = null;
+        Action<ICriteria<Produto>>? configure = (criteria) => filter.AplicarVisibilidade(criteria);
         return Performer.SearchAsync<Produto, ProdutoDetalhes, ProdutoFiltro>(filter, options, orderby, criteria, configure, logger, ct);
     }
 

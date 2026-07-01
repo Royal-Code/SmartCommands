@@ -1,0 +1,8 @@
+﻿using RoyalCode.SmartProblems;
+
+namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
+
+public interface IReativarProdutoHandler
+{
+    public Task<Result> HandleAsync(Guid produtoId, ReativarProduto command, CancellationToken ct);
+}

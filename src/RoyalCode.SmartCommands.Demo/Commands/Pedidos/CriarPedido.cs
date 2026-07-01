@@ -45,6 +45,10 @@ public partial class CriarPedido
 		return false;
 	}
 
+	// GAP conhecido (ver plan-demo-usage-scenarios "Registro de gaps"): este comando muta ProdutoEstoque (token
+	// Version) ao reservar, mas nao tem [WithRetryOnConcurrency] porque ProduceNewEntity/Result<Pedido> nao e coberto
+	// pela primitiva de retry atual (so a forma sem valor). Consequencia: dois pedidos concorrentes no mesmo produto
+	// podem gerar ConcurrencyException cru -> 500. Retomar quando o overload generico RetryOnConcurrencyAsync<T> existir.
 	[Command, WithValidateModel, ProduceNewEntity, WithUnitOfWork<IWorkContext>]
 	internal async Task<Result<Pedido>> Execute(DemoDbContext db, CancellationToken ct)
 	{

@@ -19,6 +19,8 @@ public partial class ProdutoDetalhes
     public decimal Preco { get; set; }
 
     public bool Ativo { get; set; }
+
+    public DateTimeOffset CriadoEm { get; set; }
 }
 
 public partial class ProdutoDetalhes
@@ -29,7 +31,8 @@ public partial class ProdutoDetalhes
         Nome = p.Nome,
         Sku = p.Sku,
         Preco = p.Preco,
-        Ativo = p.Ativo
+        Ativo = p.Ativo,
+        CriadoEm = p.CriadoEm
     };
 
     private static readonly Func<Produto, ProdutoDetalhes> selectFunc = selectExpression.Compile();

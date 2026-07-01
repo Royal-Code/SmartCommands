@@ -1,4 +1,5 @@
 using RoyalCode.Entities;
+using RoyalCode.SmartProblems;
 
 namespace RoyalCode.SmartCommands.Demo.Domain;
 
@@ -21,6 +22,7 @@ public class Produto : Entity<Guid>
         Sku = sku;
         Preco = preco;
         Ativo = true;
+        CriadoEm = DateTimeOffset.UtcNow;
     }
 
 #nullable disable
@@ -38,6 +40,16 @@ public class Produto : Entity<Guid>
 
     public bool Ativo { get; private set; }
 
+    public DateTimeOffset CriadoEm { get; private set; }
+
+    /// <summary>
+    /// Navegacao de leitura para o estoque do produto (relacao 1:1, dependente <see cref="ProdutoEstoque"/>).
+    /// Existe para o lado de consulta (busca por disponibilidade em <c>ProdutoFiltro</c> via caminho aninhado
+    /// <c>Estoque.Disponivel</c>); nao participa das invariantes de escrita do catalogo, que seguem sem conhecer
+    /// o estoque.
+    /// </summary>
+    public ProdutoEstoque? Estoque { get; private set; }
+
     /// <summary>
     /// Edita nome e preco preservando o SKU (identidade do produto no catalogo).
     /// </summary>
@@ -51,9 +63,34 @@ public class Produto : Entity<Guid>
         Preco = preco;
     }
 
-    public void Desativar() => Ativo = false;
+    /// <summary>
+    /// Desativa o produto (soft delete). Transicao nao idempotente: desativar um produto ja inativo e
+    /// tratado como estado invalido (409), conforme decisao da Fase 5.
+    /// </summary>
+    public Result Desativar()
+    {
+        if (!Ativo)
+            return Problems.InvalidState(
+                "O produto ja esta inativo.",
+                typeId: "demo.produto.ja_inativo");
 
-    public void Reativar() => Ativo = true;
+        Ativo = false;
+        return Result.Ok();
+    }
+
+    /// <summary>
+    /// Reativa o produto. Transicao nao idempotente: reativar um produto ja ativo e estado invalido (409).
+    /// </summary>
+    public Result Reativar()
+    {
+        if (Ativo)
+            return Problems.InvalidState(
+                "O produto ja esta ativo.",
+                typeId: "demo.produto.ja_ativo");
+
+        Ativo = true;
+        return Result.Ok();
+    }
 
     public override string ToString() => $"{Sku} - {Nome}";
 }
