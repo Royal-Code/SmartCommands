@@ -28,8 +28,6 @@ public partial class AdicionarEntradaEstoque
 				"O estoque inicial ainda nao foi registrado para este produto.",
 				typeId: "demo.estoque.nao_registrado");
 
-		estoque.AdicionarEntrada(Quantidade);
-
-		return Result.Ok();
+		return estoque.AdicionarEntrada(Quantidade);
 	}
 }

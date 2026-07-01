@@ -1,12 +1,12 @@
+using RoyalCode.SmartProblems;
+using System.Diagnostics.CodeAnalysis;
+
 namespace RoyalCode.SmartCommands.Demo.Domain;
 
 public class ProdutoEstoque
 {
-	public ProdutoEstoque(Produto produto, int quantidadeInicial)
+	private ProdutoEstoque(Produto produto, int quantidadeInicial)
 	{
-		ArgumentNullException.ThrowIfNull(produto);
-		ValidarQuantidadePositiva(quantidadeInicial);
-
 		Id = produto.Id;
 		ProdutoId = produto.Id;
 		Produto = produto;
@@ -30,50 +30,81 @@ public class ProdutoEstoque
 
 	public int Version { get; private set; }
 
-	public void AdicionarEntrada(int quantidade)
+	public static Result<ProdutoEstoque> RegistrarInicial(Produto? produto, int quantidadeInicial)
 	{
-		ValidarQuantidadePositiva(quantidade);
+		if (produto is null)
+			return Problems.InvalidState(
+				"O produto deve ser informado para registrar estoque.",
+				typeId: "demo.estoque.produto_obrigatorio");
+
+		if (QuantidadeInvalida(quantidadeInicial, out var problem))
+			return problem;
+
+		return new ProdutoEstoque(produto, quantidadeInicial);
+	}
+
+	public Result AdicionarEntrada(int quantidade)
+	{
+		if (QuantidadeInvalida(quantidade, out var problem))
+			return problem;
 
 		Disponivel += quantidade;
 		Touch();
+
+		return Result.Ok();
 	}
 
-	public bool TemDisponivelParaReservar(int quantidade)
+	public Result Reservar(int quantidade)
 	{
-		ValidarQuantidadePositiva(quantidade);
+		if (QuantidadeInvalida(quantidade, out var problem))
+			return problem;
 
-		return Disponivel >= quantidade;
-	}
-
-	public void Reservar(int quantidade)
-	{
-		ValidarQuantidadePositiva(quantidade);
-
-		if (Disponivel < quantidade)
-			throw new InvalidOperationException("Nao ha estoque disponivel para a reserva.");
+		if (quantidade > Disponivel)
+			return Problems.InvalidState(
+				$"Estoque insuficiente. Disponivel: {Disponivel}.",
+				property: nameof(quantidade),
+				typeId: "demo.estoque.insuficiente");
 
 		Disponivel -= quantidade;
 		Reservado += quantidade;
 		Touch();
+
+		return Result.Ok();
 	}
 
-	public void LiberarReserva(int quantidade)
+	public Result LiberarReserva(int quantidade)
 	{
-		ValidarQuantidadePositiva(quantidade);
+		if (QuantidadeInvalida(quantidade, out var problem))
+			return problem;
 
-		if (Reservado < quantidade)
-			throw new InvalidOperationException("Nao ha reserva suficiente para liberar.");
+		if (quantidade > Reservado)
+			return Problems.InvalidState(
+				$"Reserva insuficiente. Reservado: {Reservado}.",
+				property: nameof(quantidade),
+				typeId: "demo.estoque.reserva_insuficiente");
 
 		Reservado -= quantidade;
 		Disponivel += quantidade;
 		Touch();
+
+		return Result.Ok();
 	}
 
 	private void Touch() => Version++;
 
-	private static void ValidarQuantidadePositiva(int quantidade)
+	private static bool QuantidadeInvalida(int quantidade, [NotNullWhen(true)] out Problem? problem)
 	{
 		if (quantidade <= 0)
-			throw new ArgumentOutOfRangeException(nameof(quantidade), quantidade, "A quantidade deve ser maior que zero.");
+		{
+			problem = Problems.InvalidState(
+				"A quantidade deve ser maior que zero.",
+				property: nameof(quantidade),
+				typeId: "demo.estoque.quantidade_invalida");
+
+			return true;
+		}
+
+		problem = null;
+		return false;
 	}
 }

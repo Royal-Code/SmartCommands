@@ -45,6 +45,9 @@ public static partial class MapProdutosApi
         group.MapPut("/{id}", EditarProdutoHandleAsync)
             .WithName("Editar Produto");
 
+        group.MapGet("{id:guid}/estoque", FindProdutoEstoqueHandleAsync)
+            .WithName("Get product stock details");
+
         group.MapGet("{id:guid}", FindProdutoHandleAsync)
             .WithName("Get product details")
             .WithDescription("Get product details by ID");
@@ -150,6 +153,19 @@ public static partial class MapProdutosApi
 
         var result = await handler.HandleAsync(produtoId, command, ct);
         return result;
+    }
+
+    [ProduceProblems(ProblemCategory.NotFound)]
+    private static async Task<OkMatch<ProdutoEstoqueDetalhes>> FindProdutoEstoqueHandleAsync(
+        Id<ProdutoEstoque, Guid> id, 
+        IRepositoryAccessor<ProdutoEstoque> accessor, 
+        CancellationToken ct)
+    {
+        var findResult = await accessor.FindEntityAsync<ProdutoEstoqueDetalhes, Guid>(id, ct);
+        if (findResult.NotFound(out var notfoundProblem))
+            return notfoundProblem;
+
+        return findResult.Entity;
     }
 
     [ProduceProblems(ProblemCategory.NotFound)]

@@ -28,14 +28,6 @@ public partial class LiberarReservaEstoque
 				"O estoque inicial ainda nao foi registrado para este produto.",
 				typeId: "demo.estoque.nao_registrado");
 
-		if (estoque.Reservado < Quantidade)
-			return Problems.InvalidState(
-				$"Reserva insuficiente. Reservado: {estoque.Reservado}.",
-				property: nameof(Quantidade),
-				typeId: "demo.estoque.reserva_insuficiente");
-
-		estoque.LiberarReserva(Quantidade);
-
-		return Result.Ok();
+		return estoque.LiberarReserva(Quantidade);
 	}
 }

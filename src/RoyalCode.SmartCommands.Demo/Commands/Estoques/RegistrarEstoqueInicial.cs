@@ -27,9 +27,11 @@ public partial class RegistrarEstoqueInicial
 				"O estoque inicial ja foi registrado para este produto.",
 				typeId: "demo.estoque.ja_registrado");
 
-		var estoque = new ProdutoEstoque(produto, Quantidade);
-		db.Estoques.Add(estoque);
-
-		return Result.Ok();
+		return await Task.FromResult(ProdutoEstoque.RegistrarInicial(produto, Quantidade))
+			.ContinueAsync(db, static (estoque, db) =>
+			{
+				db.Estoques.Add(estoque);
+				return Result.Ok();
+			});
 	}
 }

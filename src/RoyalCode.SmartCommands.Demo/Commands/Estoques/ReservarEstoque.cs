@@ -28,14 +28,6 @@ public partial class ReservarEstoque
 				"O estoque inicial ainda nao foi registrado para este produto.",
 				typeId: "demo.estoque.nao_registrado");
 
-		if (!estoque.TemDisponivelParaReservar(Quantidade))
-			return Problems.InvalidState(
-				$"Estoque insuficiente. Disponivel: {estoque.Disponivel}.",
-				property: nameof(Quantidade),
-				typeId: "demo.estoque.insuficiente");
-
-		estoque.Reservar(Quantidade);
-
-		return Result.Ok();
+		return estoque.Reservar(Quantidade);
 	}
 }

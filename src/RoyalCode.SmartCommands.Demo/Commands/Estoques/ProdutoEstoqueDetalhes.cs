@@ -1,13 +1,20 @@
 using RoyalCode.SmartCommands.Demo.Domain;
+using RoyalCode.SmartSelector;
 
 namespace RoyalCode.SmartCommands.Demo.Commands.Estoques;
 
-public sealed record ProdutoEstoqueDetalhes(Guid ProdutoId, int Disponivel, int Reservado, int Version)
-{
-	public static ProdutoEstoqueDetalhes Empty(Guid produtoId) => new(produtoId, 0, 0, 0);
+#nullable disable // POCO
 
-	public static ProdutoEstoqueDetalhes From(ProdutoEstoque estoque)
-	{
-		return new ProdutoEstoqueDetalhes(estoque.ProdutoId, estoque.Disponivel, estoque.Reservado, estoque.Version);
-	}
+[MapGroup("produtos")]
+[MapFind("{id:guid}/estoque", "Get product stock details"), EntityReference<ProdutoEstoque, Guid>]
+[AutoSelect<ProdutoEstoque>]
+public partial class ProdutoEstoqueDetalhes
+{
+	public Guid ProdutoId { get; set; }
+
+	public int Disponivel { get; set; }
+
+	public int Reservado { get; set; }
+
+	public int Version { get; set; }
 }

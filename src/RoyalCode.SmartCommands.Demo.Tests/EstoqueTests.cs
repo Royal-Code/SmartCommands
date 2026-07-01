@@ -92,7 +92,7 @@ public class EstoqueTests
 	}
 
 	[Fact]
-	public async Task ConsultarEstoque_SemRegistro_RetornaSaldoZerado()
+	public async Task ConsultarEstoque_SemRegistro_Retorna404()
 	{
 		using var app = new DemoApiFactory();
 		using var client = app.CreateClient();
@@ -102,13 +102,7 @@ public class EstoqueTests
 
 		var response = await client.GetAsync($"/produtos/{produtoId}/estoque");
 
-		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-		var estoque = await response.Content.ReadApiJsonAsync<EstoqueResponse>();
-		Assert.NotNull(estoque);
-		Assert.Equal(produtoId, estoque.ProdutoId);
-		Assert.Equal(0, estoque.Disponivel);
-		Assert.Equal(0, estoque.Reservado);
-		Assert.Equal(0, estoque.Version);
+		await response.AssertProblemAsync(HttpStatusCode.NotFound);
 	}
 
 	[Fact]

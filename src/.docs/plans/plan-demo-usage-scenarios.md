@@ -190,14 +190,18 @@ Entregue com `ProdutoEstoque` como agregado proprio da demo, contendo `Disponive
 Comandos/endpoints gerados em `/produtos/{id}/estoque`: registrar saldo inicial, adicionar entrada, reservar e liberar
 reserva. Todos usam `EditEntity<Produto, Guid>` para reaproveitar o `404` de produto inexistente, `WithValidateModel`
 para quantidade positiva, `WithWorkContext` para transacao e `[WithRetryOnConcurrency]` para conflitos de atualizacao.
-A consulta `GET /produtos/{id}/estoque` retorna saldo disponivel/reservado e saldo zerado quando o produto ainda nao
-tem estoque registrado.
+As regras do agregado `ProdutoEstoque` retornam `Result`/`Result<ProdutoEstoque>`, evitando exception como fluxo de
+negocio e eliminando a duplicacao "checar antes, executar depois" nos comandos.
+
+A consulta `GET /produtos/{id}/estoque` e gerada por `MapFind` + `AutoSelect` sobre `ProdutoEstoqueDetalhes`. Como
+`ProdutoEstoque.Id == Produto.Id`, a rota continua usando o id do produto; se o estoque ainda nao foi registrado, o
+recurso `/estoque` retorna `404` em vez de saldo zerado sintetico.
 
 `ReservarEstoque` usa operation key `demo.estoques.reservar` com problem configurado para retry esgotado
 ("O estoque foi alterado por outro processo."). Estoque insuficiente e estoque nao registrado retornam `409` via
 `SmartProblems`.
 
-Testes: `EstoqueTests` cobre 8 cenarios (entrada, reserva, liberacao, consulta sem estoque, estoque insuficiente,
+Testes: `EstoqueTests` cobre 8 cenarios (entrada, reserva, liberacao, consulta sem estoque registrado, estoque insuficiente,
 produto inexistente, conflito transitorio e conflito persistente com problem da operation key). Suite da demo:
 **33/33 verdes**. Suite completa: `RoyalCode.SmartCommands.Tests` **83/83** + demo **33/33**.
 
