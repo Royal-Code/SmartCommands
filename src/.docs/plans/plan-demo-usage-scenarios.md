@@ -17,6 +17,21 @@ Cada fase deve entregar:
 
 O objetivo nao e criar uma aplicacao comercial completa. O objetivo e usar a demo como laboratorio vivo para provar integracao, documentar padroes de uso e revelar lacunas de design.
 
+## Status
+
+**Nao iniciado como escrito.** As fases (Catalogo, Estoque, Pedido, etc.) ainda nao foram executadas: o `Produto` atual e um stub com apenas `Nome` e `Ativo`, e os comandos existentes (`CriarProduto2`, `EditarProduto`, `DesativarProduto`) so tratam `Nome`/`Ativo` — sem SKU, preco, unicidade ou validacao de preco previstos na Fase 1.
+
+Em paralelo, a demo foi usada como laboratorio para incubar funcionalidades de biblioteca (ver "Resultados ja incorporados"). Este plano deve ser tratado como **living plan**: cada fase concluida recebe status/notas, e o registro de gaps reflete o que foi achado e onde foi resolvido.
+
+## Resultados ja incorporados
+
+Gaps ja descobertos pela demo e resolvidos nas libs (fecham o loop do laboratorio). Testes: `RoyalCode.SmartCommands.Demo.Tests` (execucao real, SQLite in-memory) + snapshots do gerador em `RoyalCode.SmartCommands.Tests`.
+
+- **Concorrencia otimista com retry** [Feature] — `[WithRetryOnConcurrency]` + primitiva `IUnitOfWork.RetryOnConcurrencyAsync` no `RoyalCode.SmartCommands.WorkContext`; laco rollback + `CleanUp` entre tentativas; politica por `RetryOnConcurrencyOptions` (bind via `BindConfiguration`). Coberto por `DemoApiConcurrencyRetryTests` e `RetryOnConcurrencyTests`.
+- **Problem factory por operation key** [Feature] — `IConcurrencyRetryProblemFactory` + delegates/provider + fallback por options, para customizar o problema quando o retry esgota. Coberto por `ConcurrencyRetryProblemFactoryTests` e cenarios de retry da demo.
+- **Body-ness dos comandos** [Design] — comando sem forma de corpo (sem propriedades settaveis nem parametros de construtor publicos) nao entra como parametro do endpoint; e instanciado via `new`, e a requisicao pode ser enviada sem body. Coberto pelos snapshots em `Scenarios/Hs/Tests.cs`.
+- **Guard de body ausente** [Bug] — comando com corpo cujo body nao chega vira `400 InvalidParameter` (SmartProblems), em vez de `NullReferenceException` (500). Coberto por `DemoApiErrorContractTests`.
+
 ## Decisoes iniciais
 
 - Manter cenarios pequenos e focados, para cada fase caber em uma revisao clara.
@@ -26,6 +41,8 @@ O objetivo nao e criar uma aplicacao comercial completa. O objetivo e usar a dem
 - Registrar gaps em comentarios no plano ou em arquivo de review quando exigirem decisao de design.
 - Evitar dependencias externas alem das libs RoyalCode ja usadas pela demo, salvo quando a fase justificar explicitamente.
 - Preservar a demo como exemplo legivel: nomes, rotas e comandos devem ensinar o uso das libs.
+- **Modelos de dominio proprios da demo.** Nao reutilizar `RoyalCode.SmartCommands.Tests.Models` (`Produto`, `Some`): esse projeto e compartilhado com os testes de snapshot do gerador, e enriquecer `Produto` (SKU, preco, unicidade) quebraria esses testes. A demo passa a ter seus proprios entes.
+- **Sem lib `Domain` dedicada.** Nao existe `RoyalCode.Domain` no repo; as invariantes de agregado usam `RoyalCode.Entities` e `RoyalCode.Repositories` como dependencia indireta. Remover das fases a mencao condicional "se a lib estiver disponivel".
 
 ## Estrutura esperada por fase
 
@@ -36,7 +53,7 @@ Para cada fase:
 3. Criar buscas ou detalhes quando fizer sentido.
 4. Mapear problemas esperados.
 5. Criar testes de sucesso, erro e persistencia.
-6. Avaliar gaps de `SmartCommands`, `WorkContext`, `SmartProblems`, `SmartValidations`, `SmartSearch` e `Domain`.
+6. Avaliar gaps de `SmartCommands`, `WorkContext`, `SmartProblems`, `SmartValidations`, `SmartSearch` e do modelo de dominio local da demo.
 
 ## Fase 1 - Catalogo com regras de dominio
 
@@ -64,7 +81,7 @@ Transformar o exemplo de produto em um catalogo minimo com regras de dominio rea
 - `SmartProblems` para erros de SKU duplicado e preco invalido.
 - `WorkContext` para persistencia e unidade de trabalho.
 - `SmartSearch` para listagem basica por nome, SKU e status.
-- `Domain` para invariantes no agregado, se a lib estiver disponivel no repo/demo.
+- `Entities`/`Repositories` para invariantes no agregado (ver Decisoes iniciais; nao ha lib `Domain` dedicada).
 
 ### Testes
 
@@ -98,7 +115,7 @@ Criar um fluxo pequeno de estoque para exercitar transacao, concorrencia e regra
 
 ### Integracoes exercitadas
 
-- `Domain` para regra de saldo e reserva.
+- Entidades/agregados locais da demo para regra de saldo e reserva.
 - `WorkContext` para transacao e persistencia de mutacoes.
 - `SmartCommands` para comandos de entrada, reserva e liberacao.
 - `SmartProblems` para estoque insuficiente e produto inexistente.
@@ -115,9 +132,13 @@ Criar um fluxo pequeno de estoque para exercitar transacao, concorrencia e regra
 - Conflito transitorio no save tenta novamente e conclui.
 - Conflito persistente retorna problema configurado pela operation key.
 
+### Decisao requerida
+
+Token de concorrencia explicito no agregado de estoque. Hoje os testes de retry forcam o conflito com um `SaveChangesInterceptor` (bom para determinismo), mas para a Fase 2 virar cenario real o agregado precisa de um token proprio. Em SQLite, evitar `rowversion` puro; decidir por um `Version` (inteiro ou GUID) configurado como concurrency token no mapeamento. A primitiva de retry ja existe (ver "Resultados ja incorporados"); falta o token no modelo.
+
 ### Gaps a observar
 
-- Suporte mais natural a concurrency token/row version nos exemplos.
+- Suporte mais natural a concurrency token/`Version` nos exemplos.
 - Limites do retry quando ha multiplas entidades alteradas.
 - Como documentar side effects que nao podem ficar dentro do retry.
 
@@ -126,6 +147,8 @@ Criar um fluxo pequeno de estoque para exercitar transacao, concorrencia e regra
 ### Objetivo
 
 Construir um fluxo de pedido que combine catalogo e estoque, exercitando orquestracao de regras e persistencia atomica.
+
+> **Fatiar para revisao clara** (principio "pequeno e focado"): 3a — criar pedido + reservar estoque; 3b — cancelar pedido + liberar reservas; 3c — consulta/listagem. As funcionalidades abaixo cobrem os tres cortes; executar e revisar por corte.
 
 ### Funcionalidades
 
@@ -141,7 +164,7 @@ Construir um fluxo de pedido que combine catalogo e estoque, exercitando orquest
 
 - `SmartCommands` para comando com lista de itens.
 - `SmartValidations` para validacao estrutural do request.
-- `Domain` para regras do pedido.
+- Entidades/agregados locais da demo para regras do pedido.
 - `WorkContext` para transacao envolvendo pedido e estoque.
 - `SmartProblems` para produto inativo, estoque insuficiente e pedido inexistente.
 - `SmartSearch` para listagem de pedidos por status.
@@ -219,7 +242,7 @@ Modelar remocao logica/desativacao para exercitar filtros padrao, comandos de es
 
 ### Integracoes exercitadas
 
-- `Domain` para transicoes ativo/inativo.
+- Entidades/agregados locais da demo para transicoes ativo/inativo.
 - `SmartCommands` para comandos de desativacao/reativacao.
 - `SmartProblems` para estado invalido.
 - `SmartSearch` para filtro padrao e filtro administrativo.
@@ -265,7 +288,7 @@ Criar um fluxo de estado com transicoes controladas, bom para demonstrar regras 
 
 ### Integracoes exercitadas
 
-- `Domain` para maquina de estados simples.
+- Entidades/agregados locais da demo para maquina de estados simples.
 - `SmartCommands` para comandos por transicao.
 - `SmartProblems` para transicao invalida.
 - `SmartValidations` para campos obrigatorios, como motivo de rejeicao.
@@ -296,6 +319,14 @@ Ao final de cada fase:
 - `dotnet test src\SmartCommands.sln`
 
 Quando a fase alterar generator ou WorkContext compartilhado, adicionar tambem testes unitarios/snapshot no projeto `RoyalCode.SmartCommands.Tests`, se aplicavel.
+
+### Isolamento de testes
+
+Hoje cada teste cria sua propria `DemoApiFactory` com conexao SQLite in-memory propria e chama `EnsureDeleted`/`EnsureCreated` (isolamento por teste, ok no momento). Antes de crescer fixtures/dados nas fases, consolidar e documentar a estrategia (seed compartilhado vs. reset por teste) para evitar acoplamento entre cenarios.
+
+### OpenAPI
+
+`WithOpenApi` aparece como gap de qualidade (Fase 4), mas ainda nao ha estrategia de teste do **documento** gerado — os testes atuais validam apenas rotas via `EndpointDataSource`. Quando a Fase 4 chegar, definir como assertar o schema/spec, nao so as rotas.
 
 ## Registro de gaps
 
