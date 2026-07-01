@@ -1,6 +1,6 @@
 ﻿using RoyalCode.SmartCommands;
 using RoyalCode.SmartCommands.Demo.Commands.Lojas;
-using RoyalCode.SmartCommands.Tests.Models;
+using RoyalCode.SmartCommands.Demo.Domain;
 using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext;
 

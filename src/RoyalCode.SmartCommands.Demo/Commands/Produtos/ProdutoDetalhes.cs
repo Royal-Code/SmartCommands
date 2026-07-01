@@ -1,4 +1,4 @@
-﻿using RoyalCode.SmartCommands.Tests.Models;
+using RoyalCode.SmartCommands.Demo.Domain;
 using System.Linq.Expressions;
 
 namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
@@ -14,6 +14,10 @@ public partial class ProdutoDetalhes
 
     public string Nome { get; set; }
 
+    public string Sku { get; set; }
+
+    public decimal Preco { get; set; }
+
     public bool Ativo { get; set; }
 }
 
@@ -23,6 +27,8 @@ public partial class ProdutoDetalhes
     {
         Id = p.Id,
         Nome = p.Nome,
+        Sku = p.Sku,
+        Preco = p.Preco,
         Ativo = p.Ativo
     };
 

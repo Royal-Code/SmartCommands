@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RoyalCode.SmartCommands.Demo.Commands.Produtos;
-using RoyalCode.SmartCommands.Tests.Models;
+using RoyalCode.SmartCommands.Demo.Domain;
 using RoyalCode.SmartCommands.WorkContext;
 using RoyalCode.SmartCommands.WorkContext.Extensions;
 using RoyalCode.SmartCommands.WorkContext.Internals;
@@ -33,7 +33,7 @@ internal sealed class DemoApiFactory : WebApplicationFactory<Program>
 	public async Task ResetDatabaseAsync()
 	{
 		using var scope = Services.CreateScope();
-		var db = scope.ServiceProvider.GetRequiredService<CineDbContext>();
+		var db = scope.ServiceProvider.GetRequiredService<DemoDbContext>();
 
 		await db.Database.EnsureDeletedAsync();
 		await db.Database.EnsureCreatedAsync();
@@ -97,13 +97,13 @@ internal sealed class DemoApiFactory : WebApplicationFactory<Program>
 
 		builder.ConfigureTestServices(services =>
 		{
-			services.RemoveAll<DbContextOptions<CineDbContext>>();
-			services.RemoveAll<CineDbContext>();
+			services.RemoveAll<DbContextOptions<DemoDbContext>>();
+			services.RemoveAll<DemoDbContext>();
 
 			services.AddSingleton(connection);
 			services.AddSingleton(ConcurrencyFailures);
 			services.AddSingleton<ConcurrencySaveChangesInterceptor>();
-			services.AddDbContext<CineDbContext>((sp, options) =>
+			services.AddDbContext<DemoDbContext>((sp, options) =>
 			{
 				options
 					.UseSqlite(sp.GetRequiredService<SqliteConnection>())

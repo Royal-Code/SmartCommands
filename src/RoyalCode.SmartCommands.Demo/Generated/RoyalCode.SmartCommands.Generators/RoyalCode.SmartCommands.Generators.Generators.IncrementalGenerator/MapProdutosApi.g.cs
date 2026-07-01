@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using RoyalCode.SmartCommands;
 using RoyalCode.SmartCommands.Demo.Commands.Produtos;
-using RoyalCode.SmartCommands.Tests.Models;
+using RoyalCode.SmartCommands.Demo.Domain;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.Entities;
 using RoyalCode.SmartProblems.HttpResults;
@@ -23,7 +23,7 @@ public static partial class MapProdutosApi
 
         group.MapPost("/", CriarProduto2HandleAsync)
             .WithName("criar-produto")
-            .WithDescription("Cria um novo produto com o nome informado.")
+            .WithDescription("Cria um novo produto no catalogo.")
             .WithSummary("Criar Produto");
 
         group.MapPatch("/{id}/desativar", DesativarProdutoHandleAsync)
@@ -55,7 +55,7 @@ public static partial class MapProdutosApi
             return Problems.InvalidParameter("The request body is required.");
 
         var result = await handler.HandleAsync(command, ct);
-        return result.CreatedMatch(v => $"produtos/{v.Id}", v => new CriarProduto2Response(v.Id, v.Nome));
+        return result.CreatedMatch(v => $"produtos/{v.Id}", v => new CriarProduto2Response(v.Id, v.Nome, v.Sku));
     }
 
     private static async Task<OkMatch> DesativarProdutoHandleAsync(

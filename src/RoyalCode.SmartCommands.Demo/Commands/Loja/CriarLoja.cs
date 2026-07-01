@@ -1,4 +1,4 @@
-﻿using RoyalCode.SmartCommands.Tests.Models;
+﻿using RoyalCode.SmartCommands.Demo.Domain;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 using RoyalCode.WorkContext;

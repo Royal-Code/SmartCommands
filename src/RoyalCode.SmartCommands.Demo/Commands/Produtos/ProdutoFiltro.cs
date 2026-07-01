@@ -1,5 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using RoyalCode.SmartCommands.Tests.Models;
+using Microsoft.AspNetCore.Mvc;
+using RoyalCode.SmartCommands.Demo.Domain;
 using RoyalCode.SmartSearch;
 using RoyalCode.SmartSearch.AspNetCore.Internals;
 
@@ -12,6 +12,8 @@ public class ProdutoFiltro
 {
     public string? Nome { get; set; }
 
+    public string? Sku { get; set; }
+
     public bool? Ativo { get; set; }
 }
 
@@ -23,13 +25,15 @@ public class ExemploProdutoFiltro
 {
     public string? Nome { get; set; }
 
+    public string? Sku { get; set; }
+
     public bool? Ativo { get; set; }
 
     [WithFilter]
     internal void ConfigureSearch(
         ICriteria<Produto> search,
-        HttpContext context, 
-        SomeService some, 
+        HttpContext context,
+        SomeService some,
         [WithParameter] int id)
     {
         var user = context.User.Identity?.Name ?? "anonymous";

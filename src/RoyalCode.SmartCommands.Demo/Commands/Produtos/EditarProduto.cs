@@ -1,7 +1,6 @@
-﻿using RoyalCode.SmartCommands.Tests.Models;
+using RoyalCode.SmartCommands.Demo.Domain;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
-using RoyalCode.WorkContext;
 using System.Diagnostics.CodeAnalysis;
 
 namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
@@ -12,14 +11,15 @@ public partial class EditarProduto
 {
     public string? Nome { get; set; }
 
+    public decimal Preco { get; set; }
+
     [MemberNotNullWhen(false, nameof(Nome))]
     public bool HasProblems([NotNullWhen(true)] out Problems? problems)
     {
-        var result = RuleSet.For<CriarProduto2>()
+        return RuleSet.For<EditarProduto>()
             .NotEmpty(Nome)
+            .GreaterThan(Preco, 0m)
             .HasProblems(out problems);
-
-        return result;
     }
 
     [Command, WithValidateModel, EditEntity<Produto, Guid>, WithWorkContext, WithRetryOnConcurrency(Operation = "demo.produtos.editar")]
@@ -27,6 +27,7 @@ public partial class EditarProduto
     {
         WasValidated();
 
-        produto.Nome = Nome;
+        // preserva o SKU (identidade do produto no catalogo); edita apenas nome e preco
+        produto.Editar(Nome, Preco);
     }
 }

@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using RoyalCode.SmartCommands.Demo.Commands.Produtos;
-using RoyalCode.SmartCommands.Tests.Models;
+using RoyalCode.SmartCommands.Demo.Domain;
 using RoyalCode.SmartCommands.WorkContext.Extensions;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.Entities;
@@ -29,7 +29,7 @@ public static partial class ProgramExtensions
                 typeId: "demo.concurrency_conflict"));
         builder.Services.AddTransient<SomeService>();
 
-        builder.Services.AddWorkContext<CineDbContext>()
+        builder.Services.AddWorkContext<DemoDbContext>()
             .AddUnitOfWorkAccessor()
             .ConfigureDbContext()
             .ConfigureRepositories(repos =>

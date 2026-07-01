@@ -1,4 +1,4 @@
-﻿using RoyalCode.SmartCommands.Tests.Models;
+﻿using RoyalCode.SmartCommands.Demo.Domain;
 using RoyalCode.SmartProblems;
 
 namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;

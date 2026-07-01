@@ -10,6 +10,6 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
 public partial class CriarProduto2
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    [MemberNotNull(nameof(Nome))]
+    [MemberNotNull(nameof(Nome), nameof(Sku))]
     internal protected void WasValidated() { }
 }

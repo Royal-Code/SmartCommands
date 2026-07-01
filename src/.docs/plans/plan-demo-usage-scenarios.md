@@ -19,9 +19,12 @@ O objetivo nao e criar uma aplicacao comercial completa. O objetivo e usar a dem
 
 ## Status
 
-**Nao iniciado como escrito.** As fases (Catalogo, Estoque, Pedido, etc.) ainda nao foram executadas: o `Produto` atual e um stub com apenas `Nome` e `Ativo`, e os comandos existentes (`CriarProduto2`, `EditarProduto`, `DesativarProduto`) so tratam `Nome`/`Ativo` — sem SKU, preco, unicidade ou validacao de preco previstos na Fase 1.
+**Fase 1 (Catalogo) CONCLUIDA.** Fases 2-6 pendentes. A demo ganhou dominio proprio (pasta `Domain/`: `Produto`,
+`Loja`, `DemoDbContext`), substituindo os entes de Tests.Models (decisao de base F2), com catalogo rico (SKU obrigatorio
+e unico, preco > 0, editar preservando SKU). Detalhes no "Resultado" da Fase 1.
 
-Em paralelo, a demo foi usada como laboratorio para incubar funcionalidades de biblioteca (ver "Resultados ja incorporados"). Este plano deve ser tratado como **living plan**: cada fase concluida recebe status/notas, e o registro de gaps reflete o que foi achado e onde foi resolvido.
+Este plano e um **living plan**: cada fase concluida recebe status/notas, e o registro de gaps reflete o que foi achado
+e onde foi resolvido.
 
 ## Resultados ja incorporados
 
@@ -97,6 +100,41 @@ Transformar o exemplo de produto em um catalogo minimo com regras de dominio rea
 - Como expressar validacao assincrona de unicidade com `SmartCommands`.
 - Melhor padrao para converter erro de dominio em `Problem`.
 - Se a API gerada ajuda ou atrapalha comandos com regras alem de `HasProblems`.
+
+### Resultado — CONCLUIDA
+
+Entregue com dominio proprio da demo (decisao de base F2). Nova pasta `Domain/` com `Produto` (rico: `Nome`, `Sku`,
+`Preco`, `Ativo`, com `Editar`/`Desativar`), `Loja` e `DemoDbContext` (substitui o `CineDbContext` de Tests.Models;
+indice unico de SKU). Os comandos/consultas de produto foram migrados e enriquecidos: `CriarProduto2` (validacao
+`NotEmpty`/`GreaterThan` + unicidade de SKU por consulta assincrona, devolvendo `409` com `typeId`
+`demo.produto.sku_duplicado`), `EditarProduto` (nome + preco, preservando SKU), `ProdutoDetalhes`/`ProdutoFiltro`
+(SKU + preco; filtro por nome/SKU/status). `ProgramExtensions` passou a usar `AddWorkContext<DemoDbContext>()`.
+
+**Invariantes no agregado:** o construtor de `Produto` e `Editar` guardam as invariantes (nome/SKU nao vazios,
+preco > 0) com fail-fast — defesa em profundidade caso um comando futuro crie/edite `Produto` sem passar pela
+validacao amigavel da feature (que continua no comando via `HasProblems`).
+
+Testes: `CatalogoTests` (8 cenarios da Fase 1: criar valido, nome vazio, SKU vazio, preco invalido, SKU duplicado,
+editar preservando SKU, listar por SKU/status) + os 17 testes de integracao existentes migrados — **25/25 verdes**;
+suite do gerador **83/83**.
+
+**Limitacao conhecida — corrida de SKU (F2).** O `AnyAsync` cobre o caso comum com `409` amigavel; o indice unico do
+banco garante que nenhum SKU duplicado seja persistido. Porem, sob criacao **concorrente**, o perdedor cai na violacao
+de constraint e hoje vira `500` (o `WorkContext.SaveAsync` converte `DbUpdateException` em `Problems.InternalError`), e
+nao no mesmo `409`. Mapear violacao de constraint do provider para um `Problem` de dominio e um gap de stack
+(WorkContext/SmartProblems), nao especifico da demo — nao resolvido aqui.
+
+**Exceção temporaria — Tests.Models (F3).** `Produto`/`Loja` foram migrados (o ponto principal da Fase 1), mas os
+exemplos de `Movies` (`ReviewDetails`/`ReviewFilter`) ainda usam `Movie`/`Review` de `RoyalCode.SmartCommands.Tests.Models`,
+e o `.csproj` mantem a referencia por causa deles. Esses exemplos nao estao ligados ao app (nao ha grupo/rota de Movies
+em `ConfigurePipeline`). Migrar ou remover o dominio de `Movies` fica para uma fase futura; ate la, referencia mantida
+como excecao.
+
+**Gap descoberto** [Bug] — `RoyalCode.SmartSearch.Linq.Sortings.OrderByProvider.GetDefaultHandler` inicializa o
+handler de ordenacao default (ex.: `(Produto, Id)`) num dicionario estatico **nao thread-safe**: sob execucao paralela,
+dois testes que disparam a primeira busca da mesma entidade colidem com *"An item with the same key has already been
+added"*. Contorno: os testes de integracao da demo rodam **serialmente** (`DisableTestParallelization` em
+`AssemblyInfo.cs`). Correcao pertence a `SmartSearch` (outro repo) — registrado abaixo.
 
 ## Fase 2 - Estoque e reserva
 
@@ -338,6 +376,14 @@ Cada gap encontrado deve ser classificado como:
 - **Docs**: o comportamento existe, mas precisa de exemplo ou documentacao.
 
 O registro pode ficar neste plano enquanto a fase estiver ativa. Se o gap crescer ou exigir decisao, mover para um arquivo especifico em `.docs` ou plano proprio.
+
+### Gaps abertos
+
+- **[Bug] `SmartSearch.OrderByProvider` nao thread-safe (Fase 1).** `GetDefaultHandler` popula o handler de ordenacao
+  default (ex.: chave da entidade) num dicionario estatico sem sincronizacao; a primeira busca concorrente da mesma
+  entidade lanca `ArgumentException: An item with the same key has already been added`. Contornado serializando os
+  testes de integracao da demo (`DisableTestParallelization`). A correcao (tornar o cache thread-safe / usar
+  `TryAdd`/`GetOrAdd`) pertence ao repo `SmartSearch`.
 
 ## Fora de escopo
 

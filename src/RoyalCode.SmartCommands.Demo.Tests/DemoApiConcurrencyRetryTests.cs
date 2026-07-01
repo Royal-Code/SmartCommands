@@ -20,7 +20,8 @@ public class DemoApiConcurrencyRetryTests
 
 		var response = await client.PutAsJsonAsync($"/produtos/{created.Id}", new
 		{
-			Nome = ConcurrencyFailureController.RetryOnceProductName
+			Nome = ConcurrencyFailureController.RetryOnceProductName,
+			Preco = 20m
 		});
 
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -96,7 +97,8 @@ public class DemoApiConcurrencyRetryTests
 
 		var response = await client.PutAsJsonAsync($"/produtos/{created.Id}", new
 		{
-			Nome = ConcurrencyFailureController.RetryOnceWithDbUpdateProductName
+			Nome = ConcurrencyFailureController.RetryOnceWithDbUpdateProductName,
+			Preco = 20m
 		});
 
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -149,7 +151,8 @@ public class DemoApiConcurrencyRetryTests
 
 		var response = await client.PutAsJsonAsync($"/produtos/{created.Id}", new
 		{
-			Nome = ConcurrencyFailureController.RetryAlwaysProductName
+			Nome = ConcurrencyFailureController.RetryAlwaysProductName,
+			Preco = 20m
 		});
 
 		await response.AssertProblemAsync(HttpStatusCode.Conflict, expectedProblemFragments);
@@ -158,7 +161,12 @@ public class DemoApiConcurrencyRetryTests
 
 	private static async Task<CreateProdutoResponse> CreateProductAsync(HttpClient client, string nome)
 	{
-		var createResponse = await client.PostAsJsonAsync("/produtos/", new { Nome = nome });
+		var createResponse = await client.PostAsJsonAsync("/produtos/", new
+		{
+			Nome = nome,
+			Sku = $"SKU-{Guid.NewGuid():N}",
+			Preco = 10m
+		});
 
 		Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
 		var created = await createResponse.Content.ReadApiJsonAsync<CreateProdutoResponse>();

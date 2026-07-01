@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
 using RoyalCode.SmartCommands;
 using RoyalCode.SmartCommands.Demo.Commands.Produtos;
-using RoyalCode.SmartCommands.Tests.Models;
+using RoyalCode.SmartCommands.Demo.Domain;
 using RoyalCode.SmartCommands.WorkContext.Options;
 using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext;

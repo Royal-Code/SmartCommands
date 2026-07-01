@@ -53,7 +53,8 @@ public class DemoApiErrorContractTests
 		using var client = app.CreateClient();
 		await app.ResetDatabaseAsync();
 
-		var response = await client.PutAsJsonAsync($"/produtos/{Guid.NewGuid()}", new { Nome = "Produto X" });
+		// modelo valido (nome + preco) para passar da validacao e chegar na busca da entidade
+		var response = await client.PutAsJsonAsync($"/produtos/{Guid.NewGuid()}", new { Nome = "Produto X", Preco = 10m });
 
 		await response.AssertProblemAsync(HttpStatusCode.NotFound);
 	}
@@ -65,7 +66,7 @@ public class DemoApiErrorContractTests
 		using var client = app.CreateClient();
 		await app.ResetDatabaseAsync();
 
-		var createResponse = await client.PostAsJsonAsync("/produtos/", new { Nome = "Produto A" });
+		var createResponse = await client.PostAsJsonAsync("/produtos/", new { Nome = "Produto A", Sku = "SKU-A", Preco = 10m });
 		var created = await createResponse.Content.ReadApiJsonAsync<CreateProdutoResponse>();
 		Assert.NotNull(created);
 
@@ -81,7 +82,7 @@ public class DemoApiErrorContractTests
 		using var client = app.CreateClient();
 		await app.ResetDatabaseAsync();
 
-		var createResponse = await client.PostAsJsonAsync("/produtos/", new { Nome = "Produto A" });
+		var createResponse = await client.PostAsJsonAsync("/produtos/", new { Nome = "Produto A", Sku = "SKU-A", Preco = 10m });
 		var created = await createResponse.Content.ReadApiJsonAsync<CreateProdutoResponse>();
 		Assert.NotNull(created);
 

@@ -15,7 +15,7 @@ public class DemoApiEndpointTests
 		using var client = app.CreateClient();
 		await app.ResetDatabaseAsync();
 
-		var createResponse = await client.PostAsJsonAsync("/produtos/", new { Nome = "Produto A" });
+		var createResponse = await client.PostAsJsonAsync("/produtos/", new { Nome = "Produto A", Sku = "SKU-A", Preco = 10m });
 
 		Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
 		Assert.Equal("produtos/", createResponse.Headers.Location?.OriginalString[..9]);
@@ -34,7 +34,7 @@ public class DemoApiEndpointTests
 		Assert.Equal("Produto A", found.Nome);
 		Assert.True(found.Ativo);
 
-		var editResponse = await client.PutAsJsonAsync($"/produtos/{created.Id}", new { Nome = "Produto B" });
+		var editResponse = await client.PutAsJsonAsync($"/produtos/{created.Id}", new { Nome = "Produto B", Preco = 15m });
 
 		Assert.Equal(HttpStatusCode.OK, editResponse.StatusCode);
 
