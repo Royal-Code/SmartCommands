@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.Demo.Commands.Estoques;
 using RoyalCode.SmartCommands.Demo.Commands.Produtos;
 using RoyalCode.SmartCommands.Demo.Domain;
 using RoyalCode.SmartProblems;
@@ -20,6 +21,18 @@ public static partial class MapProdutosApi
     public static RouteGroupBuilder MapProdutosGroup(this IEndpointRouteBuilder builder)
     {
         var group = builder.MapGroup("produtos");
+
+        group.MapPost("/{id:guid}/estoque/entradas", AdicionarEntradaEstoqueHandleAsync)
+            .WithName("adicionar-entrada-estoque");
+
+        group.MapPost("/{id:guid}/estoque/liberacoes", LiberarReservaEstoqueHandleAsync)
+            .WithName("liberar-reserva-estoque");
+
+        group.MapPost("/{id:guid}/estoque", RegistrarEstoqueInicialHandleAsync)
+            .WithName("registrar-estoque-inicial");
+
+        group.MapPost("/{id:guid}/estoque/reservas", ReservarEstoqueHandleAsync)
+            .WithName("reservar-estoque");
 
         group.MapPost("/", CriarProduto2HandleAsync)
             .WithName("criar-produto")
@@ -43,6 +56,62 @@ public static partial class MapProdutosApi
             .WithName("Listagem paginada de produtos exemplos");
 
         return group;
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    private static async Task<OkMatch> AdicionarEntradaEstoqueHandleAsync(
+        IAdicionarEntradaEstoqueHandler handler, 
+        [FromRoute(Name = "id")]  Guid produtoId, 
+        AdicionarEntradaEstoque command, 
+        CancellationToken ct)
+    {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
+        var result = await handler.HandleAsync(produtoId, command, ct);
+        return result;
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    private static async Task<OkMatch> LiberarReservaEstoqueHandleAsync(
+        ILiberarReservaEstoqueHandler handler, 
+        [FromRoute(Name = "id")]  Guid produtoId, 
+        LiberarReservaEstoque command, 
+        CancellationToken ct)
+    {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
+        var result = await handler.HandleAsync(produtoId, command, ct);
+        return result;
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    private static async Task<OkMatch> RegistrarEstoqueInicialHandleAsync(
+        IRegistrarEstoqueInicialHandler handler, 
+        [FromRoute(Name = "id")]  Guid produtoId, 
+        RegistrarEstoqueInicial command, 
+        CancellationToken ct)
+    {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
+        var result = await handler.HandleAsync(produtoId, command, ct);
+        return result;
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    private static async Task<OkMatch> ReservarEstoqueHandleAsync(
+        IReservarEstoqueHandler handler, 
+        [FromRoute(Name = "id")]  Guid produtoId, 
+        ReservarEstoque command, 
+        CancellationToken ct)
+    {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
+        var result = await handler.HandleAsync(produtoId, command, ct);
+        return result;
     }
 
     [ProduceProblems(ProblemCategory.InvalidParameter)]

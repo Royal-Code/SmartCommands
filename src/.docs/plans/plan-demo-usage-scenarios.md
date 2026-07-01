@@ -19,9 +19,10 @@ O objetivo nao e criar uma aplicacao comercial completa. O objetivo e usar a dem
 
 ## Status
 
-**Fase 1 (Catalogo) CONCLUIDA.** Fases 2-6 pendentes. A demo ganhou dominio proprio (pasta `Domain/`: `Produto`,
-`Loja`, `DemoDbContext`), substituindo os entes de Tests.Models (decisao de base F2), com catalogo rico (SKU obrigatorio
-e unico, preco > 0, editar preservando SKU). Detalhes no "Resultado" da Fase 1.
+**Fases 1 (Catalogo) e 2 (Estoque e reserva) CONCLUIDAS.** Fases 3-6 pendentes. A demo ganhou dominio proprio (pasta
+`Domain/`: `Produto`, `ProdutoEstoque`, `Loja`, `DemoDbContext`), substituindo os entes de Tests.Models (decisao de
+base F2), com catalogo rico (SKU obrigatorio e unico, preco > 0, editar preservando SKU) e fluxo de estoque com saldo
+disponivel/reservado, token `Version` e retry de concorrencia. Detalhes nos "Resultados" das fases 1 e 2.
 
 Este plano e um **living plan**: cada fase concluida recebe status/notas, e o registro de gaps reflete o que foi achado
 e onde foi resolvido.
@@ -170,15 +171,40 @@ Criar um fluxo pequeno de estoque para exercitar transacao, concorrencia e regra
 - Conflito transitorio no save tenta novamente e conclui.
 - Conflito persistente retorna problema configurado pela operation key.
 
-### Decisao requerida
+### Decisao tomada
 
-Token de concorrencia explicito no agregado de estoque. Hoje os testes de retry forcam o conflito com um `SaveChangesInterceptor` (bom para determinismo), mas para a Fase 2 virar cenario real o agregado precisa de um token proprio. Em SQLite, evitar `rowversion` puro; decidir por um `Version` (inteiro ou GUID) configurado como concurrency token no mapeamento. A primitiva de retry ja existe (ver "Resultados ja incorporados"); falta o token no modelo.
+Usar `Version` inteiro no agregado `ProdutoEstoque`, configurado como concurrency token no EF. O dominio incrementa a
+versao em cada mutacao de saldo/reserva. Em SQLite isso evita depender de `rowversion` e deixa o exemplo portavel.
 
 ### Gaps a observar
 
 - Suporte mais natural a concurrency token/`Version` nos exemplos.
 - Limites do retry quando ha multiplas entidades alteradas.
 - Como documentar side effects que nao podem ficar dentro do retry.
+
+### Resultado - CONCLUIDA
+
+Entregue com `ProdutoEstoque` como agregado proprio da demo, contendo `Disponivel`, `Reservado` e `Version`.
+`DemoDbContext` mapeia `Version` como concurrency token e relaciona estoque 1:1 com `Produto`.
+
+Comandos/endpoints gerados em `/produtos/{id}/estoque`: registrar saldo inicial, adicionar entrada, reservar e liberar
+reserva. Todos usam `EditEntity<Produto, Guid>` para reaproveitar o `404` de produto inexistente, `WithValidateModel`
+para quantidade positiva, `WithWorkContext` para transacao e `[WithRetryOnConcurrency]` para conflitos de atualizacao.
+A consulta `GET /produtos/{id}/estoque` retorna saldo disponivel/reservado e saldo zerado quando o produto ainda nao
+tem estoque registrado.
+
+`ReservarEstoque` usa operation key `demo.estoques.reservar` com problem configurado para retry esgotado
+("O estoque foi alterado por outro processo."). Estoque insuficiente e estoque nao registrado retornam `409` via
+`SmartProblems`.
+
+Testes: `EstoqueTests` cobre 8 cenarios (entrada, reserva, liberacao, consulta sem estoque, estoque insuficiente,
+produto inexistente, conflito transitorio e conflito persistente com problem da operation key). Suite da demo:
+**33/33 verdes**. Suite completa: `RoyalCode.SmartCommands.Tests` **83/83** + demo **33/33**.
+
+**Gap descoberto** [Feature/Design] - `[WithRetryOnConcurrency]` no caminho atual funciona bem com `Result`, mas nao com
+comando mutacional retornando `Result<T>` dentro da primitiva de retry. A fase ficou intencionalmente como comandos
+mutacionais `Result` + consulta GET para ler o estado. Se a lib quiser suportar "muta e retorna DTO" com retry, falta
+um overload generico de `RetryOnConcurrencyAsync` e ajuste no gerador.
 
 ## Fase 3 - Pedido simples
 
@@ -384,6 +410,9 @@ O registro pode ficar neste plano enquanto a fase estiver ativa. Se o gap cresce
   entidade lanca `ArgumentException: An item with the same key has already been added`. Contornado serializando os
   testes de integracao da demo (`DisableTestParallelization`). A correcao (tornar o cache thread-safe / usar
   `TryAdd`/`GetOrAdd`) pertence ao repo `SmartSearch`.
+- **[Feature/Design] `WithRetryOnConcurrency` com `Result<T>` (Fase 2).** O gerador/primitiva atual cobre o retry com
+  `Result` simples. Para comandos que mutam estado e precisam retornar DTO tipado no mesmo endpoint, falta suporte
+  generico. Contorno usado na demo: comando retorna `Result` e o estado e lido pelo GET.
 
 ## Fora de escopo
 

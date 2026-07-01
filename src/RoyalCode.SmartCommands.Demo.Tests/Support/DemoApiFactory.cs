@@ -191,13 +191,50 @@ internal sealed class ConcurrencyFailureController
 
 	public int Failures { get; private set; }
 
+	private bool failNextStockSave;
+
+	private bool failStockSavesAlways;
+
 	public void Reset()
 	{
+		Failures = 0;
+		failNextStockSave = false;
+		failStockSavesAlways = false;
+	}
+
+	public void FailNextStockSave()
+	{
+		failNextStockSave = true;
+		failStockSavesAlways = false;
+		Failures = 0;
+	}
+
+	public void FailStockSavesAlways()
+	{
+		failStockSavesAlways = true;
+		failNextStockSave = false;
 		Failures = 0;
 	}
 
 	public void ThrowIfConfigured(ChangeTracker changeTracker)
 	{
+		var stockEntry = changeTracker
+			.Entries<ProdutoEstoque>()
+			.FirstOrDefault(e => e.State == EntityState.Modified);
+
+		if (stockEntry is not null && failNextStockSave && Failures == 0)
+		{
+			Failures++;
+			failNextStockSave = false;
+			throw new ConcurrencyException("Test transient stock concurrency conflict.", new InvalidOperationException());
+		}
+
+		if (stockEntry is not null && failStockSavesAlways)
+		{
+			Failures++;
+			throw new ConcurrencyException("Test persistent stock concurrency conflict.", new InvalidOperationException());
+		}
+
 		var entry = changeTracker
 			.Entries<Produto>()
 			.FirstOrDefault(e => e.State == EntityState.Modified

@@ -1,0 +1,35 @@
+using Microsoft.EntityFrameworkCore;
+using RoyalCode.SmartCommands.Demo.Domain;
+using RoyalCode.SmartProblems;
+using RoyalCode.SmartValidations;
+using System.Diagnostics.CodeAnalysis;
+
+namespace RoyalCode.SmartCommands.Demo.Commands.Estoques;
+
+[MapGroup("produtos")]
+[MapPost("/{id:guid}/estoque/entradas", "adicionar-entrada-estoque")]
+public partial class AdicionarEntradaEstoque
+{
+	public int Quantidade { get; set; }
+
+	public bool HasProblems([NotNullWhen(true)] out Problems? problems)
+	{
+		return RuleSet.For<AdicionarEntradaEstoque>()
+			.GreaterThan(Quantidade, 0)
+			.HasProblems(out problems);
+	}
+
+	[Command, WithValidateModel, EditEntity<Produto, Guid>, WithWorkContext, WithRetryOnConcurrency(Operation = "demo.estoques.adicionar")]
+	internal async Task<Result> Execute(Produto produto, DemoDbContext db, CancellationToken ct)
+	{
+		var estoque = await db.Estoques.SingleOrDefaultAsync(e => e.ProdutoId == produto.Id, ct);
+		if (estoque is null)
+			return Problems.InvalidState(
+				"O estoque inicial ainda nao foi registrado para este produto.",
+				typeId: "demo.estoque.nao_registrado");
+
+		estoque.AdicionarEntrada(Quantidade);
+
+		return Result.Ok();
+	}
+}

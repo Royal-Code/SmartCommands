@@ -1,0 +1,8 @@
+﻿using RoyalCode.SmartProblems;
+
+namespace RoyalCode.SmartCommands.Demo.Commands.Estoques;
+
+public interface IRegistrarEstoqueInicialHandler
+{
+    public Task<Result> HandleAsync(Guid produtoId, RegistrarEstoqueInicial command, CancellationToken ct);
+}

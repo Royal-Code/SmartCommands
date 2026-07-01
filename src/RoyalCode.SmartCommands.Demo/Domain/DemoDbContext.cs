@@ -13,6 +13,8 @@ public class DemoDbContext : DbContext
 
     public DbSet<Produto> Produtos { get; set; } = null!;
 
+    public DbSet<ProdutoEstoque> Estoques { get; set; } = null!;
+
     public DbSet<Loja> Lojas { get; set; } = null!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -29,6 +31,18 @@ public class DemoDbContext : DbContext
         produto.Property(p => p.Sku).IsRequired();
         // SKU unico no catalogo (defesa em profundidade; o comando tambem valida antes de gravar).
         produto.HasIndex(p => p.Sku).IsUnique();
+
+        var estoque = modelBuilder.Entity<ProdutoEstoque>();
+        estoque.HasKey(e => e.Id);
+        estoque.Property(e => e.ProdutoId).IsRequired();
+        estoque.HasIndex(e => e.ProdutoId).IsUnique();
+        estoque.Property(e => e.Disponivel).IsRequired();
+        estoque.Property(e => e.Reservado).IsRequired();
+        estoque.Property(e => e.Version).IsConcurrencyToken();
+        estoque.HasOne(e => e.Produto)
+            .WithOne()
+            .HasForeignKey<ProdutoEstoque>(e => e.ProdutoId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         var loja = modelBuilder.Entity<Loja>();
         loja.HasKey(l => l.Id);

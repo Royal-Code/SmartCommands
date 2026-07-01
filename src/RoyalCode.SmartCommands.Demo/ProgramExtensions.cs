@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using RoyalCode.SmartCommands.Demo.Commands.Estoques;
 using RoyalCode.SmartCommands.Demo.Commands.Produtos;
 using RoyalCode.SmartCommands.Demo.Domain;
 using RoyalCode.SmartCommands.WorkContext.Extensions;
@@ -27,6 +29,11 @@ public static partial class ProgramExtensions
             static (_, _) => Problems.InvalidState(
                 "O produto foi alterado por outro processo.",
                 typeId: "demo.concurrency_conflict"));
+        builder.Services.AddConcurrencyRetryProblem<ReservarEstoque>(
+            "demo.estoques.reservar",
+            static (_, _) => Problems.InvalidState(
+                "O estoque foi alterado por outro processo.",
+                typeId: "demo.estoque.concurrency_conflict"));
         builder.Services.AddTransient<SomeService>();
 
         builder.Services.AddWorkContext<DemoDbContext>()
@@ -35,6 +42,7 @@ public static partial class ProgramExtensions
             .ConfigureRepositories(repos =>
             {
                 repos.Add<Produto>();
+                repos.Add<ProdutoEstoque>();
                 repos.Add<Loja>();
             })
             .ConfigureSearches(searches =>
@@ -59,6 +67,7 @@ public static partial class ProgramExtensions
 
         // como seria um find
         produtosGroup.MapGet("manual/{id:guid}", FindProdutoAsync);
+        produtosGroup.MapGet("{id:guid}/estoque", FindProdutoEstoqueAsync);
 
 
         // com seria um search
@@ -119,5 +128,25 @@ public static partial class ProgramExtensions
         if (findResult.NotFound(out var notfoundProblem))
             return notfoundProblem;
         return findResult.Entity;
+    }
+
+    [ProduceProblems(ProblemCategory.NotFound)]
+    private static async Task<OkMatch<ProdutoEstoqueDetalhes>> FindProdutoEstoqueAsync(
+        [FromRoute] Id<Produto, Guid> id,
+        [FromServices] IRepositoryAccessor<Produto> accessor,
+        [FromServices] DemoDbContext db,
+        CancellationToken ct)
+    {
+        var produto = await accessor.FindEntityAsync<ProdutoDetalhes, Guid>(id, ct);
+        if (produto.NotFound(out var notfoundProblem))
+            return notfoundProblem;
+
+        var estoque = await db.Estoques
+            .AsNoTracking()
+            .SingleOrDefaultAsync(e => e.ProdutoId == produto.Entity.Id, ct);
+
+        return estoque is null
+            ? ProdutoEstoqueDetalhes.Empty(produto.Entity.Id)
+            : ProdutoEstoqueDetalhes.From(estoque);
     }
 }
