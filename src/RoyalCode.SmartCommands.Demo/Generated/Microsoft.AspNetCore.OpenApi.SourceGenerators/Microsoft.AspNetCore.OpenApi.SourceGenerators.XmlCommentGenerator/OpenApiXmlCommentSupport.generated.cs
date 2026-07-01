@@ -358,6 +358,7 @@ to create the problem returned when the retry budget is exhausted.", null, null,
 command handlers generated for commands annotated with the retry attribute, unless a specific value
 is provided on the attribute itself.", null, null, null, null, false, null, null, null));
             cache.Add(@"F:RoyalCode.SmartCommands.WorkContext.Options.RetryOnConcurrencyOptions.DefaultMaxAttempts", new XmlComment(@"The default number of attempts (`3`) used when nothing is configured.", null, null, null, null, false, null, null, null));
+            cache.Add(@"F:RoyalCode.SmartCommands.WorkContext.Options.RetryOnConcurrencyOptions.ConfigurationSectionName", new XmlComment(@"The configuration section bound to these options (`""RetryOnConcurrency""`).", null, null, null, null, false, null, null, null));
             cache.Add(@"P:RoyalCode.SmartCommands.WorkContext.Options.RetryOnConcurrencyOptions.MaxAttempts", new XmlComment(@"    The maximum number of attempts (the initial execution plus retries) for a command body
 under optimistic-concurrency conflicts.
     The default value is int RetryOnConcurrencyOptions.DefaultMaxAttempts (3), without backoff: market practice for

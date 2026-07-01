@@ -26,6 +26,9 @@ public static partial class MapProdutosApi
             .WithDescription("Cria um novo produto com o nome informado.")
             .WithSummary("Criar Produto");
 
+        group.MapPatch("/{id}/desativar", DesativarProdutoHandleAsync)
+            .WithName("Desativar Produto");
+
         group.MapPut("/{id}", EditarProdutoHandleAsync)
             .WithName("Editar Produto");
 
@@ -48,8 +51,22 @@ public static partial class MapProdutosApi
         CriarProduto2 command, 
         CancellationToken ct)
     {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
         var result = await handler.HandleAsync(command, ct);
         return result.CreatedMatch(v => $"produtos/{v.Id}", v => new CriarProduto2Response(v.Id, v.Nome));
+    }
+
+    private static async Task<OkMatch> DesativarProdutoHandleAsync(
+        IDesativarProdutoHandler handler, 
+        [FromRoute(Name = "id")]  Guid produtoId, 
+        CancellationToken ct)
+    {
+        var command = new DesativarProduto();
+
+        var result = await handler.HandleAsync(produtoId, command, ct);
+        return result;
     }
 
     [ProduceProblems(ProblemCategory.InvalidParameter)]
@@ -59,6 +76,9 @@ public static partial class MapProdutosApi
         EditarProduto command, 
         CancellationToken ct)
     {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
         var result = await handler.HandleAsync(produtoId, command, ct);
         return result;
     }

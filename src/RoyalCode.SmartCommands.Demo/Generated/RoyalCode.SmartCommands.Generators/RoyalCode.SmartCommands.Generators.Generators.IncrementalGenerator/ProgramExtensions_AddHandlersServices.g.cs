@@ -14,6 +14,7 @@ public static partial class ProgramExtensions
     {
         services.AddTransient<ICriarLojaHandler, CriarLojaHandler>();
         services.AddTransient<ICriarProduto2Handler, CriarProduto2Handler>();
+        services.AddTransient<IDesativarProdutoHandler, DesativarProdutoHandler<TContext>>();
         services.AddTransient<IEditarProdutoHandler, EditarProdutoHandler<TContext>>();
     }
 }

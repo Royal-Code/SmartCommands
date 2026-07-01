@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using RoyalCode.SmartCommands.Demo.Tests.Support;
+using RoyalCode.SmartCommands.WorkContext.Options;
+using RoyalCode.WorkContext;
 
 namespace RoyalCode.SmartCommands.Demo.Tests;
 
@@ -79,6 +81,59 @@ public class DemoApiConcurrencyRetryTests
 			DemoApiFactory.UseFallbackRetryProblem,
 			2,
 			"fallback concurrency conflict");
+	}
+
+	[Fact]
+	public async Task EditProduto_Must_Retry_AndSucceed_When_SaveAsyncConvertsDbUpdateConcurrencyException()
+	{
+		// F2: o gatilho lança a DbUpdateConcurrencyException crua do EF; só há retry se UnitOfWork.SaveAsync
+		// a converter para ConcurrencyException. Este teste cobre esse caminho de conversão ponta a ponta.
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var created = await CreateProductAsync(client, "Produto A");
+
+		var response = await client.PutAsJsonAsync($"/produtos/{created.Id}", new
+		{
+			Nome = ConcurrencyFailureController.RetryOnceWithDbUpdateProductName
+		});
+
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		Assert.Equal(1, app.ConcurrencyFailures.Failures);
+
+		var findResponse = await client.GetAsync($"/produtos/{created.Id}");
+		var found = await findResponse.Content.ReadApiJsonAsync<ProdutoDetails>();
+		Assert.NotNull(found);
+		Assert.Equal(ConcurrencyFailureController.RetryOnceWithDbUpdateProductName, found.Nome);
+	}
+
+	[Fact]
+	public async Task DesativarProduto_WithoutOperation_Must_IgnoreConfiguredProblemOptions_OnExhaustion()
+	{
+		// F1: o comando DesativarProduto não declara Operation, então o handler gerado não injeta a
+		// IConcurrencyRetryProblemFactory e usa o problema genérico da primitiva — ignorando as options
+		// ExhaustedProblemDetail/ExhaustedProblemTypeId. Este teste fixa esse comportamento.
+		using var app = new DemoApiFactory(static services => services.Configure<RetryOnConcurrencyOptions>(options =>
+		{
+			options.MaxAttempts = 2;
+			options.ExhaustedProblemDetail = "detalhe das options nao deve aparecer";
+			options.ExhaustedProblemTypeId = "demo.should_not_apply";
+		}));
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var created = await CreateProductAsync(client, ConcurrencyFailureController.RetryAlwaysProductName);
+
+		// DesativarProduto não tem corpo: a requisição é enviada sem body (o endpoint instancia o comando).
+		var response = await client.PatchAsync($"/produtos/{created.Id}/desativar", content: null);
+
+		await response.AssertProblemAsync(HttpStatusCode.Conflict, ConcurrencyRetryExtensions.ConcurrencyConflictDetail);
+
+		var content = await response.Content.ReadApiTextAsync();
+		Assert.DoesNotContain("detalhe das options nao deve aparecer", content, StringComparison.OrdinalIgnoreCase);
+		Assert.DoesNotContain("demo.should_not_apply", content, StringComparison.OrdinalIgnoreCase);
+		Assert.Equal(2, app.ConcurrencyFailures.Failures);
 	}
 
 	private static async Task AssertRetryExhaustedProblemAsync(

@@ -74,5 +74,23 @@ public class DemoApiErrorContractTests
 		await response.AssertProblemAsync(HttpStatusCode.BadRequest);
 	}
 
+	[Fact]
+	public async Task Endpoint_Must_Return_BadRequestProblem_When_RequestBodyIsMissing()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var createResponse = await client.PostAsJsonAsync("/produtos/", new { Nome = "Produto A" });
+		var created = await createResponse.Content.ReadApiJsonAsync<CreateProdutoResponse>();
+		Assert.NotNull(created);
+
+		// EditarProduto tem corpo (Nome): uma requisição sem body é erro do cliente.
+		// O guard gerado devolve 400 InvalidParameter em vez de NRE (500).
+		var response = await client.PutAsync($"/produtos/{created.Id}", content: null);
+
+		await response.AssertProblemAsync(HttpStatusCode.BadRequest);
+	}
+
 	private sealed record CreateProdutoResponse(Guid Id, string Nome);
 }

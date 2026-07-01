@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using RoyalCode.SmartCommands.WorkContext.Adapters;
 using RoyalCode.SmartCommands.WorkContext.Internals;
 using RoyalCode.SmartCommands.WorkContext.Options;
@@ -124,14 +125,16 @@ public static class CommandsWorkContextExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddOptions<RetryOnConcurrencyOptions>();
-
-        services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<
-                Microsoft.Extensions.Options.IConfigureOptions<RetryOnConcurrencyOptions>,
-                ConfigureRetryOnConcurrencyOptions>());
-
         services.TryAddScoped<IConcurrencyRetryProblemFactory, DefaultConcurrencyRetryProblemFactory>();
+
+        // Idempotente: BindConfiguration adiciona um IConfigureOptions + IOptionsChangeTokenSource a cada chamada,
+        // e este método é invocado por vários pontos (AddUnitOfWorkAccessor e cada AddConcurrencyRetryProblem*).
+        // Usa a presença do change-token-source (registrado só pelo BindConfiguration) como marcador de "já vinculado".
+        if (!services.Any(static d => d.ServiceType == typeof(IOptionsChangeTokenSource<RetryOnConcurrencyOptions>)))
+        {
+            services.AddOptions<RetryOnConcurrencyOptions>()
+                .BindConfiguration(RetryOnConcurrencyOptions.ConfigurationSectionName);
+        }
 
         return services;
     }

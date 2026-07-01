@@ -50,6 +50,9 @@ public static partial class MapSomeApi
         CreateSome command,
         CancellationToken ct)
     {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
         var result = await handler.HandleAsync(command, ct);
         return result.Map(v => v.Id);
     }
@@ -98,6 +101,7 @@ public static partial class VaultApis { }
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.HttpResults;
 
 namespace Tests.Scenarios.Is;
@@ -120,6 +124,9 @@ public static partial class MapSomeApi
         CreateSome command, 
         CancellationToken ct)
     {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
         var result = await handler.HandleAsync(command, ct);
         return result.Map(v => v.Id);
     }
@@ -171,6 +178,7 @@ public static partial class VaultApis { }
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.HttpResults;
 
 namespace Tests.Scenarios.Is;
@@ -194,6 +202,9 @@ public static partial class MapSomeApi
         CreateSome command, 
         CancellationToken ct)
     {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
         var result = await handler.HandleAsync(command, ct);
         return result.Map(v => v.Id);
     }
@@ -245,6 +256,7 @@ public static partial class VaultApis { }
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.HttpResults;
 
 namespace Tests.Scenarios.Is;
@@ -268,6 +280,9 @@ public static partial class MapSomeApi
         CreateSome command, 
         CancellationToken ct)
     {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
         var result = await handler.HandleAsync(command, ct);
         return result.Map(v => v.Id);
     }
@@ -319,6 +334,7 @@ public static partial class VaultApis { }
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.HttpResults;
 
 namespace Tests.Scenarios.Is;
@@ -342,6 +358,9 @@ public static partial class MapSomeApi
         CreateSome command, 
         CancellationToken ct)
     {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
         var result = await handler.HandleAsync(command, ct);
         return result.Map(v => v.Id);
     }
@@ -393,6 +412,7 @@ public static partial class VaultApis { }
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.HttpResults;
 
 namespace Tests.Scenarios.Is;
@@ -416,6 +436,9 @@ public static partial class MapSomeApi
         CreateSome command, 
         CancellationToken ct)
     {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
         var result = await handler.HandleAsync(command, ct);
         return result.Map(v => v.Id);
     }
@@ -467,6 +490,7 @@ public static partial class VaultApis { }
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.HttpResults;
 
 namespace Tests.Scenarios.Is;
@@ -490,6 +514,9 @@ public static partial class MapSomeApi
         CreateSome command, 
         CancellationToken ct)
     {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
         var result = await handler.HandleAsync(command, ct);
         return result.Map(v => v.Id);
     }

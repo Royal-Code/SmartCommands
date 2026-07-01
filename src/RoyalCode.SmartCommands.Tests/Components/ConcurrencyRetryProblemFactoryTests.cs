@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RoyalCode.SmartCommands.WorkContext;
 using RoyalCode.SmartCommands.WorkContext.Extensions;
@@ -8,10 +9,14 @@ namespace RoyalCode.SmartCommands.Tests.Components;
 
 public class ConcurrencyRetryProblemFactoryTests
 {
+    // BindConfiguration resolves IConfiguration from DI; unit tests provide an empty one.
+    private static IServiceCollection NewServices()
+        => new ServiceCollection().AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+
     [Fact]
     public void Create_Must_UseTypedDelegate_WhenRegisteredForCommandAndOperation()
     {
-        var services = new ServiceCollection()
+        var services = NewServices()
             .AddConcurrencyRetryProblem<ChangePassword>(
                 "account.change_password",
                 static (command, context) => Problems.InvalidState(
@@ -30,7 +35,7 @@ public class ConcurrencyRetryProblemFactoryTests
     [Fact]
     public void Create_Must_UseServiceDelegate_WhenRegisteredWithServiceProvider()
     {
-        var services = new ServiceCollection();
+        var services = NewServices();
         services.AddSingleton(new MessageSource("localized conflict"));
         services.AddConcurrencyRetryProblem<ChangePassword>(
             "account.change_password",
@@ -51,7 +56,7 @@ public class ConcurrencyRetryProblemFactoryTests
     [Fact]
     public void Create_Must_UseProvider_WhenProviderIsRegistered()
     {
-        var services = new ServiceCollection()
+        var services = NewServices()
             .AddConcurrencyRetryProblemProvider<ChangePassword, ChangePasswordProblemProvider>(
                 "account.change_password")
             .BuildServiceProvider();
@@ -67,7 +72,7 @@ public class ConcurrencyRetryProblemFactoryTests
     [Fact]
     public void Create_Must_UseConfiguredFallback_WhenNoRegistrationExists()
     {
-        var services = new ServiceCollection();
+        var services = NewServices();
         services.AddConcurrencyRetryProblems();
         services.Configure<RetryOnConcurrencyOptions>(options =>
         {

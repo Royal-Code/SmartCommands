@@ -11,6 +11,7 @@ using RoyalCode.SmartCommands.Demo.Commands.Produtos;
 using RoyalCode.SmartCommands.Tests.Models;
 using RoyalCode.SmartCommands.WorkContext;
 using RoyalCode.SmartCommands.WorkContext.Extensions;
+using RoyalCode.SmartCommands.WorkContext.Internals;
 using RoyalCode.SmartCommands.WorkContext.Options;
 using RoyalCode.SmartProblems;
 using RoyalCode.UnitOfWork;
@@ -19,9 +20,6 @@ namespace RoyalCode.SmartCommands.Demo.Tests.Support;
 
 internal sealed class DemoApiFactory : WebApplicationFactory<Program>
 {
-	private const string RetryProblemRegistrationTypeName =
-		"RoyalCode.SmartCommands.WorkContext.Internals.IConcurrencyRetryProblemRegistration";
-
 	private readonly SqliteConnection connection = CreateOpenConnection();
 	private readonly Action<IServiceCollection>? configureTestServices;
 
@@ -139,7 +137,7 @@ internal sealed class DemoApiFactory : WebApplicationFactory<Program>
 	private static void RemoveRetryProblemRegistrations(IServiceCollection services)
 	{
 		var descriptors = services
-			.Where(d => d.ServiceType.FullName == RetryProblemRegistrationTypeName)
+			.Where(d => d.ServiceType == typeof(IConcurrencyRetryProblemRegistration))
 			.ToArray();
 
 		foreach (var descriptor in descriptors)
@@ -189,6 +187,7 @@ internal sealed class ConcurrencyFailureController
 {
 	public const string RetryOnceProductName = "Produto retry transitorio";
 	public const string RetryAlwaysProductName = "Produto retry esgotado";
+	public const string RetryOnceWithDbUpdateProductName = "Produto retry dbupdate";
 
 	public int Failures { get; private set; }
 
@@ -203,7 +202,8 @@ internal sealed class ConcurrencyFailureController
 			.Entries<Produto>()
 			.FirstOrDefault(e => e.State == EntityState.Modified
 				&& (e.Entity.Nome == RetryOnceProductName
-					|| e.Entity.Nome == RetryAlwaysProductName));
+					|| e.Entity.Nome == RetryAlwaysProductName
+					|| e.Entity.Nome == RetryOnceWithDbUpdateProductName));
 
 		if (entry is null)
 			return;
@@ -212,6 +212,14 @@ internal sealed class ConcurrencyFailureController
 		{
 			Failures++;
 			throw new ConcurrencyException("Test transient concurrency conflict.", new InvalidOperationException());
+		}
+
+		// Lança a exceção crua do EF para exercitar a conversão DbUpdateConcurrencyException -> ConcurrencyException
+		// feita em UnitOfWork.SaveAsync (que é o que o retry captura no fluxo real).
+		if (entry.Entity.Nome == RetryOnceWithDbUpdateProductName && Failures == 0)
+		{
+			Failures++;
+			throw new DbUpdateConcurrencyException("Test transient db-update concurrency conflict.");
 		}
 
 		if (entry.Entity.Nome == RetryAlwaysProductName)

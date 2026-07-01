@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using RoyalCode.SmartCommands.Generators.Commands;
 using System.Text;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
@@ -183,17 +184,43 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
             ? GetFirstRouteParameterName(mapInfo.RoutePattern)
             : null;
 
-        CommandHandlerGenerator.AddRequiredParameters(commandInfo, method, editEntityRouteParameterName);
+        // o comando só entra como parâmetro do endpoint quando tem corpo (setters públicos ou ctor com parâmetros);
+        // sem corpo, é instanciado via new e a requisição pode ser enviada sem body.
+        CommandHandlerGenerator.AddRequiredParameters(
+            commandInfo, method, editEntityRouteParameterName, includeCommandParameter: commandInfo.HasBodyProperties);
 
         // implementação do método
 
-        // primeiro, chama o handler
+        // com corpo: protege contra body ausente (400). Sem corpo: instancia o comando via new.
+        if (commandInfo.HasBodyProperties)
+        {
+            method.Commands.Add(new RequireBodyCommand("command", "The request body is required."));
+        }
+        else
+        {
+            method.Commands.Add(new AssignValueCommand(
+                new StringValueNode("var command"),
+                new StringValueNode($"new {commandInfo.ModelType.Name}()"))
+            {
+                AppendLine = true
+            });
+        }
+
+        // chama o handler, sempre passando 'command' (parâmetro do body ou instância local),
+        // na ordem esperada: [id da entidade editada], command, [WithParameters], [ct].
         var handlerInvoke =
             new MethodInvokeGenerator("handler", commandInfo.HandlerMustBeAsync ? "HandleAsync" : "Handle");
-        foreach (var param in method.Parameters.GetDescriptors().Skip(1))
-        {
-            handlerInvoke.AddArgument(param.Name);
-        }
+
+        if (commandInfo.EditType is not null)
+            handlerInvoke.AddArgument($"{commandInfo.EditType.Parameter!.Name}Id");
+
+        handlerInvoke.AddArgument("command");
+
+        foreach (var p in commandInfo.Parameters.Where(p => p.Type.IsHandlerParameter))
+            handlerInvoke.AddArgument(p.Name);
+
+        if (commandInfo.HandlerMustBeAsync)
+            handlerInvoke.AddArgument("ct");
 
         if (commandInfo.HandlerMustBeAsync)
             handlerInvoke.Await = true;

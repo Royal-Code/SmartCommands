@@ -8,7 +8,7 @@ public class Tests
     [Theory]
     [InlineData(CodeHs.Command1, CodeHs.Interface1, CodeHs.Handler1, CodeHs.AddServices1, CodeHs.ApiHandlers1)]
     [InlineData(CodeHs.Command2, CodeHs.Interface2, CodeHs.Handler2, CodeHs.AddServices2, CodeHs.ApiHandlers2)]
-    //[InlineData(CodeHs.Command3, CodeHs.Interface3, CodeHs.Handler3)]
+    [InlineData(CodeHs.Command3, CodeHs.Interface1, CodeHs.Handler1, CodeHs.AddServices1, CodeHs.ApiHandlers1)]
     //[InlineData(CodeHs.Command4, CodeHs.Interface4, CodeHs.Handler4)]
     //[InlineData(CodeHs.Command5, CodeHs.Interface5, CodeHs.Handler5)]
     //[InlineData(CodeHs.Command6, CodeHs.Interface6, CodeHs.Handler6)]
@@ -113,6 +113,7 @@ public static partial class ProgramExtensions
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.HttpResults;
 
 namespace Tests.Scenarios.Hs;
@@ -134,11 +135,45 @@ public static partial class MapApiSomeApi
         ICreateSomeHandler handler, 
         CreateSome command)
     {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
         var result = handler.Handle(command);
         return result;
     }
 }
 
+""";
+
+    public const string Command3 =
+"""
+using RoyalCode.SmartCommands;
+using RoyalCode.SmartProblems;
+using RoyalCode.SmartValidations;
+
+namespace Tests.Scenarios.Hs;
+
+[MapGroup("api/some")]
+[MapPost("/", "create some")]
+public class CreateSome
+{
+    public CreateSome(int value)
+    {
+        Value = value;
+    }
+
+    public int Value { get; }
+
+    [Command]
+    internal Result Execute()
+    {
+        return Result.Ok();
+    }
+}
+
+[AddHandlersServices(""), MapApiHandlers, WithOpenApi]
+public static partial class ProgramExtensions
+{ }
 """;
 
     public const string Command2 =
@@ -238,6 +273,7 @@ public static partial class ProgramExtensions
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.HttpResults;
 
 namespace Tests.Scenarios.Hs;
@@ -260,6 +296,9 @@ public static partial class MapApiSomeApi
         CreateSome command, 
         CancellationToken ct)
     {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
         var result = await handler.HandleAsync(command, ct);
         return result.CreatedMatch(v => $"api/some/{v.Id}");
     }
@@ -267,5 +306,5 @@ public static partial class MapApiSomeApi
 
 """;
 
-    // Adicione os comandos, interfaces e handlers dos cenários 3 a 7 conforme o padrão acima.
+    // Adicione os comandos, interfaces e handlers dos cenï¿½rios 3 a 7 conforme o padrï¿½o acima.
 }

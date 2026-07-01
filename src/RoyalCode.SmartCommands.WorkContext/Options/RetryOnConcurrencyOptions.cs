@@ -18,6 +18,11 @@ public class RetryOnConcurrencyOptions
     public const int DefaultMaxAttempts = 3;
 
     /// <summary>
+    /// The configuration section bound to these options (<c>"RetryOnConcurrency"</c>).
+    /// </summary>
+    public const string ConfigurationSectionName = "RetryOnConcurrency";
+
+    /// <summary>
     /// <para>
     ///     The maximum number of attempts (the initial execution plus retries) for a command body
     ///     under optimistic-concurrency conflicts.

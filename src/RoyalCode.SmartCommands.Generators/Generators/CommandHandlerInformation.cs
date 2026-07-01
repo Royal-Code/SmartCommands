@@ -58,6 +58,12 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
     public int? RetryMaxAttempts { get; internal set; }
 
     /// <summary>
+    /// Whether the command has a request-body shape (public settable properties or public constructor parameters).
+    /// When <c>false</c>, the generated endpoint does not receive the command as a parameter and instantiates it via <c>new</c>.
+    /// </summary>
+    public bool HasBodyProperties { get; internal set; }
+
+    /// <summary>
     /// The semantic operation key used to create a custom problem when the retry budget is exhausted.
     /// </summary>
     public string? RetryOperation { get; internal set; }
@@ -122,6 +128,7 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
                HasRetryOnConcurrency == other.HasRetryOnConcurrency &&
                RetryMaxAttempts == other.RetryMaxAttempts &&
                RetryOperation == other.RetryOperation &&
+               HasBodyProperties == other.HasBodyProperties &&
                EqualErrors(other);
     }
 
@@ -157,6 +164,7 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
         hashCode = hashCode * -1521134295 + HasRetryOnConcurrency.GetHashCode();
         hashCode = hashCode * -1521134295 + RetryMaxAttempts.GetHashCode();
         hashCode = hashCode * -1521134295 + (RetryOperation?.GetHashCode() ?? 0);
+        hashCode = hashCode * -1521134295 + HasBodyProperties.GetHashCode();
         hashCode = hashCode * -1521134295 + Errors?.GetHashCode() ?? 0;
         return hashCode;
     }

@@ -25,6 +25,9 @@ public static partial class MapLojasApi
         CriarLoja command, 
         CancellationToken ct)
     {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
         var result = await handler.HandleAsync(command, ct);
         return result.CreatedMatch(v => $"lojas/{v.Id}", v => new CriarLojaResponse(v.Id, v.Nome));
     }

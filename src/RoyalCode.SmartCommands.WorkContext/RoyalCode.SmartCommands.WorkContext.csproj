@@ -17,5 +17,9 @@
 	<ItemGroup>
 	  <ProjectReference Include="..\RoyalCode.SmartCommands\RoyalCode.SmartCommands.csproj" />
 	</ItemGroup>
-	
+
+	<ItemGroup>
+	  <InternalsVisibleTo Include="RoyalCode.SmartCommands.Demo.Tests" />
+	</ItemGroup>
+
 </Project>

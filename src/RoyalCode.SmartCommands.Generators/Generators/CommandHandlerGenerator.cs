@@ -549,6 +549,11 @@ public static class CommandHandlerGenerator
         if (hasWithValidateModel || hasUow || hasFindEntities || mapInformation is not null)
             handlerReturnType = handlerReturnType.MustBeResult();
 
+        // detecta se o comando tem shape de body no minimal API.
+        // Sem isso, o endpoint não precisa receber o comando como parâmetro (pode instanciar via new),
+        // e uma requisição sem corpo é válida.
+        var hasRequestBody = HasRequestBodyShape(classDeclaration, context.SemanticModel);
+
         // armazena todas as informações coletadas
         var info = new CommandHandlerInformation
         {
@@ -575,7 +580,8 @@ public static class CommandHandlerGenerator
             MapInformation = mapInformation,
             HasRetryOnConcurrency = hasRetryOnConcurrency,
             RetryMaxAttempts = retryMaxAttempts,
-            RetryOperation = retryOperation
+            RetryOperation = retryOperation,
+            HasBodyProperties = hasRequestBody
         };
 
         if (mapInformation is not null)
@@ -584,6 +590,38 @@ public static class CommandHandlerGenerator
         info.SetErrors(errors);
 
         return info;
+    }
+
+    private static bool HasRequestBodyShape(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel)
+    {
+        if (semanticModel.GetDeclaredSymbol(classDeclaration) is not INamedTypeSymbol commandSymbol)
+            return false;
+
+        var hasParameterizedConstructor = commandSymbol.Constructors
+            .Any(c => !c.IsStatic
+                && c.DeclaredAccessibility == Accessibility.Public
+                && c.Parameters.Length > 0);
+
+        if (hasParameterizedConstructor)
+            return true;
+
+        var type = (INamedTypeSymbol?)commandSymbol;
+        while (type is not null && type.SpecialType != SpecialType.System_Object)
+        {
+            var hasSettable = type.GetMembers()
+                .OfType<IPropertySymbol>()
+                .Any(p => !p.IsStatic
+                    && p.DeclaredAccessibility == Accessibility.Public
+                    && p.SetMethod is not null
+                    && p.SetMethod.DeclaredAccessibility == Accessibility.Public);
+
+            if (hasSettable)
+                return true;
+
+            type = type.BaseType;
+        }
+
+        return false;
     }
 
     private static MapInformation? ReadMap(
@@ -1134,7 +1172,8 @@ public static class CommandHandlerGenerator
     public static void AddRequiredParameters(
         CommandHandlerInformation commandInfo,
         MethodGenerator method,
-        string? editEntityRouteParameterName = null)
+        string? editEntityRouteParameterName = null,
+        bool includeCommandParameter = true)
     {
         // parâmetro do id da entidade a ser editada, quando necessário
         if (commandInfo.EditType is not null)
@@ -1157,8 +1196,9 @@ public static class CommandHandlerGenerator
             method.Parameters.Add(idParameter);
         }
 
-        // parâmetro do commando.
-        method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(commandInfo.ModelType, ModelVarName)));
+        // parâmetro do commando (omitido no endpoint quando o comando não tem corpo — ver includeCommandParameter).
+        if (includeCommandParameter)
+            method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(commandInfo.ModelType, ModelVarName)));
 
         // parâmetros com atributo WithParameter
         foreach (var p in commandInfo.Parameters.Where(p => p.Type.IsHandlerParameter))
