@@ -22,7 +22,7 @@ public static partial class ProgramExtensions
         services.AddTransient<IReservarEstoqueHandler, ReservarEstoqueHandler<TContext>>();
         services.AddTransient<ICriarLojaHandler, CriarLojaHandler>();
         services.AddTransient<ICancelarPedidoHandler, CancelarPedidoHandler<TContext>>();
-        services.AddTransient<ICriarPedidoHandler, CriarPedidoHandler>();
+        services.AddTransient<ICriarPedidoHandler, CriarPedidoHandler<TContext>>();
         services.AddTransient<ICriarProduto2Handler, CriarProduto2Handler>();
         services.AddTransient<IDesativarProdutoHandler, DesativarProdutoHandler<TContext>>();
         services.AddTransient<IEditarProdutoHandler, EditarProdutoHandler<TContext>>();

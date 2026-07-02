@@ -251,6 +251,57 @@ public class PedidoTests
 	}
 
 	[Fact]
+	public async Task CriarPedido_ComConflitoTransitorio_TentaNovamente_E_Cria()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var produtoId = await CreateProductAsync(client, "Bone", "BON-001", 30m);
+		await RegistrarEstoqueInicialAsync(client, produtoId, 10);
+		app.ConcurrencyFailures.FailNextStockSave();
+
+		// ProduceNewEntity + Result<Pedido> sob retry: o conflito transitorio reexecuta o corpo (reserva + cria) e conclui.
+		var pedido = await CreatePedidoAsync(client, produtoId, 2);
+
+		Assert.Equal(1, app.ConcurrencyFailures.Failures);
+		var estoque = await GetEstoqueAsync(client, produtoId);
+		Assert.Equal(8, estoque.Disponivel);
+		Assert.Equal(2, estoque.Reservado);
+
+		var details = await GetPedidoAsync(client, pedido.Id);
+		Assert.Equal(PedidoStatusResponse.Aberto, details.Status);
+	}
+
+	[Fact]
+	public async Task CriarPedido_ComConflitoPersistente_RetornaProblemDaOperationKey_E_NaoPersiste()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var produtoId = await CreateProductAsync(client, "Luva", "LUV-001", 15m);
+		await RegistrarEstoqueInicialAsync(client, produtoId, 10);
+		app.ConcurrencyFailures.FailStockSavesAlways();
+
+		var response = await client.PostAsJsonAsync("/pedidos/", new
+		{
+			Itens = new[] { new { ProdutoId = produtoId, Quantidade = 2 } }
+		});
+
+		await response.AssertProblemAsync(HttpStatusCode.Conflict, "durante a criacao");
+		Assert.Equal(3, app.ConcurrencyFailures.Failures);
+
+		// todas as tentativas foram revertidas: estoque intacto e nenhum pedido criado
+		var estoque = await GetEstoqueAsync(client, produtoId);
+		Assert.Equal(10, estoque.Disponivel);
+		Assert.Equal(0, estoque.Reservado);
+
+		var listagem = await client.GetAsync("/pedidos");
+		Assert.Equal(HttpStatusCode.NoContent, listagem.StatusCode);
+	}
+
+	[Fact]
 	public async Task ListarPedidos_FiltraPorStatus()
 	{
 		using var app = new DemoApiFactory();

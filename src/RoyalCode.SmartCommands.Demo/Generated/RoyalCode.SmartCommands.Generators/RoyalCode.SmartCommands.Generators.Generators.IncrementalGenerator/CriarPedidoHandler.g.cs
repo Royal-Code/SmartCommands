@@ -1,19 +1,27 @@
-﻿using RoyalCode.SmartCommands;
+﻿using Microsoft.Extensions.Options;
+using RoyalCode.SmartCommands;
 using RoyalCode.SmartCommands.Demo.Commands.Pedidos;
 using RoyalCode.SmartCommands.Demo.Domain;
+using RoyalCode.SmartCommands.WorkContext;
+using RoyalCode.SmartCommands.WorkContext.Options;
 using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext;
 
 namespace RoyalCode.SmartCommands.Demo.Commands.Pedidos.Internals;
 
-public class CriarPedidoHandler : ICriarPedidoHandler
+public class CriarPedidoHandler<TContext> : ICriarPedidoHandler
+    where TContext : IWorkContext
 {
-    private readonly IUnitOfWorkAccessor<IWorkContext> accessor;
+    private readonly IUnitOfWorkAccessor<TContext> accessor;
+    private readonly IOptions<RetryOnConcurrencyOptions> retryOptions;
+    private readonly IConcurrencyRetryProblemFactory retryProblemFactory;
     private readonly DemoDbContext db;
 
-    public CriarPedidoHandler(IUnitOfWorkAccessor<IWorkContext> accessor, DemoDbContext db)
+    public CriarPedidoHandler(IUnitOfWorkAccessor<TContext> accessor, IOptions<RetryOnConcurrencyOptions> retryOptions, IConcurrencyRetryProblemFactory retryProblemFactory, DemoDbContext db)
     {
         this.accessor = accessor;
+        this.retryOptions = retryOptions;
+        this.retryProblemFactory = retryProblemFactory;
         this.db = db;
     }
 
@@ -22,10 +30,17 @@ public class CriarPedidoHandler : ICriarPedidoHandler
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        await this.accessor.BeginAsync(ct);
+        return await this.accessor.Context.RetryOnConcurrencyAsync<Pedido>(
+            async () =>
+            {
+                await this.accessor.BeginAsync(ct);
 
-        return await command.Execute(db, ct)
-            .ContinueAsync(this.accessor, async (e, a) => await a.AddEntityAsync(e, ct))
-            .ContinueAsync(this.accessor, async (_, a) => await a.CompleteAsync(ct));
+                return await command.Execute(db, ct)
+                    .ContinueAsync(this.accessor, async (e, a) => await a.AddEntityAsync(e, ct))
+                    .ContinueAsync(this.accessor, async (_, a) => await a.CompleteAsync(ct));
+            },
+            this.retryOptions.Value,
+            onExhausted: () => this.retryProblemFactory.Create(command, "demo.pedidos.criar"),
+            ct: ct);
     }
 }

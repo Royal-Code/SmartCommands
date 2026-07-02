@@ -116,37 +116,50 @@ public class BuscaProdutosTests
 		Assert.Equal("DSP-002", item.Sku);
 	}
 
-	// --- Caracterizacao de gaps do SmartSearch (comportamento atual, nao o desejado) ---
+	// --- Ordenacao (habilitada pelo fix do SmartSearch 0.10.5: projecao DTO + paginacao preserva a ordem) ---
 
 	[Fact]
-	public async Task Ordenacao_PorPropriedadeValida_AtualmenteNaoTemEfeito_GapConhecido()
+	public async Task OrdenarPorPreco_Ascendente_E_Descendente()
 	{
 		using var app = new DemoApiFactory();
 		using var client = app.CreateClient();
 		await app.ResetDatabaseAsync();
 
-		await CreateProductAsync(client, "Gama", "ORD-003", 30m);
-		await CreateProductAsync(client, "Alfa", "ORD-001", 10m);
-		await CreateProductAsync(client, "Beta", "ORD-002", 20m);
+		// dados nao ambiguos: ordem de criacao != ordem de preco != ordem de nome
+		await CreateProductAsync(client, "Zulu", "ORD-010", 10m);
+		await CreateProductAsync(client, "Alfa", "ORD-030", 30m);
+		await CreateProductAsync(client, "Mike", "ORD-020", 20m);
 
-		var (semOrdemStatus, semOrdem) = await SearchAsync(client, "");
-		var (comOrdemStatus, comOrdem) = await SearchAsync(client, "?orderby=Nome");
+		var (ascStatus, asc) = await SearchAsync(client, "?orderby=Preco");
+		Assert.Equal(HttpStatusCode.OK, ascStatus);
+		Assert.NotNull(asc);
+		Assert.Equal([10m, 20m, 30m], asc.Items.Select(i => i.Preco).ToArray());
 
-		Assert.Equal(HttpStatusCode.OK, semOrdemStatus);
-		Assert.Equal(HttpStatusCode.OK, comOrdemStatus);
-		Assert.NotNull(semOrdem);
-		Assert.NotNull(comOrdem);
-
-		// GAP (SmartSearch): ?orderby por propriedade valida e ignorado; a busca cai na ordenacao default (Id).
-		// Portanto a sequencia com e sem orderby e identica. Quando o gap for corrigido na lib, a ordenacao
-		// passara a valer e este teste falhara, sinalizando para promover isto a um teste de ordenacao real.
-		Assert.Equal(
-			semOrdem.Items.Select(i => i.Sku).ToArray(),
-			comOrdem.Items.Select(i => i.Sku).ToArray());
+		var (descStatus, desc) = await SearchAsync(client, "?orderby=Preco-desc");
+		Assert.Equal(HttpStatusCode.OK, descStatus);
+		Assert.NotNull(desc);
+		Assert.Equal([30m, 20m, 10m], desc.Items.Select(i => i.Preco).ToArray());
 	}
 
 	[Fact]
-	public async Task OrderByInvalido_AtualmenteRetornaErro_GapConhecido()
+	public async Task OrdenarPorNome_Ascendente()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		await CreateProductAsync(client, "Zulu", "NOM-001", 10m);
+		await CreateProductAsync(client, "Alfa", "NOM-002", 20m);
+		await CreateProductAsync(client, "Mike", "NOM-003", 30m);
+
+		var (status, page) = await SearchAsync(client, "?orderby=Nome");
+		Assert.Equal(HttpStatusCode.OK, status);
+		Assert.NotNull(page);
+		Assert.Equal(["Alfa", "Mike", "Zulu"], page.Items.Select(i => i.Nome).ToArray());
+	}
+
+	[Fact]
+	public async Task OrderByInvalido_Retorna400()
 	{
 		using var app = new DemoApiFactory();
 		using var client = app.CreateClient();
@@ -156,10 +169,9 @@ public class BuscaProdutosTests
 
 		var response = await client.GetAsync("/produtos?orderby=CampoInexistente");
 
-		// GAP (SmartSearch): orderby invalido lanca OrderByNotSupportedException (ArgumentException), que o
-		// Performer nao captura (so trata OrderByException), entao vaza como 500 InternalError. O esperado
-		// seria 400 InvalidParameter. Caracterizamos >= 400 para ser robusto a correcao futura para 400.
-		Assert.True((int)response.StatusCode >= 400, $"esperava erro, veio {(int)response.StatusCode}");
+		// SmartSearch 0.10.5: orderby invalido -> 400 InvalidParameter (OrderByNotSupportedException passou a
+		// derivar de OrderByException, capturada pelo Performer).
+		await response.AssertProblemAsync(HttpStatusCode.BadRequest);
 	}
 
 	private static async Task<Guid> CreateProductAsync(HttpClient client, string nome, string sku, decimal preco)

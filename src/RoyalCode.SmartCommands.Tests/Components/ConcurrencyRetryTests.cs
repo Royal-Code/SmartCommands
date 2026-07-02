@@ -128,6 +128,84 @@ public class ConcurrencyRetryTests
         Assert.Equal(1, attempts); // a single attempt, no retry
     }
 
+    // --- Overload generico RetryOnConcurrencyAsync<T> (ex.: ProduceNewEntity / Result<T>) ---
+
+    [Fact]
+    public async Task RetryOnConcurrencyGeneric_Must_ReturnValue_WhenBodySucceedsOnFirstAttempt()
+    {
+        var uow = new FakeUnitOfWork();
+        var attempts = 0;
+
+        var result = await uow.RetryOnConcurrencyAsync(
+            () =>
+            {
+                attempts++;
+                return Task.FromResult<Result<int>>(42);
+            },
+            new RetryOnConcurrencyOptions { MaxAttempts = 3 });
+
+        Assert.False(result.HasProblems(out _));
+        Assert.True(result.HasValue(out var value));
+        Assert.Equal(42, value);
+        Assert.Equal(1, attempts);
+        Assert.Equal(0, uow.CleanUpCount);
+    }
+
+    [Fact]
+    public async Task RetryOnConcurrencyGeneric_Must_Retry_AndReturnValue_AfterTransientConflicts()
+    {
+        var uow = new FakeUnitOfWork();
+        var attempts = 0;
+
+        var result = await uow.RetryOnConcurrencyAsync(
+            () =>
+            {
+                attempts++;
+                if (attempts < 3)
+                    throw new ConcurrencyException("conflict", new Exception());
+                return Task.FromResult<Result<int>>(7);
+            },
+            new RetryOnConcurrencyOptions { MaxAttempts = 3 });
+
+        Assert.False(result.HasProblems(out _));
+        Assert.True(result.HasValue(out var value));
+        Assert.Equal(7, value);
+        Assert.Equal(3, attempts);
+        Assert.Equal(2, uow.CleanUpCount); // cleared between the two failed attempts
+    }
+
+    [Fact]
+    public async Task RetryOnConcurrencyGeneric_Must_ReturnProblem_WhenExhausted_AndOnExhaustedProvided()
+    {
+        var uow = new FakeUnitOfWork();
+
+        var result = await uow.RetryOnConcurrencyAsync<int>(
+            () => throw new ConcurrencyException("conflict", new Exception()),
+            new RetryOnConcurrencyOptions { MaxAttempts = 2 },
+            onExhausted: () => Problems.InvalidState("custom detail", typeId: "user_account.concurrency_conflict"));
+
+        Assert.True(result.HasProblems(out var problems));
+        var problem = Assert.Single(problems);
+        Assert.Equal("custom detail", problem.Detail);
+        Assert.Equal("user_account.concurrency_conflict", problem.TypeId);
+        Assert.Equal(2, uow.CleanUpCount);
+    }
+
+    [Fact]
+    public async Task RetryOnConcurrencyGeneric_Must_ReturnInvalidState_WhenExhausted_WithoutOnExhausted()
+    {
+        var uow = new FakeUnitOfWork();
+
+        var result = await uow.RetryOnConcurrencyAsync<int>(
+            () => throw new ConcurrencyException("conflict", new Exception()),
+            new RetryOnConcurrencyOptions { MaxAttempts = 2 });
+
+        Assert.True(result.HasProblems(out var problems));
+        var problem = Assert.Single(problems);
+        Assert.Equal(ProblemCategory.InvalidState, problem.Category);
+        Assert.Equal(ConcurrencyRetryExtensions.ConcurrencyConflictDetail, problem.Detail);
+    }
+
     private sealed class FakeUnitOfWork : IUnitOfWork
     {
         public int CleanUpCount { get; private set; }

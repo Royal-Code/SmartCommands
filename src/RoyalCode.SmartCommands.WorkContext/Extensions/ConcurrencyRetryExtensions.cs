@@ -89,4 +89,63 @@ public static class ConcurrencyRetryExtensions
             }
         }
     }
+
+    /// <summary>
+    /// <para>
+    ///     Value-carrying variant of <see cref="RetryOnConcurrencyAsync(IUnitOfWork, Func{Task{Result}}, RetryOnConcurrencyOptions, Func{Problem}, CancellationToken)"/>:
+    ///     executes <paramref name="body"/> and retries it when an optimistic-concurrency conflict
+    ///     (<see cref="ConcurrencyException"/>) is raised while saving, up to <see cref="RetryOnConcurrencyOptions.MaxAttempts"/>,
+    ///     returning the typed value produced by the body (e.g. the entity created by <c>ProduceNewEntity</c>).
+    /// </para>
+    /// <para>
+    ///     Between attempts, any current transaction is rolled back and the change tracker is cleared via
+    ///     <see cref="IUnitOfWork.CleanUp(bool)"/>, so the body reloads fresh state on the next attempt. The same
+    ///     re-execution contract of the non-generic overload applies: the body must be safe to run again (no
+    ///     non-idempotent, immediately-committed side effect).
+    /// </para>
+    /// </summary>
+    /// <typeparam name="T">The value type carried by the <see cref="Result{T}"/> returned by the body.</typeparam>
+    /// <param name="unitOfWork">The unit of work being retried; owns the change tracker and the transaction, if any.</param>
+    /// <param name="body">The operation to execute on each attempt; must return a <see cref="Result{T}"/>.</param>
+    /// <param name="options">The retry policy. <see cref="RetryOnConcurrencyOptions.MaxAttempts"/> values lower than <c>1</c> are treated as <c>1</c>.</param>
+    /// <param name="onExhausted">
+    ///     Optional factory for the <see cref="Problem"/> returned when the retry budget is exhausted.
+    ///     When <c>null</c>, a generic <see cref="Problems.InvalidState(string, string?, string?)"/> (409) problem is returned.
+    /// </param>
+    /// <param name="ct">The cancellation token used to roll back the transaction between attempts.</param>
+    /// <returns>The result of <paramref name="body"/>, or a conflict problem when the attempts are exhausted.</returns>
+    public static async Task<Result<T>> RetryOnConcurrencyAsync<T>(
+        this IUnitOfWork unitOfWork,
+        Func<Task<Result<T>>> body,
+        RetryOnConcurrencyOptions options,
+        Func<Problem>? onExhausted = null,
+        CancellationToken ct = default)
+    {
+        var maxAttempts = options.MaxAttempts < 1 ? 1 : options.MaxAttempts;
+        var attempt = 0;
+
+        while (true)
+        {
+            try
+            {
+                return await body();
+            }
+            catch (ConcurrencyException)
+            {
+                attempt++;
+
+                // Revert any partial work from the failed attempt before reloading: the save threw before the
+                // unit of work could roll back, so an open transaction would otherwise re-apply already-sent commands.
+                var transaction = unitOfWork.GetCurrentTransaction();
+                if (transaction is not null)
+                    await transaction.RollbackAsync(ct);
+
+                // Detach tracked entities so the next attempt reloads fresh state from the store.
+                unitOfWork.CleanUp();
+
+                if (attempt >= maxAttempts)
+                    return onExhausted?.Invoke() ?? Problems.InvalidState(ConcurrencyConflictDetail);
+            }
+        }
+    }
 }

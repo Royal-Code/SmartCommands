@@ -1125,8 +1125,12 @@ public static class CommandHandlerGenerator
                 ? $"this.{RetryProblemFactoryVarName}.Create({ModelVarName}, {SymbolDisplay.FormatLiteral(i.RetryOperation, quote: true)})"
                 : null;
 
+            // Quando o comando produz uma nova entidade (ProduceNewEntity), o corpo do retry devolve Result<T>
+            // e a chamada precisa do overload generico RetryOnConcurrencyAsync<T>; caso contrario e Result (sem valor).
+            var retryValueType = i.ProduceNewEntityType?.Name;
+
             handlerMethodImpl.Commands.Add(
-                new RetryOnConcurrencyCommand(bodyTarget, AccessorVarName, optionsArgument, onExhaustedArgument));
+                new RetryOnConcurrencyCommand(bodyTarget, AccessorVarName, optionsArgument, onExhaustedArgument, retryValueType));
         }
 
         return handlerGen;

@@ -19,16 +19,16 @@ O objetivo nao e criar uma aplicacao comercial completa. O objetivo e usar a dem
 
 ## Status
 
-**Fases 1 (Catalogo), 2 (Estoque e reserva), 3 (Pedido simples) e 5 (Soft delete e desativacao) CONCLUIDAS.
-Fase 4 (Busca avancada) PARCIAL. Fase 6 pendente.** A demo ganhou dominio proprio (pasta `Domain/`: `Produto`,
-`ProdutoEstoque`, `Pedido`, `Loja`, `DemoDbContext`), substituindo os entes de Tests.Models (decisao de base F2), com
-catalogo rico (SKU obrigatorio e unico, preco > 0, editar preservando SKU), fluxo de estoque com saldo
-disponivel/reservado, token `Version` e retry de concorrencia, e fluxo de pedido com criacao atomica, reserva de
-estoque, cancelamento e consulta/listagem. A Fase 4 entregou os filtros compostos (nome parcial, faixa de preco,
-disponibilidade em estoque) e paginacao; a **ordenacao HTTP ficou bloqueada por gaps do SmartSearch** (ver Resultado da
-Fase 4 e Registro de gaps). A Fase 5 adicionou soft delete: transicoes de estado nao idempotentes (`409`), listagem
-publica que esconde inativos por padrao e busca administrativa via `?incluirInativos=true`. Detalhes nos "Resultados"
-das fases 1, 2, 3, 4 e 5.
+**Fases 1 (Catalogo), 2 (Estoque e reserva), 3 (Pedido simples), 4 (Busca avancada) e 5 (Soft delete e desativacao)
+CONCLUIDAS. Fase 6 pendente.** A demo ganhou dominio proprio (pasta `Domain/`: `Produto`, `ProdutoEstoque`, `Pedido`,
+`Loja`, `DemoDbContext`), substituindo os entes de Tests.Models (decisao de base F2), com catalogo rico (SKU obrigatorio
+e unico, preco > 0, editar preservando SKU), fluxo de estoque com saldo disponivel/reservado, token `Version` e retry de
+concorrencia, e fluxo de pedido com criacao atomica, reserva de estoque, cancelamento e consulta/listagem. A Fase 4
+entregou filtros compostos (nome parcial, faixa de preco, disponibilidade em estoque), paginacao e **ordenacao**
+(nome/preco asc-desc, orderby invalido -> 400); isso exigiu **corrigir o SmartSearch** (bug de projecao DTO que
+descartava a ordenacao sob paginacao) — liberado como **0.10.5** (ver Resultado da Fase 4 e Registro de gaps). A Fase 5
+adicionou soft delete: transicoes de estado nao idempotentes (`409`), listagem publica que esconde inativos por padrao e
+busca administrativa via `?incluirInativos=true`. Detalhes nos "Resultados" das fases 1, 2, 3, 4 e 5.
 
 Este plano e um **living plan**: cada fase concluida recebe status/notas, e o registro de gaps reflete o que foi achado
 e onde foi resolvido.
@@ -38,6 +38,7 @@ e onde foi resolvido.
 Gaps ja descobertos pela demo e resolvidos nas libs (fecham o loop do laboratorio). Testes: `RoyalCode.SmartCommands.Demo.Tests` (execucao real, SQLite in-memory) + snapshots do gerador em `RoyalCode.SmartCommands.Tests`.
 
 - **Concorrencia otimista com retry** [Feature] — `[WithRetryOnConcurrency]` + primitiva `IUnitOfWork.RetryOnConcurrencyAsync` no `RoyalCode.SmartCommands.WorkContext`; laco rollback + `CleanUp` entre tentativas; politica por `RetryOnConcurrencyOptions` (bind via `BindConfiguration`). Coberto por `DemoApiConcurrencyRetryTests` e `RetryOnConcurrencyTests`.
+- **Retry com valor (`Result<T>` / `ProduceNewEntity`)** [Feature] — overload generico `IUnitOfWork.RetryOnConcurrencyAsync<T>` + ramo no gerador que emite `RetryOnConcurrencyAsync<T>(...)` colocando o encadeamento produtor de valor (`Execute -> AddEntityAsync -> CompleteAsync`) dentro da lambda. Habilita retry em comandos que devolvem valor no mesmo endpoint (ex.: `CriarPedido` reserva estoque e devolve o pedido criado sob retry). Coberto por `ConcurrencyRetryTests` (primitiva) e `PedidoTests.CriarPedido_ComConflito*` (execucao real).
 - **Problem factory por operation key** [Feature] — `IConcurrencyRetryProblemFactory` + delegates/provider + fallback por options, para customizar o problema quando o retry esgota. Coberto por `ConcurrencyRetryProblemFactoryTests` e cenarios de retry da demo.
 - **Body-ness dos comandos** [Design] — comando sem forma de corpo (sem propriedades settaveis nem parametros de construtor publicos) nao entra como parametro do endpoint; e instanciado via `new`, e a requisicao pode ser enviada sem body. Coberto pelos snapshots em `Scenarios/Hs/Tests.cs`.
 - **Guard de body ausente** [Bug] — comando com corpo cujo body nao chega vira `400 InvalidParameter` (SmartProblems), em vez de `NullReferenceException` (500). Coberto por `DemoApiErrorContractTests`.
@@ -275,7 +276,9 @@ inicial e `Aberto`; cancelamento muda para `Cancelado`.
 
 Comandos/endpoints gerados em `/pedidos`: criar pedido, cancelar pedido, consultar detalhes e listar por status. A
 criacao valida lista de itens, produto existente/ativo e estoque registrado; reserva estoque e cria o pedido na mesma
-unidade de trabalho. Produto inexistente informado no body e tratado como `400 InvalidParameter` (referencia invalida);
+unidade de trabalho, **sob retry de concorrencia** (`WithRetryOnConcurrency` + overload generico
+`RetryOnConcurrencyAsync<Pedido>` — ver "Resultados ja incorporados"): sob conflito no estoque, o corpo reexecuta
+(recarrega e reserva de novo) em vez de vazar `500`. Produto inexistente informado no body e tratado como `400 InvalidParameter` (referencia invalida);
 produto inativo, estoque nao registrado e estoque insuficiente continuam como `409 InvalidState`. As regras de estoque
 seguem retornando `Result`, sem exception como fluxo de negocio. O cancelamento usa
 `WithRetryOnConcurrency(Operation = "demo.pedidos.cancelar")`, carrega os itens do pedido, cancela e libera as reservas
@@ -335,7 +338,7 @@ Expandir os exemplos de busca para cobrir filtros, ordenacao, paginacao e erros 
 - Como expor erros de parsing/ordenacao de forma padronizada.
 - Qualidade do OpenAPI gerado para endpoints de search.
 
-### Resultado - PARCIAL
+### Resultado - CONCLUIDA
 
 Reaproveitou o endpoint de busca ja existente (`GET /produtos`), enriquecendo `ProdutoFiltro` em vez de criar um
 segundo endpoint. Filtros entregues, todos via pipeline padrao do SmartSearch (sem gerador de expressao low-level):
@@ -358,22 +361,29 @@ escrita do catalogo.
 `count` (total), `itemsPerPage`, `taken`, `items` (contrato `IResultList`). Resultado vazio devolve **204 NoContent**
 (comportamento do `Performer`), nao 200 com lista vazia — os testes tratam isso.
 
+**Ordenacao HTTP — entregue apos corrigir o SmartSearch (0.10.5).** A investigacao mostrou que o gap **nao** era binding
+nem o engine: era um bug de projecao no `SmartSearch.EntityFramework` — `CriteriaQuery.Select<TDto>` nao propagava o
+estado de ordenacao ja aplicado, entao, com paginacao (`take > 0`), `CheckSorting` reaplicava a ordenacao default (`Id`)
+sobre a projecao, sobrescrevendo o `?orderby`. So quebrava com **projecao DTO + paginacao juntas** (por isso `AsSearch`
+e buscas sem paginacao sempre funcionaram). Corrigido no repo Searches e liberado como **0.10.5**; junto foram:
+
+- `orderby` invalido agora devolve **400 InvalidParameter** (a `OrderByNotSupportedException` passou a derivar de
+  `OrderByException`, capturada pelo `Performer`), em vez de 500;
+- `IResultList.Pages` passou a usar `Ceiling` (antes `Floor`);
+- `OrderByProvider` (cache de handlers) agora e thread-safe (`ConcurrentDictionary`) — fecha tambem o gap de
+  thread-safety da Fase 1.
+
+Consumo na demo: `RoyalCode.WorkContext.EntityFramework` 0.8.13 ja depende de `SmartSearch.* 0.10.5`, entao a demo
+recebe o fix **transitivamente**, sem referencias diretas.
+
+Ordenacao suportada: **nome** e **preco** (asc/desc via `?orderby=Preco` / `?orderby=Preco-desc`). Limitacao de provider:
+`?orderby=CriadoEm` ainda falha no **SQLite** (nao ordena `DateTimeOffset` em `ORDER BY`) — nao e bug do SmartSearch;
+`CriadoEm` continua no shape e como campo, mas nao e chave de ordenacao valida sob SQLite.
+
 Testes: `BuscaProdutosTests` cobre nome parcial, faixa de preco (dentro e fora dos limites -> 204), paginacao (total +
-itens por pagina), disponibilidade considerando reserva, e **dois testes de caracterizacao** dos gaps de ordenacao
-(abaixo). Suite da demo: **54/54 verdes**; gerador **83/83**.
-
-**Ordenacao HTTP bloqueada por gaps do SmartSearch (outro repo).** Investiguei o contrato real de `?orderby` e ele nao
-funciona no stack atual (registrado em Gaps abertos):
-
-- `?orderby=<propriedade valida>` (ex.: `Preco`, `Nome`) e **ignorado**: a busca cai na ordenacao default (`Id`) e o
-  `sortings` do resultado reporta `Id`. Ou seja, ordenar por HTTP nao tem efeito hoje.
-- `?orderby=<propriedade invalida>` retorna **500** em vez de **400** (a excecao de ordenacao nao e do tipo capturado
-  pelo `Performer`).
-- nome de propriedade e **case-sensitive** (`preco` -> 500) e `DateTimeOffset` nao ordena no SQLite (`CriadoEm` -> 500).
-
-Por isso a Fase 4 fica **PARCIAL**: filtros + paginacao entregues e verdes; a ordenacao (e o "query invalida -> problema
-esperado") ficam como caracterizacao ate a correcao na lib `SmartSearch`. Depois de corrigida, promover os dois testes
-de caracterizacao a testes de ordenacao reais.
+itens por pagina), disponibilidade considerando reserva, **ordenacao por preco (asc/desc) e por nome**, e **orderby
+invalido -> 400**. Suite da demo: **63/63 verdes**; gerador **83/83**. No repo Searches, regressao coberta por
+`DtoProjectionSortingTests` e `SearchContractFixesTests` (**171/171**).
 
 ## Fase 5 - Soft delete e desativacao
 
@@ -515,43 +525,37 @@ Cada gap encontrado deve ser classificado como:
 
 O registro pode ficar neste plano enquanto a fase estiver ativa. Se o gap crescer ou exigir decisao, mover para um arquivo especifico em `.docs` ou plano proprio.
 
+### Resolvidos no SmartSearch 0.10.5 (loop fechado pela demo)
+
+Gaps descobertos pela demo (Fases 1 e 4) e corrigidos no repo Searches; regressao coberta por `DtoProjectionSortingTests`
+e `SearchContractFixesTests` (SmartSearch **171/171**), e o comportamento HTTP por `BuscaProdutosTests` na demo.
+
+- **[Bug] Ordenacao HTTP (`?orderby`) descartada sob projecao + paginacao.** Raiz: `CriteriaQuery.Select<TDto>` nao
+  propagava `appliedSorting`; com paginacao, `CheckSorting` reaplicava a ordenacao default (`Id`) sobre a projecao. Fix:
+  propagar o estado de ordenacao para a query projetada. (So quebrava com **projecao DTO + paginacao**; `AsSearch` e
+  buscas sem paginacao sempre funcionaram — o que despistou o diagnostico inicial.)
+- **[Bug] `orderby` invalido devolvia 500 em vez de 400.** `OrderByNotSupportedException` passou a derivar de
+  `OrderByException` (Abstractions), entao os `catch (OrderByException)` do `Performer` a traduzem para
+  `400 InvalidParameter`.
+- **[Bug] `SmartSearch.OrderByProvider` nao thread-safe (Fase 1).** O cache estatico de handlers passou de `Dictionary`
+  para `ConcurrentDictionary` (runtime idempotente; registro mantem checagem de duplicado via `TryAdd`). Fecha o gap que
+  era contornado com `DisableTestParallelization`.
+- **[Bug menor] `IResultList.Pages` usava divisao inteira.** `CountPages` passou de `Math.Floor` para `Math.Ceiling`
+  (`count=3`, `itemsPerPage=2` -> `2` paginas).
+
+Consumo na demo: `RoyalCode.WorkContext.EntityFramework` 0.8.13 depende de `SmartSearch.* 0.10.5`, entao a demo recebe o
+fix transitivamente (sem referencias diretas).
+
 ### Gaps abertos
 
-- **[Bug] `SmartSearch.OrderByProvider` nao thread-safe (Fase 1).** `GetDefaultHandler` popula o handler de ordenacao
-  default (ex.: chave da entidade) num dicionario estatico sem sincronizacao; a primeira busca concorrente da mesma
-  entidade lanca `ArgumentException: An item with the same key has already been added`. Contornado serializando os
-  testes de integracao da demo (`DisableTestParallelization`). A correcao (tornar o cache thread-safe / usar
-  `TryAdd`/`GetOrAdd`) pertence ao repo `SmartSearch`.
-- **[Feature/Design] `WithRetryOnConcurrency` com `Result<T>` / `ProduceNewEntity` (Fases 2 e 3).** A primitiva
-  `RetryOnConcurrencyAsync` tem so a forma **sem valor** (`Func<Task<Result>> -> Task<Result>`). Comandos que mutam
-  estado e precisam **devolver um valor** no mesmo endpoint nao cabem: `Result<T>` em geral e, em especial,
-  `ProduceNewEntity` (que retorna a entidade criada para o `201 Created`). Por isso o gerador so embrulha em retry
-  quando o corpo da unidade de trabalho e `Result`; para `Result<T>` emite o encadeamento puro **sem retry**. Impacto
-  concreto: `CriarPedido` (Fase 3) muta `ProdutoEstoque` (token `Version`) ao reservar, mas fica **sem** protecao de
-  concorrencia — dois pedidos concorrentes no mesmo produto: um recebe `ConcurrencyException` cru -> **500**. Nao e
-  limitacao conceitual (o `CancelarPedido` ja muta varios agregados sob retry); falta so a implementacao. **Fix em duas
-  partes, na lib (outro repo), depois retomar a demo:** (1) overload generico `RetryOnConcurrencyAsync<T>(Func<Task<Result<T>>>) : Task<Result<T>>`
-  (mesmo laco; na exaustao `onExhausted?.Invoke() ?? Problems.InvalidState(...)` converte implicito p/ `Result<T>`);
-  (2) ramo no gerador (`CommandHandlerGenerator` + `RetryOnConcurrencyCommand`) que detecta retorno `Result<T>` e coloca
-  **todo** o encadeamento produtor de valor dentro da lambda (para `ProduceNewEntity`: `Execute -> AddEntityAsync -> CompleteAsync`).
-  Mantem a exigencia atual de corpo re-executavel (idempotente quanto ao que ja foi commitado). Contorno na demo hoje:
-  comando mutacional retorna `Result` e o estado e lido pelo GET; `CriarPedido` segue sem retry (comentado no codigo).
-- **[Bug] Ordenacao HTTP (`?orderby`) nao funciona no stack atual (Fase 4).** Ao investigar o contrato de ordenacao da
-  busca de produtos, `?orderby` por **propriedade valida** (ex.: `Preco`, `Nome`) e **ignorado**: a busca cai na
-  ordenacao default (`Id`) e `result.Sortings` reporta `Id`. Provavel relacao com o `OrderByProvider` (mesmo componente
-  do gap de thread-safety acima). Correcao pertence ao repo `SmartSearch`. Caracterizado por
-  `BuscaProdutosTests.Ordenacao_PorPropriedadeValida_AtualmenteNaoTemEfeito_GapConhecido`.
-- **[Bug] `orderby` invalido devolve 500 em vez de 400 (Fase 4).** `OrderByNotSupportedException : ArgumentException`
-  (lancada por `OrderByProvider.GetHandler`) nao e capturada pelo `Performer`, que so trata `OrderByException` -> vaza
-  como `Problems.InternalError` (500). O esperado seria `400 InvalidParameter`. Correcao no repo `SmartSearch` (capturar
-  tambem `OrderByNotSupportedException`, ou faze-la derivar de `OrderByException`). Caracterizado por
-  `BuscaProdutosTests.OrderByInvalido_AtualmenteRetornaErro_GapConhecido`.
-- **[Design] Ordenacao case-sensitive e `DateTimeOffset` no SQLite (Fase 4).** `?orderby=preco` (minusculo) -> 500 (o
-  `DefaultOrderByGenerator` resolve a propriedade de forma case-sensitive); `?orderby=CriadoEm` -> 500 no SQLite
-  (`DateTimeOffset` nao e ordenavel em `ORDER BY`). Ambos sao contratos pouco amigaveis para expor via HTTP.
-- **[Bug menor] `IResultList.Pages` parece usar divisao inteira (Fase 4).** Com `count=3` e `itemsPerPage=2`, o
-  resultado reporta `pages=1` (esperado `2` por arredondamento p/ cima). Nao afeta os itens/`taken`; os testes de
-  paginacao asseguram `count` e a quantidade por pagina, sem depender de `pages`.
+- **[Design] Ordenacao case-sensitive e `DateTimeOffset` no SQLite (Fase 4).** `?orderby=preco` (minusculo) -> erro (o
+  `DefaultOrderByGenerator` resolve a propriedade de forma case-sensitive); `?orderby=CriadoEm` -> erro no SQLite
+  (`DateTimeOffset` nao e ordenavel em `ORDER BY` — limitacao de provider, nao bug do SmartSearch). A case-sensitivity e
+  um contrato pouco amigavel que poderia ser suavizado na lib; a de `DateTimeOffset` e do provider.
+
+O gap de **retry com `Result<T>` / `ProduceNewEntity`** (antes aqui) foi **resolvido** — ver "Resultados ja
+incorporados" (overload generico `RetryOnConcurrencyAsync<T>` + ramo no gerador; `CriarPedido` agora reserva estoque e
+cria o pedido sob retry).
 
 ## Fora de escopo
 

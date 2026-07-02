@@ -20,17 +20,22 @@ public class RetryOnConcurrencyCommand : GeneratorNode, IWithNamespaces
     private readonly string accessorVarName;
     private readonly string optionsArgument;
     private readonly string? onExhaustedArgument;
+    private readonly string? resultValueType;
 
     public RetryOnConcurrencyCommand(
         GeneratorNode body,
         string accessorVarName,
         string optionsArgument,
-        string? onExhaustedArgument = null)
+        string? onExhaustedArgument = null,
+        string? resultValueType = null)
     {
         this.body = body;
         this.accessorVarName = accessorVarName;
         this.optionsArgument = optionsArgument;
         this.onExhaustedArgument = onExhaustedArgument;
+        // Quando o corpo do retry devolve Result<T> (ex.: ProduceNewEntity), a chamada usa o overload generico
+        // RetryOnConcurrencyAsync<T>; quando devolve Result (sem valor), usa o overload nao-generico.
+        this.resultValueType = resultValueType;
     }
 
     public IEnumerable<string> GetNamespaces()
@@ -45,7 +50,10 @@ public class RetryOnConcurrencyCommand : GeneratorNode, IWithNamespaces
     public override void Write(StringBuilder sb, int indent = 0)
     {
         sb.Indent(indent).Append("return await this.").Append(accessorVarName)
-            .AppendLine(".Context.RetryOnConcurrencyAsync(");
+            .Append(".Context.RetryOnConcurrencyAsync");
+        if (resultValueType is not null)
+            sb.Append('<').Append(resultValueType).Append('>');
+        sb.AppendLine("(");
         sb.Indent(indent + 1).AppendLine("async () =>");
         sb.Indent(indent + 1).AppendLine("{");
         body.Write(sb, indent + 2);

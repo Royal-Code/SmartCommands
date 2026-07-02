@@ -39,6 +39,11 @@ public static partial class ProgramExtensions
             static (_, _) => Problems.InvalidState(
                 "O pedido ou o estoque foi alterado por outro processo.",
                 typeId: "demo.pedido.concurrency_conflict"));
+        builder.Services.AddConcurrencyRetryProblem<CriarPedido>(
+            "demo.pedidos.criar",
+            static (_, _) => Problems.InvalidState(
+                "O estoque foi alterado por outro processo durante a criacao do pedido.",
+                typeId: "demo.pedido.concurrency_conflict"));
         builder.Services.AddTransient<SomeService>();
 
         builder.Services.AddWorkContext<DemoDbContext>()

@@ -69,7 +69,6 @@ namespace Microsoft.AspNetCore.OpenApi.Generated
         private static Dictionary<string, XmlComment> GenerateCacheEntries()
         {
             var cache = new Dictionary<string, XmlComment>();
-
             cache.Add(@"T:RoyalCode.SmartCommands.EntityReferenceAttribute`2", new XmlComment(@"Attribute used to reference an entity and its ID type.
 Used together with MapFindAttribute.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.IRepositoriesAccessor`1", new XmlComment(@"A service that provides access to the repositories and the context of the database (unit of work).", null, null, null, null, false, null, null, null));
@@ -383,6 +382,15 @@ reloads fresh state from the store on the next attempt.", null, null, @"The resu
 mutates it and saves. It must return a Result and must not include any non-idempotent,
 immediately-committed side effect (e.g. single-use token consumption). The cancellation token is
 captured by the caller, so the body has no token parameter.", null, false), new XmlParameterComment(@"options", @"The retry policy. int RetryOnConcurrencyOptions.MaxAttempts values lower than `1` are treated as `1`.", null, false), new XmlParameterComment(@"onExhausted", @"Optional factory for the Problem returned when the retry budget is exhausted.
+When `null`, a generic Problem Problems.InvalidState(string detail, string? property = null, string? typeId = null) (409) problem is returned.", null, false), new XmlParameterComment(@"ct", @"The cancellation token used to roll back the transaction between attempts.", null, false)], null));
+            cache.Add(@"M:RoyalCode.WorkContext.ConcurrencyRetryExtensions.RetryOnConcurrencyAsync``1(RoyalCode.UnitOfWork.IUnitOfWork,System.Func{System.Threading.Tasks.Task{RoyalCode.SmartProblems.Result{``0}}},RoyalCode.SmartCommands.WorkContext.Options.RetryOnConcurrencyOptions,System.Func{RoyalCode.SmartProblems.Problem},System.Threading.CancellationToken)", new XmlComment(@"    Value-carrying variant of Task&lt;Result&gt; ConcurrencyRetryExtensions.RetryOnConcurrencyAsync(IUnitOfWork unitOfWork, Func&lt;Task&lt;Result&gt;&gt; body, RetryOnConcurrencyOptions options, Func&lt;Problem&gt;? onExhausted = null, CancellationToken ct = default(CancellationToken)):
+executes body and retries it when an optimistic-concurrency conflict
+(ConcurrencyException) is raised while saving, up to int RetryOnConcurrencyOptions.MaxAttempts,
+returning the typed value produced by the body (e.g. the entity created by ProduceNewEntity).
+    Between attempts, any current transaction is rolled back and the change tracker is cleared via
+void IUnitOfWork.CleanUp(bool force = true), so the body reloads fresh state on the next attempt. The same
+re-execution contract of the non-generic overload applies: the body must be safe to run again (no
+non-idempotent, immediately-committed side effect).", null, null, @"The result of body, or a conflict problem when the attempts are exhausted.", null, false, null, [new XmlParameterComment(@"unitOfWork", @"The unit of work being retried; owns the change tracker and the transaction, if any.", null, false), new XmlParameterComment(@"body", @"The operation to execute on each attempt; must return a Result&lt;TValue&gt;.", null, false), new XmlParameterComment(@"options", @"The retry policy. int RetryOnConcurrencyOptions.MaxAttempts values lower than `1` are treated as `1`.", null, false), new XmlParameterComment(@"onExhausted", @"Optional factory for the Problem returned when the retry budget is exhausted.
 When `null`, a generic Problem Problems.InvalidState(string detail, string? property = null, string? typeId = null) (409) problem is returned.", null, false), new XmlParameterComment(@"ct", @"The cancellation token used to roll back the transaction between attempts.", null, false)], null));
 
 
