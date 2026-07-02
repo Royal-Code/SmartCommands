@@ -124,6 +124,23 @@ public class SoftDeleteTests
 		Assert.Contains("INA-002", listagem);
 	}
 
+	[Fact]
+	public async Task BuscaAdministrativa_AtivoFalse_RetornaSomenteInativos()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		await CreateProductAsync(client, "Ativo", "ATV-001", 40m);
+		var inativoId = await CreateProductAsync(client, "Inativo", "INA-002", 50m);
+		await client.PatchAsync($"/produtos/{inativoId}/desativar", content: null);
+
+		var listagem = await (await client.GetAsync("/produtos?ativo=false")).Content.ReadApiTextAsync();
+
+		Assert.DoesNotContain("ATV-001", listagem);
+		Assert.Contains("INA-002", listagem);
+	}
+
 	private static async Task<Guid> CreateProductAsync(HttpClient client, string nome, string sku, decimal preco)
 	{
 		var create = await client.PostAsJsonAsync("/produtos/", new { Nome = nome, Sku = sku, Preco = preco });

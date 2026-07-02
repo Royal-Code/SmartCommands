@@ -441,9 +441,10 @@ depois do `[WithFilter]` rodar — nao houve necessidade de "filtro global" na l
 **Pedido com produto inativo:** ja coberto desde a Fase 3 (`CriarPedido` valida `produto.Ativo` -> `409` inativo antes
 de reservar; `PedidoTests.CriarPedido_ComProdutoInativo_RetornaProblemaDeNegocio` assegura que o estoque nao muda).
 
-Testes: `SoftDeleteTests` cobre 7 cenarios (desativar ativo -> 200 + `ativo:false`; desativar ja inativo -> 409; reativar
+Testes: `SoftDeleteTests` cobre 8 cenarios (desativar ativo -> 200 + `ativo:false`; desativar ja inativo -> 409; reativar
 inativo -> 200; reativar ja ativo -> 409; detalhes de inativo -> 200; listagem publica esconde inativo; busca admin com
-`incluirInativos=true` inclui inativo). Suite da demo: **61/61 verdes**; gerador **83/83**.
+`incluirInativos=true` inclui inativo; `ativo=false` retorna somente inativos). Suite da demo: **62/62 verdes**; gerador
+**83/83**.
 
 ## Fase 6 - Fluxo de aprovacao e publicacao
 
