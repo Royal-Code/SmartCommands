@@ -376,9 +376,9 @@ e buscas sem paginacao sempre funcionaram). Corrigido no repo Searches e liberad
 Consumo na demo: `RoyalCode.WorkContext.EntityFramework` 0.8.13 ja depende de `SmartSearch.* 0.10.5`, entao a demo
 recebe o fix **transitivamente**, sem referencias diretas.
 
-Ordenacao suportada: **nome** e **preco** (asc/desc via `?orderby=Preco` / `?orderby=Preco-desc`). Limitacao de provider:
-`?orderby=CriadoEm` ainda falha no **SQLite** (nao ordena `DateTimeOffset` em `ORDER BY`) — nao e bug do SmartSearch;
-`CriadoEm` continua no shape e como campo, mas nao e chave de ordenacao valida sob SQLite.
+Ordenacao suportada: **nome**, **preco** e **criado em** (asc/desc via `?orderby=Preco` / `?orderby=Preco-desc`).
+`?orderby=CriadoEm` falhava no **SQLite** (nao ordena `DateTimeOffset` em `ORDER BY` — limitacao de provider); resolvido
+no `DemoDbContext` convertendo `DateTimeOffset` para ticks UTC (`long`) quando o provider e SQLite (ver "Gaps").
 
 Testes: `BuscaProdutosTests` cobre nome parcial, faixa de preco (dentro e fora dos limites -> 204), paginacao (total +
 itens por pagina), disponibilidade considerando reserva, **ordenacao por preco (asc/desc) e por nome**, e **orderby
@@ -546,12 +546,28 @@ e `SearchContractFixesTests` (SmartSearch **171/171**), e o comportamento HTTP p
 Consumo na demo: `RoyalCode.WorkContext.EntityFramework` 0.8.13 depende de `SmartSearch.* 0.10.5`, entao a demo recebe o
 fix transitivamente (sem referencias diretas).
 
-### Gaps abertos
+### Resolvidos no SmartSearch pos-0.10.5 (aguardando release) e na demo
 
-- **[Design] Ordenacao case-sensitive e `DateTimeOffset` no SQLite (Fase 4).** `?orderby=preco` (minusculo) -> erro (o
-  `DefaultOrderByGenerator` resolve a propriedade de forma case-sensitive); `?orderby=CriadoEm` -> erro no SQLite
-  (`DateTimeOffset` nao e ordenavel em `ORDER BY` — limitacao de provider, nao bug do SmartSearch). A case-sensitivity e
-  um contrato pouco amigavel que poderia ser suavizado na lib; a de `DateTimeOffset` e do provider.
+O gap **[Design] Ordenacao case-sensitive e `DateTimeOffset` no SQLite (Fase 4)** foi desmembrado e resolvido em tres partes:
+
+- **`?orderby=preco` (case do nome) — resolvido na lib (aguarda release).** `DefaultOrderByGenerator` ganhou fallback
+  case-insensitive por segmento do caminho (match exato vence; ambiguidade entre propriedades diferindo so por case
+  permanece nao suportada; nomes concatenados em PascalCase continuam dependendo do case para delimitar segmentos), e o
+  `OrderByHandlersMap` passou a comparar a chave ignorando case (vale tambem para registros manuais via `AddOrderBy`).
+  Regressao: `CaseInsensitiveOrderByTests` (Searches, **183/183**).
+- **`?orderby=CriadoEm` no SQLite — resolvido na demo.** `DemoDbContext` converte `DateTimeOffset` para ticks UTC
+  (`long`) quando o provider e SQLite (o dominio grava sempre `UtcNow`, convencao tambem exigida pelo Npgsql no
+  PostgreSQL). Ordenacao por `CriadoEm` funciona; coberta em `BuscaProdutosTests`.
+- **Falha de traducao de `ORDER BY` devolvia 500 — resolvido na lib (aguarda release).** A traducao do EF e lazy; quando
+  o provider recusa o `ORDER BY` (ex.: SQLite + `DateTimeOffset`), a `NotSupportedException` so estoura na
+  materializacao. `CriteriaQuery` agora atribui esse erro a ordenacao pedida pelo usuario (quando presente) e relanca
+  como `OrderByException`, que o `Performer` traduz para `400 InvalidParameter`. Trade-off deliberado: so captura
+  `NotSupportedException` (falhas de traducao de filtros lancam `InvalidOperationException` e continuam 500).
+
+Pendente de decisao (agora planejado): colacao de dados por provider (`Contains`/`Like` case-sensitive no
+PostgreSQL) — plano criado no repo Searches (`.docs/plans/plan-operator-expression-customization.md`): `Case` no
+`[Criterion]` + factory de expressao de operador em config-time (ex.: `EF.Functions.Like`/`ILike`); `citext`/colacao
+no banco segue como alternativa recomendada quando o schema e controlado.
 
 O gap de **retry com `Result<T>` / `ProduceNewEntity`** (antes aqui) foi **resolvido** — ver "Resultados ja
 incorporados" (overload generico `RetryOnConcurrencyAsync<T>` + ramo no gerador; `CriarPedido` agora reserva estoque e

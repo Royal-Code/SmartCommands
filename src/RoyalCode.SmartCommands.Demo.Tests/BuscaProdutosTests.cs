@@ -5,9 +5,9 @@ using RoyalCode.SmartCommands.Demo.Tests.Support;
 namespace RoyalCode.SmartCommands.Demo.Tests;
 
 // Fase 4 do plan-demo-usage-scenarios: busca avancada de produtos sobre o endpoint /produtos (SmartSearch).
-// Exercita filtros compostos (nome parcial, faixa de preco, disponibilidade em estoque via caminho aninhado)
-// e paginacao. A ordenacao HTTP (?orderby) esta bloqueada por gaps do SmartSearch (ver "Registro de gaps" no
-// plano) e aqui e apenas caracterizada (nao funciona hoje), nao afirmada como funcional.
+// Exercita filtros compostos (nome parcial, faixa de preco, disponibilidade em estoque via caminho aninhado),
+// paginacao e ordenacao HTTP (?orderby), incluindo CriadoEm (ordenavel no SQLite via conversao para ticks UTC
+// no DemoDbContext).
 public class BuscaProdutosTests
 {
 	[Fact]
@@ -156,6 +156,31 @@ public class BuscaProdutosTests
 		Assert.Equal(HttpStatusCode.OK, status);
 		Assert.NotNull(page);
 		Assert.Equal(["Alfa", "Mike", "Zulu"], page.Items.Select(i => i.Nome).ToArray());
+	}
+
+	[Fact]
+	public async Task OrdenarPorCriadoEm_Ascendente_E_Descendente()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		// ordem de criacao != ordem alfabetica != ordem de preco; CriadoEm cresce a cada POST
+		await CreateProductAsync(client, "Mike", "CRI-001", 30m);
+		await CreateProductAsync(client, "Alfa", "CRI-002", 10m);
+		await CreateProductAsync(client, "Zulu", "CRI-003", 20m);
+
+		// antes da conversao de DateTimeOffset para ticks UTC no DemoDbContext (SQLite), este orderby
+		// estourava NotSupportedException do provider (SQLite nao ordena DateTimeOffset em ORDER BY)
+		var (ascStatus, asc) = await SearchAsync(client, "?orderby=CriadoEm");
+		Assert.Equal(HttpStatusCode.OK, ascStatus);
+		Assert.NotNull(asc);
+		Assert.Equal(["Mike", "Alfa", "Zulu"], asc.Items.Select(i => i.Nome).ToArray());
+
+		var (descStatus, desc) = await SearchAsync(client, "?orderby=CriadoEm-desc");
+		Assert.Equal(HttpStatusCode.OK, descStatus);
+		Assert.NotNull(desc);
+		Assert.Equal(["Zulu", "Alfa", "Mike"], desc.Items.Select(i => i.Nome).ToArray());
 	}
 
 	[Fact]

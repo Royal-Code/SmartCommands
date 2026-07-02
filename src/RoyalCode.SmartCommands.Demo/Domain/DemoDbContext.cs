@@ -70,5 +70,17 @@ public class DemoDbContext : DbContext
         loja.HasKey(l => l.Id);
         loja.Property(l => l.Nome).IsRequired();
         loja.Property(l => l.Endereco).IsRequired();
+
+        // O SQLite nao suporta ORDER BY em DateTimeOffset (armazena como TEXT com offset, nao ordenavel);
+        // nesse provider converte para ticks UTC (long), tornando CriadoEm ordenavel (?orderby=CriadoEm).
+        // O dominio grava sempre UTC (UtcNow) — convencao tambem exigida pelo Npgsql no PostgreSQL —,
+        // entao reconstruir com offset zero nao perde informacao.
+        if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            produto.Property(p => p.CriadoEm)
+                .HasConversion(v => v.UtcTicks, v => new DateTimeOffset(v, TimeSpan.Zero));
+            pedido.Property(p => p.CriadoEm)
+                .HasConversion(v => v.UtcTicks, v => new DateTimeOffset(v, TimeSpan.Zero));
+        }
     }
 }
