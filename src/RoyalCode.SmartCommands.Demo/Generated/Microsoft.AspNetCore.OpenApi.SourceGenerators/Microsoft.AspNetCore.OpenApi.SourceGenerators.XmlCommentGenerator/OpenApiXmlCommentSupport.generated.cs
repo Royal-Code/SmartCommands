@@ -69,7 +69,6 @@ namespace Microsoft.AspNetCore.OpenApi.Generated
         private static Dictionary<string, XmlComment> GenerateCacheEntries()
         {
             var cache = new Dictionary<string, XmlComment>();
-
             cache.Add(@"T:RoyalCode.SmartCommands.EntityReferenceAttribute`2", new XmlComment(@"Attribute used to reference an entity and its ID type.
 Used together with MapFindAttribute.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.IRepositoriesAccessor`1", new XmlComment(@"A service that provides access to the repositories and the context of the database (unit of work).", null, null, null, null, false, null, null, null));
