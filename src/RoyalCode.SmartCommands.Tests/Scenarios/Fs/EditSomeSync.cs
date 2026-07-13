@@ -53,7 +53,7 @@ public class EditSomeSyncHandler : IEditSomeSyncHandler
             return notFoundProblem;
         var some = someEntry.Entity;
 
-        return await command.Edit(some).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
+        return await command.Edit(some).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
     }
 }
 
@@ -133,7 +133,7 @@ public class EditSomeSyncHandler : IEditSomeSyncHandler
             return notFoundProblem;
         var some = someEntry.Entity;
 
-        return await command.Edit(some).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
+        return await command.Edit(some).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
     }
 }
 

@@ -39,7 +39,7 @@ public class DoWithTwoParametersHandler : IDoWithTwoParametersHandler
             return notFoundProblem;
         var some = someEntry.Entity;
 
-        return await command.Plus(some, other, another).ContinueAsync(this.accessor, async (_, a) => await a.CompleteAsync(ct));
+        return await command.Plus(some, other, another).ContinueAsync(this.accessor, static async (_, a, ct) => await a.CompleteAsync(ct), ct);
     }
 }
 
@@ -122,7 +122,7 @@ public class DoWithTwoParametersHandler : IDoWithTwoParametersHandler
             return notFoundProblem;
         var some = someEntry.Entity;
 
-        return await command.Plus(some, other, another).ContinueAsync(this.accessor, async (_, a) => await a.CompleteAsync(ct));
+        return await command.Plus(some, other, another).ContinueAsync(this.accessor, static async (_, a, ct) => await a.CompleteAsync(ct), ct);
     }
 }
 

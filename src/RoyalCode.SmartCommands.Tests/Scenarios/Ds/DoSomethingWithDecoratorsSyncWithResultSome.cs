@@ -54,7 +54,7 @@ public class DoSomethingWithDecoratorsSyncWithResultSomeHandler : IDoSomethingWi
             command,
             ct);
 
-        return await decoratorsMediator.NextAsync().ContinueAsync(this.accessor, async (_, a) => await a.CompleteAsync(ct));
+        return await decoratorsMediator.NextAsync().ContinueAsync(this.accessor, static async (_, a, ct) => await a.CompleteAsync(ct), ct);
     }
 }
 
@@ -135,7 +135,7 @@ public class DoSomethingWithDecoratorsSyncWithResultSomeHandler : IDoSomethingWi
             command,
             ct);
 
-        return await decoratorsMediator.NextAsync().ContinueAsync(this.accessor, async (_, a) => await a.CompleteAsync(ct));
+        return await decoratorsMediator.NextAsync().ContinueAsync(this.accessor, static async (_, a, ct) => await a.CompleteAsync(ct), ct);
     }
 }
 

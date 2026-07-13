@@ -87,22 +87,24 @@ public class CompleteUnitOfWorkCommand : GeneratorNode
             {
                 var addEntityAsync = new MethodInvokeGenerator(methodInvoke, "ContinueAsync");
                 addEntityAsync.AddArgument($"this.{accessorVarName}");
-                addEntityAsync.AddArgument($"async (e, a) => await a.AddEntityAsync(e, ct)");
+                addEntityAsync.AddArgument($"static async (e, a, ct) => await a.AddEntityAsync(e, ct)");
+                addEntityAsync.AddArgument("ct");
                 addEntityAsync.LineIdent = true;
                 identifier = addEntityAsync;
             }
 
             // verifica parâmetro da expressão lambda,
-            // se retorna um Result<T> deve ser (_, a)
-            // senão deve ser (a)
+            // se retorna um Result<T> deve ser (_, a, ct)
+            // senão deve ser (a, ct)
             var lambdaParam = commandReturnType.Name.StartsWith("Task<Result<") ||
                               commandReturnType.Name.StartsWith("Result<")
-                ? "_, a"
-                : "a";
+                ? "_, a, ct"
+                : "a, ct";
 
             var invokeContinueAsync = new MethodInvokeGenerator(identifier, "ContinueAsync");
             invokeContinueAsync.AddArgument($"this.{accessorVarName}");
-            invokeContinueAsync.AddArgument($"async ({lambdaParam}) => await a.CompleteAsync(ct)");
+            invokeContinueAsync.AddArgument($"static async ({lambdaParam}) => await a.CompleteAsync(ct)");
+            invokeContinueAsync.AddArgument("ct");
             invokeContinueAsync.LineIdent = produceNewEntity;
 
             if (!invokeIsAsync)

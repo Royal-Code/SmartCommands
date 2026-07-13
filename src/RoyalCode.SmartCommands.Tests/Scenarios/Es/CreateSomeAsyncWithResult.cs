@@ -47,8 +47,8 @@ public class CreateSomeAsyncWithResultHandler : ICreateSomeAsyncWithResultHandle
         await this.accessor.BeginAsync(ct);
 
         return await command.CreateAsync()
-            .ContinueAsync(this.accessor, async (e, a) => await a.AddEntityAsync(e, ct))
-            .ContinueAsync(this.accessor, async (_, a) => await a.CompleteAsync(ct));
+            .ContinueAsync(this.accessor, static async (e, a, ct) => await a.AddEntityAsync(e, ct), ct)
+            .ContinueAsync(this.accessor, static async (_, a, ct) => await a.CompleteAsync(ct), ct);
     }
 }
 
@@ -122,8 +122,8 @@ public class CreateSomeAsyncWithResultHandler : ICreateSomeAsyncWithResultHandle
         await this.accessor.BeginAsync(ct);
 
         return await command.CreateAsync()
-            .ContinueAsync(this.accessor, async (e, a) => await a.AddEntityAsync(e, ct))
-            .ContinueAsync(this.accessor, async (_, a) => await a.CompleteAsync(ct));
+            .ContinueAsync(this.accessor, static async (e, a, ct) => await a.AddEntityAsync(e, ct), ct)
+            .ContinueAsync(this.accessor, static async (_, a, ct) => await a.CompleteAsync(ct), ct);
     }
 }
 

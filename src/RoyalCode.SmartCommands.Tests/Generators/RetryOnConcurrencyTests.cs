@@ -132,7 +132,7 @@ public class ChangePasswordHandler<TContext> : IChangePasswordHandler
             {
                 await this.accessor.BeginAsync(ct);
 
-                return await command.Execute(this.accessor.Context, ct).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
+                return await command.Execute(this.accessor.Context, ct).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
             },
             this.retryOptions.Value,
             ct: ct);
@@ -191,7 +191,7 @@ public class ChangePasswordHandler<TContext> : IChangePasswordHandler
             {
                 await this.accessor.BeginAsync(ct);
 
-                return await command.Execute(this.accessor.Context, ct).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
+                return await command.Execute(this.accessor.Context, ct).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
             },
             new RetryOnConcurrencyOptions { MaxAttempts = 5 },
             ct: ct);
@@ -256,7 +256,7 @@ public class ChangePasswordHandler<TContext> : IChangePasswordHandler
             {
                 await this.accessor.BeginAsync(ct);
 
-                return await command.Execute(this.accessor.Context, ct).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
+                return await command.Execute(this.accessor.Context, ct).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
             },
             this.retryOptions.Value,
             onExhausted: () => this.retryProblemFactory.Create(command, "user_account.change_password"),

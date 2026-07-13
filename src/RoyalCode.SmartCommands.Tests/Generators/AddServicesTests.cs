@@ -210,7 +210,7 @@ public class MyCommandHandler<TContext> : IMyCommandHandler
     {
         await this.accessor.BeginAsync(ct);
 
-        return await command.Do().ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
+        return await command.Do().ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
     }
 }
 

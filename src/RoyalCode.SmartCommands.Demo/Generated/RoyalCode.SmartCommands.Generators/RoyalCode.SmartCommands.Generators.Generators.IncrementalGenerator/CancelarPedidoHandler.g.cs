@@ -39,7 +39,7 @@ public class CancelarPedidoHandler<TContext> : ICancelarPedidoHandler
                     return notFoundProblem;
                 var pedido = pedidoEntry.Entity;
 
-                return await command.Execute(pedido, db, ct).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
+                return await command.Execute(pedido, db, ct).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
             },
             this.retryOptions.Value,
             onExhausted: () => this.retryProblemFactory.Create(command, "demo.pedidos.cancelar"),

@@ -34,7 +34,7 @@ public class ReativarProdutoHandler<TContext> : IReativarProdutoHandler
                     return notFoundProblem;
                 var produto = produtoEntry.Entity;
 
-                return await command.Execute(produto).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
+                return await command.Execute(produto).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
             },
             this.retryOptions.Value,
             ct: ct);

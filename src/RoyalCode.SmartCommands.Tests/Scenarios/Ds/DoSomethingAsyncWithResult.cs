@@ -46,7 +46,7 @@ public class DoSomethingAsyncWithResultHandler : IDoSomethingAsyncWithResultHand
 
         await this.accessor.BeginAsync(ct);
 
-        return await command.DoAsync(this.accessor.Context).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
+        return await command.DoAsync(this.accessor.Context).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
     }
 }
 
@@ -119,7 +119,7 @@ public class DoSomethingAsyncWithResultHandler : IDoSomethingAsyncWithResultHand
 
         await this.accessor.BeginAsync(ct);
 
-        return await command.DoAsync(this.accessor.Context).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
+        return await command.DoAsync(this.accessor.Context).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
     }
 }
 

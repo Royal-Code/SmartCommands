@@ -42,7 +42,7 @@ public class ReservarEstoqueHandler<TContext> : IReservarEstoqueHandler
                     return notFoundProblem;
                 var produto = produtoEntry.Entity;
 
-                return await command.Execute(produto, db, ct).ContinueAsync(this.accessor, async (a) => await a.CompleteAsync(ct));
+                return await command.Execute(produto, db, ct).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
             },
             this.retryOptions.Value,
             onExhausted: () => this.retryProblemFactory.Create(command, "demo.estoques.reservar"),
