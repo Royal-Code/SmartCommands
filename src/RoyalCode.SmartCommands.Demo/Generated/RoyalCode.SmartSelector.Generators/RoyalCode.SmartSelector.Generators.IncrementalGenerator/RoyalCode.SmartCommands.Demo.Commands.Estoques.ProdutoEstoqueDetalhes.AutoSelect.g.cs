@@ -11,11 +11,11 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Estoques;
 
 public partial class ProdutoEstoqueDetalhes
 {
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.1.0")]
     private static Func<ProdutoEstoque, ProdutoEstoqueDetalhes>? selectProdutoEstoqueFunc;
 
     /// <summary>Projection expression that creates a new <see cref="ProdutoEstoqueDetalhes"/> from a <see cref="ProdutoEstoque"/>.</summary>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.1.0")]
     public static Expression<Func<ProdutoEstoque, ProdutoEstoqueDetalhes>> SelectProdutoEstoqueExpression { get; } = a => new ProdutoEstoqueDetalhes
     {
         ProdutoId = a.ProdutoId,
@@ -27,6 +27,6 @@ public partial class ProdutoEstoqueDetalhes
     /// <summary>Creates a new <see cref="ProdutoEstoqueDetalhes"/> projected from a <see cref="ProdutoEstoque"/> instance.</summary>
     /// <param name="produtoEstoque">The source instance to project.</param>
     /// <returns>A new <see cref="ProdutoEstoqueDetalhes"/> instance.</returns>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.1.0")]
     public static ProdutoEstoqueDetalhes From(ProdutoEstoque produtoEstoque) => (selectProdutoEstoqueFunc ??= SelectProdutoEstoqueExpression.Compile())(produtoEstoque);
 }

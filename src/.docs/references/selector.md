@@ -361,7 +361,24 @@ public class CommentDetails
 }
 ```
 
-O generator projeta cada item com `Select` e, quando o tipo de destino exige uma lista, materializa com `ToList()`.
+O generator projeta cada item com `Select` e materializa conforme o tipo declarado no destino:
+
+| Tipo do destino | Materializacao |
+| --- | --- |
+| `IEnumerable<T>` | nenhuma |
+| `List<T>`, `IList<T>`, `ICollection<T>`, `IReadOnlyList<T>`, `IReadOnlyCollection<T>` | `.ToList()` |
+| `T[]` | `.ToArray()` |
+| `HashSet<T>`, `ISet<T>` | `.ToHashSet()` |
+
+Um destino de colecao que o generator nao sabe materializar (um `Dictionary<K,V>`, por exemplo) e reportado como
+propriedade nao-assinavel, em vez de gerar codigo invalido.
+
+Quando os elementos nao sao objetos a mapear, mas apenas a converter — uma colecao de enums equivalentes, por
+exemplo —, o `Select` emite so a conversao: `Status = source.Status.Select(b => (StatusDto)b).ToList()`.
+
+> Antes do SmartSelector 0.5.1, um destino declarado com o tipo concreto `List<T>` gerava codigo invalido
+> (mapeava `Capacity`/`this[]` do proprio `List<T>`); o contorno era declarar a colecao como `IReadOnlyList<T>`.
+> Corrigido — qualquer um dos tipos da tabela acima funciona.
 
 ### 10.3 Arrays
 

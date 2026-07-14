@@ -601,21 +601,39 @@ Cada gap encontrado deve ser classificado como:
 
 O registro pode ficar neste plano enquanto a fase estiver ativa. Se o gap crescer ou exigir decisao, mover para um arquivo especifico em `.docs` ou plano proprio.
 
-### Descoberto na revisao pos-Fase 5 (pendente, corrigido com contorno na demo)
+### Resolvidos no Extensions.SourceGenerator 0.3.0 / SmartSelector 0.5.1 (loop fechado pela demo)
 
-- **[Bug] `RoyalCode.SmartSelector.Generators` 0.5.0 gera codigo invalido para colecao aninhada declarada como
-  `List<T>`.** Ao converter `PedidoDetalhes.Itens` de `Expression`/`From` escritos a mao para
-  `[AutoSelect<Pedido>, AutoProperties]` com `public List<PedidoItemDetalhes> Itens { get; set; }`, o generator
-  emitiu uma inicializacao de objeto invalida para o `List<T>` de destino — tratou os proprios membros publicos de
-  `List<T>` (`Capacity`, indexador `this[]`) como se fossem propriedades do DTO a mapear, produzindo
-  `Capacity = a.Itens.Capacity` e `this[] = new PedidoItemDetalhes { ... = a.Itens.this[].ProdutoId, ... }` — erro
-  de compilacao (`CS0443`/`CS1001`/`CS1003`) no `.g.cs`, nao um valor incorreto em runtime. Doc (selector.md secao
-  10.2) so mostra o exemplo de colecao aninhada usando `IReadOnlyList<T>`, nao `List<T>`. **Contorno aplicado:**
-  declarar a propriedade da colecao aninhada como `IReadOnlyList<PedidoItemDetalhes>`, que gera corretamente
-  `Itens = a.Itens.Select(b => new PedidoItemDetalhes { ... }).ToList()`. Reproduzido de forma isolada (troca de
-  tipo, mesma entidade/DTO, mesmo build) — nao investigado a fundo se `ICollection<T>`/`IList<T>` tambem disparam
-  o bug ou se e especifico da combinacao `List<T>` + `Capacity` settable. Correcao pertence ao repo do
-  SmartSelector (fora deste repo); nao resolvido aqui, so contornado.
+Gap descoberto na revisao pos-Fase 5, contornado na demo na epoca e agora corrigido na raiz. O contorno foi
+**revertido**: `PedidoDetalhes.Itens` voltou a ser `List<PedidoItemDetalhes>` e o `.g.cs` sai correto
+(`Itens = a.Itens.Select(b => new PedidoItemDetalhes { ... }).ToList()`).
+
+- **[Bug] Colecao aninhada declarada como `List<T>` gerava codigo invalido.** Ao converter `PedidoDetalhes.Itens` de
+  `Expression`/`From` escritos a mao para `[AutoSelect<Pedido>, AutoProperties]` com
+  `public List<PedidoItemDetalhes> Itens { get; set; }`, o generator emitia uma inicializacao de objeto invalida para
+  o `List<T>` de destino — tratava os proprios membros publicos de `List<T>` (`Capacity`, indexador `this[]`) como se
+  fossem propriedades a mapear, produzindo `Capacity = a.Itens.Capacity` e `this[] = new PedidoItemDetalhes { ... }`
+  — erro de compilacao (`CS0443`/`CS1001`/`CS1003`) no `.g.cs`, nao um valor incorreto em runtime.
+
+  **Raiz** (em `RoyalCode.Extensions.SourceGenerator`, `EnumerableAssignDescriptorResolver`): a checagem de conversao
+  usava o *generic definition aberto* `List<T>` em `ClassifyConversion(listType, destino)`, que retorna `NoConversion`
+  para um `List<algo>` construido. O resolver de enumeraveis desistia e a factory caia no
+  `InnerTypeAssignDescriptorResolver`, que mapeava a colecao como objeto. Isso responde a duvida registrada aqui na
+  epoca: `ICollection<T>`/`IList<T>` **nao** disparavam o bug, mas passavam **por acidente** — o definition aberto tem
+  conversao `ExplicitReference` (`Exists = true`) para essas interfaces, e o codigo so testava `.Exists`.
+
+  **Correcao (Extensions.SourceGenerator 0.3.0):** o resolver constroi `List<elemento>` antes de classificar e exige
+  conversao **implicita**; a materializacao passou a ser resolvida de verdade (`CollectionMaterialization`:
+  `ToList` / `ToArray` / `ToHashSet` / nenhuma), o que tambem passou a suportar destinos `T[]` e `HashSet<T>`. Um
+  destino de colecao que a lib nao sabe materializar agora fica **nao-assinavel** (reportado) em vez de virar um
+  mapeamento absurdo — o `InnerTypeAssignDescriptorResolver` recusa qualquer `IEnumerable<T>`. Junto foram:
+  `AssignDescriptor.ElementAssignment` (colecao de enums equivalentes derrubava o gerador com
+  `ArgumentException: Inner selection is null`) e a correcao de um `NullReferenceException` em `GetNamespaces` para
+  propriedades de tipo array.
+
+  **Consumo (SmartSelector 0.5.1):** o `ArrayAssignDescriptorResolver` customizado e os testes por string
+  (`EndsWith("[]")`) sairam do `SelectLambdaGenerator`, que agora emite a materializacao a partir do descriptor.
+  Regressao coberta por `ListDestinationCollectionTests` e `CollectionMaterializationTests` no SmartSelector, e pelo
+  build da demo com `PedidoDetalhes.Itens` como `List<T>`.
 
 ### Resolvidos no SmartSearch 0.10.5 (loop fechado pela demo)
 

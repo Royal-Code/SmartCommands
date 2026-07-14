@@ -14,7 +14,7 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Pedidos;
 [AutoSelect<Pedido>, AutoProperties]
 public partial class PedidoDetalhes
 {
-	public IReadOnlyList<PedidoItemDetalhes> Itens { get; set; }
+	public List<PedidoItemDetalhes> Itens { get; set; }
 }
 
 public sealed class PedidoItemDetalhes
