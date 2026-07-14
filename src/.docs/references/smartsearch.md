@@ -765,6 +765,55 @@ var order = await criteria
 
 `Select<TDto>()` e `AsSearch()` desativam tracking nas opções da criteria. A ordenação é aplicada antes da projeção e preservada no resultado.
 
+### 11.3 Como o selector é resolvido
+
+Quando `Select<TDto>()` precisa de uma expressão de projeção, o `ISelectorFactory` procura por ela em quatro
+níveis, do mais explícito ao mais implícito. O primeiro que responder vence, e o resultado fica em cache para o par
+`(TEntity, TDto)`:
+
+| # | Origem | Como |
+|---|---|---|
+| 1 | Selector já resolvido | cache interno do par `(TEntity, TDto)` |
+| 2 | `ISelector<TEntity, TDto>` no DI | registro explícito da aplicação, inclusive via `cfg.AddSelector<TEntity, TDto>(expression)` |
+| 3 | **Propriedade estática no DTO** | qualquer propriedade `public static` do DTO cujo tipo seja `Expression<Func<TEntity, TDto>>` |
+| 4 | Geração em runtime | expressão construída por reflexão a partir da forma dos tipos |
+
+O **nível 3** é um contrato por convenção, e é o que permite ao SmartSearch aproveitar uma expressão pronta sem
+precisar conhecer quem a escreveu. Serve tanto para uma expressão escrita à mão quanto para a expressão **gerada pelo
+SmartSelector** (ver 11.4).
+
+O **nível 4** é o fallback: resolve DTOs de forma "plana", casando propriedades por nome (com flattening), e cobre
+nullables, enums, subobjetos e coleções. Exige que o DTO tenha construtor sem parâmetros. Quando não consegue montar a
+projeção, a execução lança `SelectorNotFoundException` — o erro aparece **em runtime**, não em compilação.
+
+### 11.4 Uso em conjunto com o SmartSelector
+
+As duas bibliotecas foram feitas para trabalhar juntas **sem depender uma da outra**: o SmartSearch funciona sem o
+SmartSelector (usando os níveis 2 e 4), e o SmartSelector funciona sem o SmartSearch (projetando com LINQ direto).
+
+Quando as duas estão presentes, a integração é automática e não exige registro nenhum. O SmartSelector gera, no próprio
+DTO, uma propriedade `public static Expression<Func<TEntity, TDto>> Select{Entity}Expression` — que é exatamente o que o
+**nível 3** procura:
+
+```csharp
+[AutoSelect<Order>, AutoProperties]
+public partial class OrderDetails
+{
+    public List<OrderItemDetails> Items { get; set; } = [];
+}
+
+// SelectOrderExpression é gerada pelo SmartSelector e encontrada pelo SmartSearch:
+var result = await criteria.FilterBy(filter).Select<OrderDetails>().ToListAsync(ct);
+```
+
+Vale a pena, porque a expressão gerada é verificada **em tempo de compilação**: o SmartSelector reporta projeções
+inseguras (nulabilidade, caminhos inválidos) como diagnósticos `RCSS*`, enquanto a geração em runtime (nível 4) apenas
+projeta com o que encontra.
+
+É por esse contrato que os endpoints gerados pelo SmartCommands (`MapFind`, `MapSearch`) projetam DTOs sem que o
+SmartCommands conheça o SmartSelector: ele apenas pede o `TDto` ao repositório ou à criteria, e a resolução acima faz o
+resto.
+
 ## 12. Terminais, tracking e resultados
 
 | Terminal | Retorno | Tracking EF | Hints |

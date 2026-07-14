@@ -527,6 +527,37 @@ IEnumerable<OrderDetails> many = orders.SelectOrderDetails();
 
 Mesmo usando apenas construções normalmente traduzíveis — acesso a membros, condicionais, `Select`, `ToList` e `ToArray` — a capacidade final depende do provider e da versão do EF Core. Valide consultas relevantes com o provider real da aplicação.
 
+### 14.1 Uso em conjunto com o SmartSearch
+
+As duas bibliotecas foram feitas para trabalhar juntas, mas **nenhuma depende da outra**: o SmartSelector é usável sem
+o SmartSearch (é o que esta seção mostra), e o SmartSearch é usável sem o SmartSelector.
+
+Quando as duas estão presentes, a integração é automática e **não exige registro nenhum**. O membro gerado
+
+```csharp
+public static Expression<Func<Order, OrderDetails>> SelectOrderExpression { get; }
+```
+
+satisfaz o contrato por convenção que o SmartSearch usa para descobrir projeções: ao resolver `Select<TDto>()`, ele
+procura no DTO uma propriedade `public static` do tipo `Expression<Func<TEntity, TDto>>`. Encontrando, usa a expressão
+gerada — que é verificada em tempo de compilação — em vez de construir uma projeção por reflexão em runtime.
+
+```csharp
+[AutoSelect<Order>, AutoProperties]
+public partial class OrderDetails
+{
+    public List<OrderItemDetails> Items { get; set; } = [];
+}
+
+// o SmartSearch encontra SelectOrderExpression sozinho:
+var result = await criteria.FilterBy(filter).Select<OrderDetails>().ToListAsync(ct);
+```
+
+O mesmo contrato aceita uma expressão escrita à mão — o que importa é o tipo da propriedade estática, não o nome nem
+quem a produziu. É também por ele que os endpoints gerados pelo SmartCommands (`MapFind`, `MapSearch`) projetam DTOs sem
+que o SmartCommands conheça o SmartSelector. Detalhes da ordem de resolução estão na documentação do SmartSearch, seção
+"Projeção para DTO".
+
 ## 15. Referência dos atributos
 
 ```csharp
