@@ -1,9 +1,10 @@
+using RoyalCode.Entities;
 using RoyalCode.SmartProblems;
 using System.Diagnostics.CodeAnalysis;
 
 namespace RoyalCode.SmartCommands.Demo.Domain;
 
-public class ProdutoEstoque
+public class ProdutoEstoque : Entity<Guid>
 {
 	private ProdutoEstoque(Produto produto, int quantidadeInicial)
 	{
@@ -17,8 +18,6 @@ public class ProdutoEstoque
 #nullable disable
 	protected ProdutoEstoque() { }
 #nullable enable
-
-	public Guid Id { get; private set; }
 
 	public Guid ProdutoId { get; private set; }
 

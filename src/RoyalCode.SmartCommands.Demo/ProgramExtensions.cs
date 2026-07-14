@@ -29,8 +29,18 @@ public static partial class ProgramExtensions
             static (_, _) => Problems.InvalidState(
                 "O produto foi alterado por outro processo.",
                 typeId: "demo.concurrency_conflict"));
+        builder.Services.AddConcurrencyRetryProblem<AdicionarEntradaEstoque>(
+            "demo.estoques.adicionar",
+            static (_, _) => Problems.InvalidState(
+                "O estoque foi alterado por outro processo.",
+                typeId: "demo.estoque.concurrency_conflict"));
         builder.Services.AddConcurrencyRetryProblem<ReservarEstoque>(
             "demo.estoques.reservar",
+            static (_, _) => Problems.InvalidState(
+                "O estoque foi alterado por outro processo.",
+                typeId: "demo.estoque.concurrency_conflict"));
+        builder.Services.AddConcurrencyRetryProblem<LiberarReservaEstoque>(
+            "demo.estoques.liberar",
             static (_, _) => Problems.InvalidState(
                 "O estoque foi alterado por outro processo.",
                 typeId: "demo.estoque.concurrency_conflict"));
@@ -45,6 +55,10 @@ public static partial class ProgramExtensions
                 "O estoque foi alterado por outro processo durante a criacao do pedido.",
                 typeId: "demo.pedido.concurrency_conflict"));
         builder.Services.AddTransient<SomeService>();
+
+        // Catalogo RFC 9457 dos typeIds customizados do dominio; alimenta a conversao para ProblemDetails
+        // e a pagina de documentacao publicada em /.problems (ver ConfigurePipeline).
+        builder.Services.AddProblemDetailsDescriptions(ProblemDetailsCatalog.Configure);
 
         builder.Services.AddWorkContext<DemoDbContext>()
             .AddUnitOfWorkAccessor()
@@ -71,6 +85,7 @@ public static partial class ProgramExtensions
         {
             app.UseSwagger();
             app.UseSwaggerUI();
+            app.MapProblemDetailsDescriptionPage(); // GET /.problems
         }
 
         var produtosGroup = app.MapProdutosGroup().WithTags("Produtos");

@@ -18,31 +18,18 @@ public partial class CriarPedido
 	[MemberNotNullWhen(false, nameof(Itens))]
 	public bool HasProblems([NotNullWhen(true)] out Problems? problems)
 	{
-		if (Itens is null)
-		{
-			problems = Problems.InvalidParameter(
-				"O pedido deve possuir ao menos um item.",
-				property: nameof(Itens),
-				typeId: "demo.pedido.sem_itens");
-			return true;
-		}
-
-		if (RuleSet.For<CriarPedido>()
-			.NotEmpty((ICollection<CriarPedidoItem>)Itens)
-			.HasProblems(out problems))
-			return true;
-
-		if (Itens.Any(i => i.ProdutoId == Guid.Empty || i.Quantidade <= 0))
-		{
-			problems = Problems.InvalidParameter(
-				"Todos os itens devem possuir produto e quantidade maior que zero.",
-				property: nameof(Itens),
-				typeId: "demo.pedido.item_invalido");
-			return true;
-		}
-
-		problems = null;
-		return false;
+		// Colecao obrigatoria com itens obrigatoriamente validos: NotEmpty cobre nulo/vazio; When + NotNullNested
+		// valida cada item so quando a colecao existe, evitando reportar o mesmo problema duas vezes (ver
+		// validations.ai-rules.md, secao "Nested Collections"). Caminhos de erro ficam indexados por item,
+		// ex.: "Itens[0].ProdutoId".
+		return RuleSet.For<CriarPedido>()
+			.NotEmpty((ICollection<CriarPedidoItem>?)Itens)
+			.When(Itens is not null, s => s.NotNullNested(Itens, item =>
+				RuleSet.For<CriarPedidoItem>()
+					.WithPropertyPrefix(nameof(item))
+					.NotEmpty(item.ProdutoId)
+					.GreaterThan(item.Quantidade, 0)))
+			.HasProblems(out problems);
 	}
 
 	// Reserva estoque (muta ProdutoEstoque, token Version) e cria o pedido na mesma unidade de trabalho, sob retry de

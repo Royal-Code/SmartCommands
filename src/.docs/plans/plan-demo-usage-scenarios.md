@@ -20,15 +20,20 @@ O objetivo nao e criar uma aplicacao comercial completa. O objetivo e usar a dem
 ## Status
 
 **Fases 1 (Catalogo), 2 (Estoque e reserva), 3 (Pedido simples), 4 (Busca avancada) e 5 (Soft delete e desativacao)
-CONCLUIDAS. Fase 6 pendente.** A demo ganhou dominio proprio (pasta `Domain/`: `Produto`, `ProdutoEstoque`, `Pedido`,
-`Loja`, `DemoDbContext`), substituindo os entes de Tests.Models (decisao de base F2), com catalogo rico (SKU obrigatorio
-e unico, preco > 0, editar preservando SKU), fluxo de estoque com saldo disponivel/reservado, token `Version` e retry de
-concorrencia, e fluxo de pedido com criacao atomica, reserva de estoque, cancelamento e consulta/listagem. A Fase 4
-entregou filtros compostos (nome parcial, faixa de preco, disponibilidade em estoque), paginacao e **ordenacao**
-(nome/preco asc-desc, orderby invalido -> 400); isso exigiu **corrigir o SmartSearch** (bug de projecao DTO que
-descartava a ordenacao sob paginacao) — liberado como **0.10.5** (ver Resultado da Fase 4 e Registro de gaps). A Fase 5
-adicionou soft delete: transicoes de estado nao idempotentes (`409`), listagem publica que esconde inativos por padrao e
-busca administrativa via `?incluirInativos=true`. Detalhes nos "Resultados" das fases 1, 2, 3, 4 e 5.
+CONCLUIDAS. Fase 6 (eventos de dominio e agregados) e Fase 7 (fluxo de aprovacao e publicacao) pendentes.** A demo
+ganhou dominio proprio (pasta `Domain/`: `Produto`, `ProdutoEstoque`, `Pedido`, `Loja`, `DemoDbContext`), substituindo
+os entes de Tests.Models (decisao de base F2), com catalogo rico (SKU obrigatorio e unico, preco > 0, editar
+preservando SKU), fluxo de estoque com saldo disponivel/reservado, token `Version` e retry de concorrencia, e fluxo de
+pedido com criacao atomica, reserva de estoque, cancelamento e consulta/listagem. A Fase 4 entregou filtros compostos
+(nome parcial, faixa de preco, disponibilidade em estoque), paginacao e **ordenacao** (nome/preco asc-desc, orderby
+invalido -> 400); isso exigiu **corrigir o SmartSearch** (bug de projecao DTO que descartava a ordenacao sob
+paginacao) — liberado como **0.10.5** (ver Resultado da Fase 4 e Registro de gaps). A Fase 5 adicionou soft delete:
+transicoes de estado nao idempotentes (`409`), listagem publica que esconde inativos por padrao e busca administrativa
+via `?incluirInativos=true`. Detalhes nos "Resultados" das fases 1, 2, 3, 4 e 5.
+
+**Revisao de alinhamento com as libs (pos Fase 5).** Uma avaliacao das Fases 1-5 contra `.docs/references/` encontrou
+alguns desvios pontuais dos padroes documentados; todos corrigidos sem quebrar contrato HTTP existente (ver
+"Resultados ja incorporados" para detalhes e "Registro de gaps" para um bug do SmartSelector descoberto no processo).
 
 Este plano e um **living plan**: cada fase concluida recebe status/notas, e o registro de gaps reflete o que foi achado
 e onde foi resolvido.
@@ -42,6 +47,22 @@ Gaps ja descobertos pela demo e resolvidos nas libs (fecham o loop do laboratori
 - **Problem factory por operation key** [Feature] — `IConcurrencyRetryProblemFactory` + delegates/provider + fallback por options, para customizar o problema quando o retry esgota. Coberto por `ConcurrencyRetryProblemFactoryTests` e cenarios de retry da demo.
 - **Body-ness dos comandos** [Design] — comando sem forma de corpo (sem propriedades settaveis nem parametros de construtor publicos) nao entra como parametro do endpoint; e instanciado via `new`, e a requisicao pode ser enviada sem body. Coberto pelos snapshots em `Scenarios/Hs/Tests.cs`.
 - **Guard de body ausente** [Bug] — comando com corpo cujo body nao chega vira `400 InvalidParameter` (SmartProblems), em vez de `NullReferenceException` (500). Coberto por `DemoApiErrorContractTests`.
+
+### Revisao de alinhamento com as libs (pos Fase 5)
+
+Avaliacao pontual das Fases 1-5 contra `.docs/references/` (domain, selector, problems, validations, smartsearch,
+workcontext). Ajustes aplicados, todos cobertos pela suite existente (`RoyalCode.SmartCommands.Demo.Tests`, 66+
+verdes) mais os casos novos citados:
+
+- **`Produto` ganhou token `Version`** [Design] — antes so `ProdutoEstoque` tinha concurrency token; `EditarProduto`/`DesativarProduto`/`ReativarProduto` ja usavam `[WithRetryOnConcurrency]`, mas sem token real o retry nunca disparava em conflito verdadeiro (so no teste, via hook artificial). `Produto.Version` mapeado como `IsConcurrencyToken()` em `DemoDbContext`, incrementado por um `Touch()` privado nas transicoes.
+- **`Produto` implementa `IActiveState`/`IHasCode<string>` explicitamente** [Docs] — sem herdar `Entity<Guid, string>` (evitaria renomear `Ativo`/`Sku`, usados em DTOs/filtros/testes). Implementacao explicita de interface (`bool IActiveState.IsActive => Ativo;`, `string IHasCode<string>.Code => Sku;`) demonstra os contratos de `RoyalCode.Entities` preservando o vocabulario publico do dominio.
+- **`ProdutoEstoque`/`PedidoItem` passaram a herdar `Entity<Guid>`** [Docs] — antes reimplementavam `Id` a mao; agora reaproveitam a base da lib, consistente com `Produto`/`Pedido`.
+- **Comandos de estoque usam `TryFindByAsync`/`FindResult`** [Bug] — `AdicionarEntradaEstoque`/`ReservarEstoque`/`LiberarReservaEstoque` faziam `SingleOrDefaultAsync` manual e devolviam `409 InvalidState` para "estoque nao registrado". Trocado por `db.Estoques.TryFindByAsync(...)` + `NotFound(out problem)`, alinhado a categoria correta (recurso inexistente = `404`, mesma semantica ja usada pelo `GET /estoque`) e eliminando checagem duplicada. `typeId` `demo.estoque.nao_registrado` removido do catalogo (nao e mais produzido).
+- **`CriarPedido` valida a colecao de itens com `NotNullNested`** [Design] — a validacao manual (`Problems.InvalidParameter` escrito a mao para lista nula/vazia e item invalido) foi trocada por `NotEmpty(Itens)` + `When(...).NotNullNested(Itens, item => ...)`, ganhando caminhos de erro indexados por item (`Itens[0].ProdutoId`) sem custo adicional. `typeId`s `demo.pedido.sem_itens`/`demo.pedido.item_invalido` do nivel do comando foram removidos (a guarda de dominio em `Pedido.Criar` continua existindo como defesa em profundidade).
+- **`ProdutoDetalhes`/`PedidoDetalhes`/`PedidoResumo` usam `[AutoSelect<TFrom>, AutoProperties]`** [Docs] — antes escreviam `Expression<Func<TEntity,TDto>>`, `From` e extensoes `Select` a mao; confirmado que `MapFind`/`MapSearch` nunca consumiam esses membros manuais (usam o selector proprio do SmartSearch via `FindEntityAsync<TDto,TId>`/`Performer.SearchAsync`), entao a troca e so uma simplificacao didatica, sem risco de regressao funcional. Ver gap do SmartSelector abaixo (colecao aninhada).
+- **Catalogo RFC 9457 dos `typeId` customizados** [Docs] — nenhum dos ~18 `typeId` usados pelo dominio tinha `ProblemDetailsDescription` registrada. Adicionado `ProblemDetailsCatalog` + `AddProblemDetailsDescriptions` em `ProgramExtensions`, com pagina de catalogo publicada em `/.problems` (ambiente de desenvolvimento) via `MapProblemDetailsDescriptionPage()`.
+- **`ProdutoFiltro` ganhou busca case-insensitive e um campo combinado** [Docs] — `Nome`/`Sku` agora usam `Case = CriterionCase.Insensitive`; novo filtro `NomeOuSku` demonstra disjuncao por `TargetPropertyPath` (`"NomeOrSku"`, ja que o nome do parametro esta em portugues e a convencao automatica de `Or` so reconhece o token em ingles). Cobertos por `BuscaProdutosTests.FiltrarPorNome_IgnoraCaixa` e `FiltrarPorNomeOuSku_EncontraPorQualquerCampo`.
+- **Retry de estoque com registro consistente de `IConcurrencyRetryProblemFactory`** [Bug] — `AdicionarEntradaEstoque`/`LiberarReservaEstoque` ja usavam `[WithRetryOnConcurrency(Operation = ...)]`, mas so `ReservarEstoque` tinha a factory correspondente registrada em `ProgramExtensions` (sem comentario explicando a assimetria); tratado como esquecimento e completado para os tres comandos.
 
 ## Decisoes iniciais
 
@@ -456,11 +477,66 @@ inativo -> 200; reativar ja ativo -> 409; detalhes de inativo -> 200; listagem p
 `incluirInativos=true` inclui inativo; `ativo=false` retorna somente inativos). Suite da demo: **62/62 verdes**; gerador
 **83/83**.
 
-## Fase 6 - Fluxo de aprovacao e publicacao
+## Fase 6 - Eventos de dominio e agregados
+
+### Objetivo
+
+Introduzir `RoyalCode.Aggregates`/`RoyalCode.DomainEvents` na demo (ver `.docs/references/domain.md`, secoes 4-6):
+pelo menos um agregado passa a herdar de `AggregateRoot<TId>` e registrar eventos de dominio nas transicoes
+relevantes, com a infraestrutura observando/despachando os eventos apos o `SaveChanges`. Fase pequena e focada
+(principio "cenarios pequenos e focados" do plano), preparando o terreno para a Fase 7, que ganha eventos de
+transicao de estado desde o primeiro commit.
+
+### Funcionalidades
+
+- Escolher um agregado existente com transicoes de estado claras (candidato natural: `Pedido`) e migra-lo para
+  `AggregateRoot<Guid>`.
+- Registrar eventos nas transicoes relevantes: `PedidoCriado` (no construtor, via `AddEvent`), `PedidoCancelado`
+  (em `Cancelar()`).
+- Ignorar `DomainEvents` no mapeamento EF (`builder.Ignore(e => e.DomainEvents)`), conforme domain.md secao 6.
+- Conectar um observador simples na infraestrutura (ex.: no `WorkContext`/`DbContext` ou em um decorator de
+  comando) que, apos o `SaveChanges`, itera os agregados rastreados com eventos coletados e ao menos loga cada
+  evento despachado — sem exigir mensageria/outbox completos nesta fase.
+- Testar a coleta de eventos com `HasEvent<T>()`/`TryGetEvent<T>(out ...)` (extensions de
+  `HexaSamples.SeedWork.Entities`, ver domain.md secao 2).
+
+### Integracoes exercitadas
+
+- `RoyalCode.Aggregates` (`AggregateRoot<TId>`) e `RoyalCode.DomainEvents` (`IDomainEvent`, `DomainEventBase`,
+  `AddEvent`, `HasEvent`/`TryGetEvent`).
+- `WorkContext` como ponto de integracao entre `SaveChanges` e o despacho/observacao dos eventos coletados.
+- Testes de integracao (`RoyalCode.SmartCommands.Demo.Tests`) verificando que os eventos esperados sao
+  coletados/observados para cada transicao.
+
+### Testes
+
+- Criar pedido coleta `PedidoCriado` com o Id correto.
+- Cancelar pedido coleta `PedidoCancelado`.
+- Uma transicao que falha (ex.: cancelar pedido ja cancelado, que devolve `Result` de erro) nao coleta evento
+  algum.
+- O observador de infraestrutura e chamado (ou loga) para cada evento apos o `SaveChanges`, nao antes.
+
+### Gaps a observar
+
+- Onde plugar o observador de despacho sem acoplar o dominio a infraestrutura: `WorkContext` parece o ponto
+  natural, mas falta confirmar se ha suporte de primeira classe ou se a demo precisa implementar um hook simples.
+- Se `AggregateRoot<TId>` exige algum ajuste no mapeamento EF alem de `Ignore(DomainEvents)`.
+- Se vale usar `ICreationEvent` em algum evento cujo Id so existiria apos o save — a demo gera Ids client-side
+  com `Guid.NewGuid()` nos agregados existentes, entao pode nao ser necessario aqui; registrar a decisao quando a
+  fase for executada.
+
+## Fase 7 - Fluxo de aprovacao e publicacao
 
 ### Objetivo
 
 Criar um fluxo de estado com transicoes controladas, bom para demonstrar regras de dominio e problemas de negocio previsiveis.
+
+**Nota (reaproveitamento da Fase 6):** esta fase e uma boa candidata para usar `AggregateRoot<TId>`/`DomainEvents`
+desde o inicio — cada transicao (enviar para revisao, aprovar, rejeitar, publicar) e um fato de dominio natural
+para um evento (`ProdutoEnviadoParaRevisao`, `ProdutoAprovado`, `ProdutoRejeitado`, `ProdutoPublicado`). Se a Fase 6
+escolher `Pedido` como piloto, a Fase 7 pode ser o primeiro caso real de uso do padrao junto com uma maquina de
+estados, incluindo o "historico minimo de transicoes" abaixo, que fica natural como leitura dos eventos coletados
+em vez de uma tabela de historico dedicada.
 
 ### Funcionalidades
 
@@ -525,6 +601,22 @@ Cada gap encontrado deve ser classificado como:
 
 O registro pode ficar neste plano enquanto a fase estiver ativa. Se o gap crescer ou exigir decisao, mover para um arquivo especifico em `.docs` ou plano proprio.
 
+### Descoberto na revisao pos-Fase 5 (pendente, corrigido com contorno na demo)
+
+- **[Bug] `RoyalCode.SmartSelector.Generators` 0.5.0 gera codigo invalido para colecao aninhada declarada como
+  `List<T>`.** Ao converter `PedidoDetalhes.Itens` de `Expression`/`From` escritos a mao para
+  `[AutoSelect<Pedido>, AutoProperties]` com `public List<PedidoItemDetalhes> Itens { get; set; }`, o generator
+  emitiu uma inicializacao de objeto invalida para o `List<T>` de destino — tratou os proprios membros publicos de
+  `List<T>` (`Capacity`, indexador `this[]`) como se fossem propriedades do DTO a mapear, produzindo
+  `Capacity = a.Itens.Capacity` e `this[] = new PedidoItemDetalhes { ... = a.Itens.this[].ProdutoId, ... }` — erro
+  de compilacao (`CS0443`/`CS1001`/`CS1003`) no `.g.cs`, nao um valor incorreto em runtime. Doc (selector.md secao
+  10.2) so mostra o exemplo de colecao aninhada usando `IReadOnlyList<T>`, nao `List<T>`. **Contorno aplicado:**
+  declarar a propriedade da colecao aninhada como `IReadOnlyList<PedidoItemDetalhes>`, que gera corretamente
+  `Itens = a.Itens.Select(b => new PedidoItemDetalhes { ... }).ToList()`. Reproduzido de forma isolada (troca de
+  tipo, mesma entidade/DTO, mesmo build) — nao investigado a fundo se `ICollection<T>`/`IList<T>` tambem disparam
+  o bug ou se e especifico da combinacao `List<T>` + `Capacity` settable. Correcao pertence ao repo do
+  SmartSelector (fora deste repo); nao resolvido aqui, so contornado.
+
 ### Resolvidos no SmartSearch 0.10.5 (loop fechado pela demo)
 
 Gaps descobertos pela demo (Fases 1 e 4) e corrigidos no repo Searches; regressao coberta por `DtoProjectionSortingTests`
@@ -588,6 +680,9 @@ cria o pedido sob retry).
 3. Pedido simples.
 4. Busca avancada de produtos.
 5. Soft delete e desativacao.
-6. Fluxo de aprovacao e publicacao.
+6. Eventos de dominio e agregados.
+7. Fluxo de aprovacao e publicacao.
 
-Essa ordem maximiza reaproveitamento: catalogo prepara produto, estoque usa produto, pedido usa catalogo e estoque, busca amplia leitura, soft delete ajusta regras transversais, e aprovacao consolida comandos de estado.
+Essa ordem maximiza reaproveitamento: catalogo prepara produto, estoque usa produto, pedido usa catalogo e estoque,
+busca amplia leitura, soft delete ajusta regras transversais, eventos de dominio instrumentam um agregado existente
+sem inflar uma fase de negocio, e aprovacao consolida comandos de estado ja nascendo com eventos de transicao.

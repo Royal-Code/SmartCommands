@@ -65,7 +65,7 @@ public class EstoqueTests
 	}
 
 	[Fact]
-	public async Task AdicionarEntrada_SemEstoqueRegistrado_RetornaProblema()
+	public async Task AdicionarEntrada_SemEstoqueRegistrado_Retorna404()
 	{
 		using var app = new DemoApiFactory();
 		using var client = app.CreateClient();
@@ -75,7 +75,7 @@ public class EstoqueTests
 
 		var entrada = await client.PostAsJsonAsync($"/produtos/{produtoId}/estoque/entradas", new { Quantidade = 1 });
 
-		await entrada.AssertProblemAsync(HttpStatusCode.Conflict, "ainda nao foi registrado");
+		await entrada.AssertProblemAsync(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
@@ -94,7 +94,7 @@ public class EstoqueTests
 	}
 
 	[Fact]
-	public async Task Reservar_SemEstoqueRegistrado_RetornaProblema()
+	public async Task Reservar_SemEstoqueRegistrado_Retorna404()
 	{
 		using var app = new DemoApiFactory();
 		using var client = app.CreateClient();
@@ -104,7 +104,7 @@ public class EstoqueTests
 
 		var reserva = await client.PostAsJsonAsync($"/produtos/{produtoId}/estoque/reservas", new { Quantidade = 1 });
 
-		await reserva.AssertProblemAsync(HttpStatusCode.Conflict, "ainda nao foi registrado");
+		await reserva.AssertProblemAsync(HttpStatusCode.NotFound);
 	}
 
 	[Fact]

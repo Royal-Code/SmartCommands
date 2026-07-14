@@ -13,6 +13,7 @@
 		<PackageReference Include="RoyalCode.SmartSearch.AspNetCore" Version="$(SmartSearchVer)" />
 		<PackageReference Include="RoyalCode.SmartProblems.ApiResults" Version="$(SmartProblemsVer)" />
 		<PackageReference Include="RoyalCode.SmartProblems.Http" Version="$(SmartProblemsVer)" />
+		<PackageReference Include="RoyalCode.SmartProblems.ProblemDetails" Version="$(SmartProblemsVer)" />
 		<PackageReference Include="RoyalCode.WorkContext.EntityFramework" Version="$(WorkContextVer)" />
 		<PackageReference Include="RoyalCode.SmartSelector" Version="$(SmartSelectVer)" />
 		<PackageReference Include="RoyalCode.SmartSelector.Generators" Version="$(SmartSelectVer)" />

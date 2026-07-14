@@ -4,9 +4,17 @@ using RoyalCode.SmartProblems;
 namespace RoyalCode.SmartCommands.Demo.Domain;
 
 /// <summary>
-/// Agregado de catalogo da demo. Ente proprio da demo (nao reutiliza o Produto de Tests.Models).
+/// <para>
+///     Agregado de catalogo da demo. Ente proprio da demo (nao reutiliza o Produto de Tests.Models).
+/// </para>
+/// <para>
+///     Implementa <see cref="IActiveState"/> e <see cref="IHasCode{TCode}"/> de <c>RoyalCode.Entities</c> de forma
+///     explicita (sem herdar <c>Entity&lt;Guid, string&gt;</c>): o vocabulario publico do dominio (<see cref="Ativo"/>,
+///     <see cref="Sku"/>) e mantido intacto para nao quebrar DTOs/filtros/testes que ja usam esses nomes, enquanto os
+///     contratos das libs ficam disponiveis para codigo generico que dependa deles (ex.: <c>IActiveState.IsActive</c>).
+/// </para>
 /// </summary>
-public class Produto : Entity<Guid>
+public class Produto : Entity<Guid>, IActiveState, IHasCode<string>
 {
     public Produto(string nome, string sku, decimal preco)
     {
@@ -23,6 +31,7 @@ public class Produto : Entity<Guid>
         Preco = preco;
         Ativo = true;
         CriadoEm = DateTimeOffset.UtcNow;
+        Version = 1;
     }
 
 #nullable disable
@@ -43,6 +52,18 @@ public class Produto : Entity<Guid>
     public DateTimeOffset CriadoEm { get; private set; }
 
     /// <summary>
+    /// Token de concorrencia otimista (ver <c>WithRetryOnConcurrency</c> nos comandos que editam este agregado).
+    /// Incrementado a cada mutacao de estado por <see cref="Touch"/>.
+    /// </summary>
+    public int Version { get; private set; }
+
+    /// <inheritdoc cref="IActiveState.IsActive"/>
+    bool IActiveState.IsActive => Ativo;
+
+    /// <inheritdoc cref="IHasCode{TCode}.Code"/>
+    string IHasCode<string>.Code => Sku;
+
+    /// <summary>
     /// Navegacao de leitura para o estoque do produto (relacao 1:1, dependente <see cref="ProdutoEstoque"/>).
     /// Existe para o lado de consulta (busca por disponibilidade em <c>ProdutoFiltro</c> via caminho aninhado
     /// <c>Estoque.Disponivel</c>); nao participa das invariantes de escrita do catalogo, que seguem sem conhecer
@@ -61,6 +82,7 @@ public class Produto : Entity<Guid>
 
         Nome = nome;
         Preco = preco;
+        Touch();
     }
 
     /// <summary>
@@ -75,6 +97,7 @@ public class Produto : Entity<Guid>
                 typeId: "demo.produto.ja_inativo");
 
         Ativo = false;
+        Touch();
         return Result.Ok();
     }
 
@@ -89,8 +112,11 @@ public class Produto : Entity<Guid>
                 typeId: "demo.produto.ja_ativo");
 
         Ativo = true;
+        Touch();
         return Result.Ok();
     }
+
+    private void Touch() => Version++;
 
     public override string ToString() => $"{Sku} - {Nome}";
 }

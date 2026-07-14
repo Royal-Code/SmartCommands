@@ -1,6 +1,8 @@
+using RoyalCode.Entities;
+
 namespace RoyalCode.SmartCommands.Demo.Domain;
 
-public class PedidoItem
+public class PedidoItem : Entity<Guid>
 {
 	public PedidoItem(NovoPedidoItem item)
 	{
@@ -16,8 +18,6 @@ public class PedidoItem
 #nullable disable
 	protected PedidoItem() { }
 #nullable enable
-
-	public Guid Id { get; private set; }
 
 	public Guid PedidoId { get; private set; }
 

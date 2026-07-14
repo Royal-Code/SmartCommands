@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RoyalCode.SmartCommands.Demo.Domain;
 using RoyalCode.SmartProblems;
+using RoyalCode.SmartProblems.Entities;
 using RoyalCode.SmartValidations;
 using System.Diagnostics.CodeAnalysis;
 
@@ -22,12 +23,10 @@ public partial class ReservarEstoque
 	[Command, WithValidateModel, EditEntity<Produto, Guid>, WithWorkContext, WithRetryOnConcurrency(Operation = "demo.estoques.reservar")]
 	internal async Task<Result> Execute(Produto produto, DemoDbContext db, CancellationToken ct)
 	{
-		var estoque = await db.Estoques.SingleOrDefaultAsync(e => e.ProdutoId == produto.Id, ct);
-		if (estoque is null)
-			return Problems.InvalidState(
-				"O estoque inicial ainda nao foi registrado para este produto.",
-				typeId: "demo.estoque.nao_registrado");
+		var estoque = await db.Estoques.TryFindByAsync(e => e.ProdutoId == produto.Id, ct);
+		if (estoque.NotFound(out var problem))
+			return problem;
 
-		return estoque.Reservar(Quantidade);
+		return estoque.Entity.Reservar(Quantidade);
 	}
 }

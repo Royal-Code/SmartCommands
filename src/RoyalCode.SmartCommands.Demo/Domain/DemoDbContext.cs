@@ -32,6 +32,7 @@ public class DemoDbContext : DbContext
         produto.Property(p => p.Nome).IsRequired();
         produto.Property(p => p.Sku).IsRequired();
         produto.Property(p => p.CriadoEm).IsRequired();
+        produto.Property(p => p.Version).IsConcurrencyToken();
         // SKU unico no catalogo (defesa em profundidade; o comando tambem valida antes de gravar).
         produto.HasIndex(p => p.Sku).IsUnique();
 

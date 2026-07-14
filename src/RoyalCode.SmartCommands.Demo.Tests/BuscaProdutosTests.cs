@@ -30,6 +30,48 @@ public class BuscaProdutosTests
 	}
 
 	[Fact]
+	public async Task FiltrarPorNome_IgnoraCaixa()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		await CreateProductAsync(client, "Camiseta Azul", "CAM-101", 40m);
+		await CreateProductAsync(client, "Bermuda Jeans", "BER-101", 90m);
+
+		// Criterion(Case = CriterionCase.Insensitive): "camiseta" (minusculo) ainda encontra "Camiseta Azul".
+		var (status, page) = await SearchAsync(client, "?nome=camiseta");
+
+		Assert.Equal(HttpStatusCode.OK, status);
+		Assert.NotNull(page);
+		var item = Assert.Single(page.Items);
+		Assert.Equal("CAM-101", item.Sku);
+	}
+
+	[Fact]
+	public async Task FiltrarPorNomeOuSku_EncontraPorQualquerCampo()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		await CreateProductAsync(client, "Camiseta Azul", "CAM-201", 40m);
+		await CreateProductAsync(client, "Outro Produto", "XYZ-201", 15m);
+
+		// NomeOuSku: [Criterion(TargetPropertyPath = "NomeOrSku")] disjunta o mesmo valor entre Produto.Nome e
+		// Produto.Sku; um unico parametro de busca encontra por nome parcial OU por SKU exato.
+		var (porNome, pageNome) = await SearchAsync(client, "?nomeOuSku=Camiseta");
+		Assert.Equal(HttpStatusCode.OK, porNome);
+		Assert.NotNull(pageNome);
+		Assert.Equal("CAM-201", Assert.Single(pageNome.Items).Sku);
+
+		var (porSku, pageSku) = await SearchAsync(client, "?nomeOuSku=CAM-201");
+		Assert.Equal(HttpStatusCode.OK, porSku);
+		Assert.NotNull(pageSku);
+		Assert.Equal("CAM-201", Assert.Single(pageSku.Items).Sku);
+	}
+
+	[Fact]
 	public async Task FiltrarPorFaixaDePreco_RespeitaLimites()
 	{
 		using var app = new DemoApiFactory();

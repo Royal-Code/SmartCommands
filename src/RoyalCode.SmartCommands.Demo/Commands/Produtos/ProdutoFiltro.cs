@@ -10,10 +10,20 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
 [SearchReference<Produto, ProdutoDetalhes>]
 public class ProdutoFiltro
 {
-    // string -> operador Like (Contains) por convencao: busca por nome parcial.
+    // string -> operador Like por convencao (substring, sem curinga informado pelo usuario). Case = Insensitive
+    // normaliza os dois lados com ToUpper() na emissao portavel, entao a busca por nome nao depende de o
+    // cliente acertar a caixa (ver .docs/references/smartsearch.md, secao 6.2).
+    [Criterion(Case = CriterionCase.Insensitive)]
     public string? Nome { get; set; }
 
+    [Criterion(Case = CriterionCase.Insensitive)]
     public string? Sku { get; set; }
+
+    // Busca livre por nome OU sku com um unico parametro de query (?nomeOuSku=...). O token "Or" no nome da
+    // propriedade cria a disjuncao por convencao (mesmo valor comparado contra os dois caminhos), sem precisar
+    // de [Disjunction] explicito (ver .docs/references/smartsearch.md, secao 7.3).
+    [Criterion(TargetPropertyPath = "NomeOrSku", Case = CriterionCase.Insensitive)]
+    public string? NomeOuSku { get; set; }
 
     public bool? Ativo { get; set; }
 
