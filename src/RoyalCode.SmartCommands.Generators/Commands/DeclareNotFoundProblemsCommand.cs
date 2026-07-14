@@ -2,7 +2,7 @@
 
 namespace RoyalCode.SmartCommands.Generators.Commands;
 
-public class DeclareNotFoundProblemsCommand : GeneratorNode
+internal class DeclareNotFoundProblemsCommand : GeneratorNode
 {
     public override void Write(StringBuilder sb, int indent = 0)
     {

@@ -17,7 +17,7 @@ public partial class CriarLoja
     public string? Endereco { get; set; }
 
     [MemberNotNullWhen(false, nameof(Nome), nameof(Endereco))]
-    public bool HasProblems(out Problems? problems)
+    public bool HasProblems([NotNullWhen(true)] out Problems? problems)
     {
         var result = RuleSet.For<CriarLoja>()
             .NotEmpty(Nome)

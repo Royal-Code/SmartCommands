@@ -16,13 +16,13 @@ public class AddServicesTests
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedInterface = output.SyntaxTrees.Skip(1).FirstOrDefault()?.ToString();
-        Assert.Equal(Code.Interface, generatedInterface);
+        Assert.Equal(Util.GeneratedCode(Code.Interface), generatedInterface);
 
         var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
-        Assert.Equal(Code.Handler, generatedHandler);
+        Assert.Equal(Util.GeneratedCode(Code.Handler), generatedHandler);
 
         var generatedPartial = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        Assert.Equal(Code.AddServices, generatedPartial);
+        Assert.Equal(Util.GeneratedCode(Code.AddServices), generatedPartial);
 
         Assert.Equal(4, output.SyntaxTrees.Count());
     }
@@ -35,13 +35,13 @@ public class AddServicesTests
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedInterface = output.SyntaxTrees.Skip(1).FirstOrDefault()?.ToString();
-        Assert.Equal(CodeWithDbContext.Interface, generatedInterface);
+        Assert.Equal(Util.GeneratedCode(CodeWithDbContext.Interface), generatedInterface);
 
         var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
-        Assert.Equal(CodeWithDbContext.Handler, generatedHandler);
+        Assert.Equal(Util.GeneratedCode(CodeWithDbContext.Handler), generatedHandler);
 
         var generatedPartial = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        Assert.Equal(CodeWithDbContext.AddServices, generatedPartial);
+        Assert.Equal(Util.GeneratedCode(CodeWithDbContext.AddServices), generatedPartial);
 
         Assert.Equal(4, output.SyntaxTrees.Count());
     }

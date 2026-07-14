@@ -14,7 +14,7 @@ public class RetryOnConcurrencyTests
         AssertNoErrors(output.GetDiagnostics());
 
         var generatedHandler = FindGeneratedSource(output, "ChangePasswordHandler.g.cs");
-        Assert.Equal(Normalize(Code.HandlerWithOptions), Normalize(generatedHandler));
+        Assert.Equal(Normalize(Util.GeneratedCode(Code.HandlerWithOptions)), Normalize(generatedHandler));
     }
 
     [Fact]
@@ -26,7 +26,7 @@ public class RetryOnConcurrencyTests
         AssertNoErrors(output.GetDiagnostics());
 
         var generatedHandler = FindGeneratedSource(output, "ChangePasswordHandler.g.cs");
-        Assert.Equal(Normalize(Code.HandlerWithValue), Normalize(generatedHandler));
+        Assert.Equal(Normalize(Util.GeneratedCode(Code.HandlerWithValue)), Normalize(generatedHandler));
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class RetryOnConcurrencyTests
         AssertNoErrors(output.GetDiagnostics());
 
         var generatedHandler = FindGeneratedSource(output, "ChangePasswordHandler.g.cs");
-        Assert.Equal(Normalize(Code.HandlerWithOperation), Normalize(generatedHandler));
+        Assert.Equal(Normalize(Util.GeneratedCode(Code.HandlerWithOperation)), Normalize(generatedHandler));
     }
 
     private static string? FindGeneratedSource(Compilation compilation, string fileName)

@@ -11,7 +11,7 @@ public class CreateSome
 {
     public int Value { get; set; }
 
-    public string Name { get; set; }
+    public string Name { get; set; } = null!;
 
     [Command]
     internal Task<Result<Some>> Execute()
@@ -47,7 +47,7 @@ public static partial class MapSomeApi
     [ProduceProblems(ProblemCategory.InvalidParameter)]
     private static async Task<OkMatch<int>> CreateSomeHandleAsync(
         ICreateSomeHandler handler,
-        CreateSome command,
+        CreateSome? command,
         CancellationToken ct)
     {
         if (command is null)
@@ -121,7 +121,7 @@ public static partial class MapSomeApi
 
     private static async Task<OkMatch<int>> CreateSomeHandleAsync(
         ICreateSomeHandler handler, 
-        CreateSome command, 
+        CreateSome? command, 
         CancellationToken ct)
     {
         if (command is null)
@@ -199,7 +199,7 @@ public static partial class MapSomeApi
 
     private static async Task<OkMatch<int>> CreateSomeHandleAsync(
         ICreateSomeHandler handler, 
-        CreateSome command, 
+        CreateSome? command, 
         CancellationToken ct)
     {
         if (command is null)
@@ -277,7 +277,7 @@ public static partial class MapSomeApi
 
     private static async Task<OkMatch<int>> CreateSomeHandleAsync(
         ICreateSomeHandler handler, 
-        CreateSome command, 
+        CreateSome? command, 
         CancellationToken ct)
     {
         if (command is null)
@@ -355,7 +355,7 @@ public static partial class MapSomeApi
 
     private static async Task<OkMatch<int>> CreateSomeHandleAsync(
         ICreateSomeHandler handler, 
-        CreateSome command, 
+        CreateSome? command, 
         CancellationToken ct)
     {
         if (command is null)
@@ -433,7 +433,7 @@ public static partial class MapSomeApi
 
     private static async Task<OkMatch<int>> CreateSomeHandleAsync(
         ICreateSomeHandler handler, 
-        CreateSome command, 
+        CreateSome? command, 
         CancellationToken ct)
     {
         if (command is null)
@@ -511,7 +511,7 @@ public static partial class MapSomeApi
 
     private static async Task<OkMatch<int>> CreateSomeHandleAsync(
         ICreateSomeHandler handler, 
-        CreateSome command, 
+        CreateSome? command, 
         CancellationToken ct)
     {
         if (command is null)

@@ -9,7 +9,7 @@ namespace RoyalCode.SmartCommands.Generators.Generators;
 
 //#pragma warning disable S125 // remover blocos de código comentados
 
-public static class CommandHandlerGenerator
+internal static class CommandHandlerGenerator
 {
     public const string CommandAttributeName = "RoyalCode.SmartCommands.CommandAttribute";
 
@@ -1162,14 +1162,6 @@ public static class CommandHandlerGenerator
             method.Attributes.Add(new AttributeGenerator("MemberNotNull", member, ["System.Diagnostics.CodeAnalysis"]));
         }
 
-        partialClass.Generating += (_, builder) =>
-        {
-            builder.AppendLine();
-            builder.AppendLine("#nullable disable");
-            builder.AppendLine("#pragma warning disable");
-            builder.AppendLine();
-        };
-
         return partialClass;
     }
 
@@ -1177,13 +1169,17 @@ public static class CommandHandlerGenerator
         CommandHandlerInformation commandInfo,
         MethodGenerator method,
         string? editEntityRouteParameterName = null,
-        bool includeCommandParameter = true)
+        bool includeCommandParameter = true,
+        bool nullableCommandParameter = false)
     {
         // parâmetro do id da entidade a ser editada, quando necessário
         if (commandInfo.EditType is not null)
         {
+            var editParameter = commandInfo.EditType.Parameter
+                ?? throw new InvalidOperationException("An edit command must have an entity parameter before source generation.");
+
             var idParameter = new ParameterGenerator(
-                new ParameterDescriptor(commandInfo.EditType.IdType, $"{commandInfo.EditType.Parameter.Name}Id"));
+                new ParameterDescriptor(commandInfo.EditType.IdType, $"{editParameter.Name}Id"));
 
             if (!string.IsNullOrWhiteSpace(editEntityRouteParameterName))
             {
@@ -1202,7 +1198,13 @@ public static class CommandHandlerGenerator
 
         // parâmetro do commando (omitido no endpoint quando o comando não tem corpo — ver includeCommandParameter).
         if (includeCommandParameter)
-            method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(commandInfo.ModelType, ModelVarName)));
+        {
+            var commandType = nullableCommandParameter
+                ? new TypeDescriptor($"{commandInfo.ModelType.Name}?", commandInfo.ModelType.Namespaces)
+                : commandInfo.ModelType;
+
+            method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(commandType, ModelVarName)));
+        }
 
         // parâmetros com atributo WithParameter
         foreach (var p in commandInfo.Parameters.Where(p => p.Type.IsHandlerParameter))

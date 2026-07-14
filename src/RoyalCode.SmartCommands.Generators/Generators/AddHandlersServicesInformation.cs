@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public sealed class AddHandlersServicesInformation : TransformationGeneratorBase<AddServiceDescriptor>, IEquatable<AddHandlersServicesInformation>
+internal sealed class AddHandlersServicesInformation : TransformationGeneratorBase<AddServiceDescriptor>, IEquatable<AddHandlersServicesInformation>
 {
     public AddHandlersServicesInformation(TypeDescriptor classType, string title, List<Diagnostic> errors)
     {

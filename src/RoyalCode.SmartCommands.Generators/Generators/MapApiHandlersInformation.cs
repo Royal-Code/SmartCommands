@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public sealed class MapApiHandlersInformation: TransformationGeneratorBase<IMapEndpointGenerator>, IEquatable<MapApiHandlersInformation>
+internal sealed class MapApiHandlersInformation: TransformationGeneratorBase<IMapEndpointGenerator>, IEquatable<MapApiHandlersInformation>
 {
     public MapApiHandlersInformation(TypeDescriptor classType, bool withOpenApi, List<Diagnostic>? diagnostics)
     {

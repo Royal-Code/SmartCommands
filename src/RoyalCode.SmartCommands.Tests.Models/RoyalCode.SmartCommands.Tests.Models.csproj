@@ -11,11 +11,13 @@
 		<PackageReference Include="RoyalCode.SmartProblems.Http" Version="$(SmartProblemsVer)" />
 		<PackageReference Include="RoyalCode.WorkContext.EntityFramework" Version="$(WorkContextVer)" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="$(EFVer)" />
+		<PackageReference Include="RoyalCode.Extensions.SourceGenerator" Version="$(ExSrcGenVer)" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\RoyalCode.SmartCommands\RoyalCode.SmartCommands.csproj" />
 		<ProjectReference Include="..\RoyalCode.SmartCommands.Generators\RoyalCode.SmartCommands.Generators.csproj"
 						  OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+		<Analyzer Include="$(NuGetPackageRoot)royalcode.extensions.sourcegenerator\$(ExSrcGenVer)\lib\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll" />
 	</ItemGroup>
 </Project>

@@ -16,10 +16,10 @@ public class DoSyncWithValidateModelTest
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedInterface = output.SyntaxTrees.Skip(1).FirstOrDefault()?.ToString();
-        Assert.Equal(Code.Interface, generatedInterface);
+        Assert.Equal(Util.GeneratedCode(Code.Interface), generatedInterface);
 
         var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
-        Assert.Equal(Code.Handler, generatedHandler);
+        Assert.Equal(Util.GeneratedCode(Code.Handler), generatedHandler);
     }
 }
 

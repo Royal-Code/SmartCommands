@@ -1,6 +1,6 @@
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public sealed class MapResponseValuesInformation : IEquatable<MapResponseValuesInformation>
+internal sealed class MapResponseValuesInformation : IEquatable<MapResponseValuesInformation>
 {
     public IList<PropertyDescriptor> PropertiesNames { get; set; }
 

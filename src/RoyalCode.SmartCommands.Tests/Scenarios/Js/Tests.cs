@@ -15,7 +15,7 @@ public class Tests
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedApiHandlers = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        Assert.Equal(apiHandlersCode, generatedApiHandlers);
+        Assert.Equal(Util.GeneratedCode(apiHandlersCode), generatedApiHandlers);
     }
 }
 

@@ -2,7 +2,7 @@
 
 namespace RoyalCode.SmartCommands.Generators.Commands;
 
-public class AddServiceCommand : GeneratorNode
+internal class AddServiceCommand : GeneratorNode
 {
     private readonly ServiceTypeDescriptor serviceTypeDescriptor;
     private readonly string servicesVarName;

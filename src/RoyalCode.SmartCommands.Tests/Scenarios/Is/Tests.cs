@@ -19,7 +19,7 @@ public class Tests
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedMap = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        Assert.Equal(mapCode, generatedMap);
+        Assert.Equal(Util.GeneratedCode(mapCode), generatedMap);
     }
 
     [Theory]
@@ -34,6 +34,6 @@ public class Tests
         Assert.Equal(responseModel, generatedResponseModel);
 
         var generatedMap = output.SyntaxTrees.Skip(4).FirstOrDefault()?.ToString();
-        Assert.Equal(mapCode, generatedMap);
+        Assert.Equal(Util.GeneratedCode(mapCode), generatedMap);
     }
 }

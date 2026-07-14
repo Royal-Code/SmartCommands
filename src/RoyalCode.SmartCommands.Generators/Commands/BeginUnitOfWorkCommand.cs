@@ -2,7 +2,7 @@
 
 namespace RoyalCode.SmartCommands.Generators.Commands;
 
-public class BeginUnitOfWorkCommand : GeneratorNode
+internal class BeginUnitOfWorkCommand : GeneratorNode
 {
     private readonly string varName;
 

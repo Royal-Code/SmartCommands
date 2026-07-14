@@ -5,7 +5,7 @@ using static RoyalCode.SmartCommands.Generators.Generators.CommandHandlerInforma
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public static class AddHandlersServicesGenerator
+internal static class AddHandlersServicesGenerator
 {
     public const string AddHandlersServicesAttributeName = "RoyalCode.SmartCommands.AddHandlersServicesAttribute";
 
@@ -144,6 +144,7 @@ public static class AddHandlersServicesGenerator
         classGenerator.Methods.Add(method);
 
         classGenerator.FileName = $"{left.ClassType.Name}_AddHandlersServices.g.cs";
+        GeneratedFileHeader.AddTo(classGenerator);
         classGenerator.Generate(spc);
 
     }

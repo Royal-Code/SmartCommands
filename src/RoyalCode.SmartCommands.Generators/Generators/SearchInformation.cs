@@ -39,17 +39,18 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
         Filter = filter;
     }
 
-    public TypeDescriptor EntityType { get; }
+    // Instances created from diagnostics are reported and never reach source emission.
+    public TypeDescriptor EntityType { get; } = null!;
 
     public TypeDescriptor? SelectType { get; }
 
-    public TypeDescriptor FilterType { get; }
+    public TypeDescriptor FilterType { get; } = null!;
 
-    public string EndpointRoutePattern { get; }
+    public string EndpointRoutePattern { get; } = null!;
 
-    public string EndpointName { get; }
+    public string EndpointName { get; } = null!;
 
-    public string GroupName { get; }
+    public string GroupName { get; } = null!;
 
     public string? Description { get; }
 

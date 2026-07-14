@@ -3,7 +3,7 @@
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
 
-public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEquatable<CommandHandlerInformation>
+internal sealed class CommandHandlerInformation : TransformationGeneratorBase, IEquatable<CommandHandlerInformation>
 {
     private readonly bool canGenerate;
 
@@ -89,6 +89,11 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
         // cria classe partial do model se possível.
         var partialModelGenerator = CommandHandlerGenerator.GenerateWasValidated(this);
 
+        GeneratedFileHeader.AddTo(interfaceGenerator);
+        GeneratedFileHeader.AddTo(implementationGenerator);
+        if (partialModelGenerator is not null)
+            GeneratedFileHeader.AddTo(partialModelGenerator, suppressMemberNotNullWarning: true);
+
         // gera o código fonte
         interfaceGenerator.Generate(spc);
         implementationGenerator.Generate(spc);
@@ -169,7 +174,7 @@ public sealed class CommandHandlerInformation : TransformationGeneratorBase, IEq
         return hashCode;
     }
 
-    public enum ContextAccessorModes
+    internal enum ContextAccessorModes
     {
         None,
         Specified,

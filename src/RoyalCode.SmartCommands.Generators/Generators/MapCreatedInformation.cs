@@ -1,6 +1,6 @@
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public sealed class MapCreatedInformation : IEquatable<MapCreatedInformation>
+internal sealed class MapCreatedInformation : IEquatable<MapCreatedInformation>
 {
     public string RoutePattern { get; set; }
 

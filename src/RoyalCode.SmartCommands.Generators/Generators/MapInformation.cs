@@ -4,7 +4,7 @@ using System.Text;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGenerator
+internal sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGenerator
 {
 
 #nullable disable
@@ -187,7 +187,11 @@ public sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGen
         // o comando só entra como parâmetro do endpoint quando tem corpo (setters públicos ou ctor com parâmetros);
         // sem corpo, é instanciado via new e a requisição pode ser enviada sem body.
         CommandHandlerGenerator.AddRequiredParameters(
-            commandInfo, method, editEntityRouteParameterName, includeCommandParameter: commandInfo.HasBodyProperties);
+            commandInfo,
+            method,
+            editEntityRouteParameterName,
+            includeCommandParameter: commandInfo.HasBodyProperties,
+            nullableCommandParameter: commandInfo.HasBodyProperties);
 
         // implementação do método
 

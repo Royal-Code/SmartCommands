@@ -2,7 +2,7 @@
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public abstract class TransformationGeneratorBase : ITransformationGenerator
+internal abstract class TransformationGeneratorBase : ITransformationGenerator
 {
     protected List<Diagnostic>? Errors { get; set; }
 
@@ -35,7 +35,7 @@ public abstract class TransformationGeneratorBase : ITransformationGenerator
     }
 }
 
-public abstract class TransformationGeneratorBase<TModel> : ITransformationGenerator<TModel>
+internal abstract class TransformationGeneratorBase<TModel> : ITransformationGenerator<TModel>
 {
     protected List<Diagnostic>? Errors { get; set; }
 

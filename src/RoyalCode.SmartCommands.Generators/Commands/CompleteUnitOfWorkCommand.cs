@@ -2,7 +2,7 @@ using System.Text;
 
 namespace RoyalCode.SmartCommands.Generators.Commands;
 
-public class CompleteUnitOfWorkCommand : GeneratorNode
+internal class CompleteUnitOfWorkCommand : GeneratorNode
 {
     private readonly GeneratorNode methodInvoke;
     private readonly bool invokeIsAsync;

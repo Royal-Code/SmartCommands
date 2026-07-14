@@ -2,7 +2,7 @@
 
 namespace RoyalCode.SmartCommands.Generators.Commands;
 
-public class FindEntityCommand : GeneratorNode, IWithNamespaces
+internal class FindEntityCommand : GeneratorNode, IWithNamespaces
 {
     private readonly ParameterDescriptor parameter;
     private readonly PropertyDescriptor property;

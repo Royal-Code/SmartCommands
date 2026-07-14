@@ -3,7 +3,7 @@ using RoyalCode.SmartProblems.Entities;
 
 namespace RoyalCode.SmartCommands.WorkContext.Adapters;
 
-public sealed class RepositoryAdapter<TEntity> : IRepositoryAccessor<TEntity>
+internal sealed class RepositoryAdapter<TEntity> : IRepositoryAccessor<TEntity>
     where TEntity : class
 {
     private readonly IRepository<TEntity> repository;

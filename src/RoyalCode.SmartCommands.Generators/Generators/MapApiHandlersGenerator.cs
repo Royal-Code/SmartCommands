@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public static class MapApiHandlersGenerator
+internal static class MapApiHandlersGenerator
 {
     public const string AddHandlersServicesAttributeName = "RoyalCode.SmartCommands.MapApiHandlersAttribute";
     public const string WithOpenApiAttributeName = "WithOpenApi";
@@ -92,6 +92,7 @@ public static class MapApiHandlersGenerator
             methodGenerator.Commands.Add(returnCommand);
 
             // finaliza, gera a classe
+            GeneratedFileHeader.AddTo(classGenerator);
             classGenerator.Generate(spc);
         }
     }

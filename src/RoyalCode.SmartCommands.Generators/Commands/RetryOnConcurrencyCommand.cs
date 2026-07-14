@@ -12,7 +12,7 @@ namespace RoyalCode.SmartCommands.Generators.Commands;
 ///     The model validation is intentionally kept outside of this node (and therefore outside the retry loop).
 /// </para>
 /// </summary>
-public class RetryOnConcurrencyCommand : GeneratorNode, IWithNamespaces
+internal class RetryOnConcurrencyCommand : GeneratorNode, IWithNamespaces
 {
     private const string OptionsNamespace = "RoyalCode.SmartCommands.WorkContext.Options";
 

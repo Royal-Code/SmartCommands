@@ -3,7 +3,7 @@
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
 [Generator]
-public class IncrementalGenerator : IIncrementalGenerator
+internal class IncrementalGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {

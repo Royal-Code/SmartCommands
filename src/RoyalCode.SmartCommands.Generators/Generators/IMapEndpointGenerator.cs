@@ -2,7 +2,7 @@
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public interface IMapEndpointGenerator
+internal interface IMapEndpointGenerator
 {
     public string GroupName { get; }
 

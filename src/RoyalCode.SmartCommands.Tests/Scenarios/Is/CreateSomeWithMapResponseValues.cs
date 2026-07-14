@@ -12,7 +12,7 @@ public class CreateSomeWithMapResponseValues
 {
     public int Value { get; set; }
 
-    public string Name { get; set; }
+    public string Name { get; set; } = null!;
 
     [Command]
     internal Task<Result<Some>> Execute()
@@ -55,7 +55,7 @@ public static partial class MapSomeWithMapResponseValuesApi
     [ProduceProblems(ProblemCategory.InvalidParameter)]
     private static async Task<OkMatch<CreateSomeWithMapResponseValuesResponse>> CreateSomeWithMapResponseValuesHandleAsync(
         ICreateSomeWithMapResponseValuesHandler handler,
-        CreateSomeWithMapResponseValues command,
+        CreateSomeWithMapResponseValues? command,
         CancellationToken ct)
     {
         if (command is null)
@@ -128,7 +128,7 @@ public static partial class MapSomeApi
 
     private static async Task<OkMatch<CreateSomeResponse>> CreateSomeHandleAsync(
         ICreateSomeHandler handler, 
-        CreateSome command, 
+        CreateSome? command, 
         CancellationToken ct)
     {
         if (command is null)

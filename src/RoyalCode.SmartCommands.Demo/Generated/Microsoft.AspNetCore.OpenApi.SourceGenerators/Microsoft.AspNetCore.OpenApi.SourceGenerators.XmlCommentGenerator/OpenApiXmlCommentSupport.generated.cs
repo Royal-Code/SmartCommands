@@ -69,8 +69,24 @@ namespace Microsoft.AspNetCore.OpenApi.Generated
         private static Dictionary<string, XmlComment> GenerateCacheEntries()
         {
             var cache = new Dictionary<string, XmlComment>();
+            cache.Add(@"T:RoyalCode.SmartCommands.AddHandlersServicesAttribute", new XmlComment(@"    Applied to a static partial class to have the source generator emit a Dependency Injection extension
+method that registers the services of every generated command handler in the assembly.", null, null, null, null, false, null, null, null));
+            cache.Add(@"M:RoyalCode.SmartCommands.AddHandlersServicesAttribute.#ctor(System.String)", new XmlComment(@"Initializes a new instance of the AddHandlersServicesAttribute class.", null, null, null, null, false, null, [new XmlParameterComment(@"title", @"The name used to build the generated extension method, e.g. `Add{title}HandlersServices`.", null, false)], null));
+            cache.Add(@"T:RoyalCode.SmartCommands.CommandAttribute", new XmlComment(@"    Marks the method that contains the business logic of the command. The source generator uses this method
+to generate the handler interface and implementation for the command class.
+    Combine with attributes such as WithUnitOfWorkAttribute&lt;T&gt;, WithFindEntitiesAttribute&lt;T&gt;,
+WithDecoratorsAttribute, and WithValidateModelAttribute to customize the generated handler.", null, null, null, null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.EditEntityAttribute`2", new XmlComment(@"    Marks the command method as editing an existing entity. The generated handler loads the entity of type
+TEntity by its identifier of type TId before invoking the
+command method, returning a NotFound problem when the entity does not exist.
+    Requires WithUnitOfWorkAttribute&lt;T&gt;. The loaded entity must be the first parameter of the command method.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.EntityReferenceAttribute`2", new XmlComment(@"Attribute used to reference an entity and its ID type.
 Used together with MapFindAttribute.", null, null, null, null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.IDecorator`2", new XmlComment(@"    A decorator that wraps the execution of a command marked with WithDecoratorsAttribute,
+allowing cross-cutting behavior (logging, caching, transactions, etc.) to run around the command logic.
+    Registered decorators are resolved from Dependency Injection and executed, in registration order,
+by Mediator&lt;TModel, TResult&gt;.", null, null, null, null, false, null, null, null));
+            cache.Add(@"M:RoyalCode.SmartCommands.IDecorator`2.HandleAsync(`0,System.Func{System.Threading.Tasks.Task{`1}},System.Threading.CancellationToken)", new XmlComment(@"Handles the command, calling next to continue the pipeline.", null, null, @"The result produced by the command.", null, false, null, [new XmlParameterComment(@"command", @"The command instance being handled.", null, false), new XmlParameterComment(@"next", @"Invokes the next decorator in the pipeline, or the command logic when there are no more decorators.", null, false), new XmlParameterComment(@"ct", @"Cancellation token.", null, false)], null));
             cache.Add(@"T:RoyalCode.SmartCommands.IRepositoriesAccessor`1", new XmlComment(@"A service that provides access to the repositories and the context of the database (unit of work).", null, null, null, null, false, null, null, null));
             cache.Add(@"P:RoyalCode.SmartCommands.IRepositoriesAccessor`1.Context", new XmlComment(@"Gets the context of the unit of work.", null, null, null, null, false, null, null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.IRepositoriesAccessor`1.FindEntityAsync``2(``1,System.Threading.CancellationToken)", new XmlComment(@"Finds an entity by its identifier.", null, null, @"An entry that represents the entity find by the identifier.
@@ -84,12 +100,17 @@ This operation must not apply changes to the database immediately. It must take 
 Even if the entity is not found, the method must return a result object with the NotFound problem.", null, false, null, [new XmlParameterComment(@"id", @"The identifier of the entity.", null, false), new XmlParameterComment(@"ct", @"Cancellation token.", null, false)], null));
             cache.Add(@"M:RoyalCode.SmartCommands.IRepositoryAccessor`1.FindEntityAsync``2(RoyalCode.SmartProblems.Entities.Id{`0,``1},System.Threading.CancellationToken)", new XmlComment(@"Finds an entity by its identifier and select a DTO (Data Transfer Object) representation of it.", null, null, @"A result that represents the entity find by the identifier.
 Even if the entity is not found, the method must return a result object with the NotFound problem.", null, false, null, [new XmlParameterComment(@"id", @"The identifier of the entity.", null, false), new XmlParameterComment(@"ct", @"Cancellation token.", null, false)], null));
+            cache.Add(@"T:RoyalCode.SmartCommands.IsEntityAttribute", new XmlComment(@"    Explicitly marks a command method parameter, or a property of the command class, as representing an entity,
+overriding the automatic entity detection performed by the source generator.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.IUnitOfWorkAccessor`1", new XmlComment(@"A service that provides access to the unit of work.", null, null, null, null, false, null, null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.IUnitOfWorkAccessor`1.BeginAsync(System.Threading.CancellationToken)", new XmlComment(@"Invoked when the unit of work is about to begin.", null, null, @"", null, false, null, null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.IUnitOfWorkAccessor`1.CompleteAsync(System.Threading.CancellationToken)", new XmlComment(@"Invoked when the unit of work is about to complete.
 At this point, the unit of work should be committed (or the save changes should be called).", null, null, @"The result of the operation.", null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.MapApiHandlersAttribute", new XmlComment(@"    Indicates that the decorated static partial class will have its API endpoints mapped
 by the source generator.", null, null, null, null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.MapCreatedRouteAttribute", new XmlComment(@"    Used with MapPostAttribute so the generated endpoint returns a 201 Created response
+with a Location header pointing to the created resource, instead of the default response.", null, null, null, null, false, null, null, null));
+            cache.Add(@"M:RoyalCode.SmartCommands.MapCreatedRouteAttribute.#ctor(System.String,System.String[])", new XmlComment(@"Initializes a new instance of the MapCreatedRouteAttribute class.", null, null, null, null, false, null, [new XmlParameterComment(@"endpointRoutePattern", @"The route pattern used to build the `Location` header, e.g. `""/{id}""`.", null, false), new XmlParameterComment(@"propertiesNames", @"The names of the properties, from the value returned by the command, used to fill the route pattern placeholders.", null, false)], null));
             cache.Add(@"T:RoyalCode.SmartCommands.MapDeleteAttribute", new XmlComment(@"    Maps a command class to an HTTP DELETE endpoint in Minimal API.
     Use this attribute on a class that contains a method marked with CommandAttribute that removes or deactivates
 an existing resource. For soft delete or deactivate scenarios combine with EditEntityAttribute&lt;TEntity, TId&gt;.
@@ -176,6 +197,10 @@ public class GetProductsSummary
 [MapPost(""/"", ""create-product"")]
 public class CreateProduct { ... }```", null, null, null, null, false, null, null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.MapGroupAttribute.#ctor(System.String)", new XmlComment(@"Initializes a new instance of the MapGroupAttribute class.", null, null, null, null, false, null, [new XmlParameterComment(@"endpointRoutePattern", @"The route prefix for the group, e.g. `""api/products""`.", null, false)], null));
+            cache.Add(@"T:RoyalCode.SmartCommands.MapIdResultValueAttribute", new XmlComment(@"    Indicates that the generated endpoint should return only the Id property of the value produced by
+the command, instead of the full value.
+    The type returned by the command method must expose an Id property; otherwise a compile-time
+diagnostic is reported.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.MapPatchAttribute", new XmlComment(@"    Maps a command class to an HTTP PATCH endpoint in Minimal API.
     Use this attribute on a class that contains a method marked with CommandAttribute.
 It is intended for partial updates of an existing resource (e.g. updating a subset of properties).
@@ -279,6 +304,9 @@ public class UpdateProduct
     }
 }```", null, null, null, null, false, null, null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.MapPutAttribute.#ctor(System.String,System.String)", new XmlComment(@"Initializes a new instance of the MapPutAttribute class.", null, null, null, null, false, null, [new XmlParameterComment(@"endpointRoutePattern", @"The route pattern for the endpoint, typically `""/{id}""` for updating a specific resource within a group.", null, false), new XmlParameterComment(@"endpointName", @"A unique name for the endpoint, e.g. `""update-product""`.", null, false)], null));
+            cache.Add(@"T:RoyalCode.SmartCommands.MapResponseValuesAttribute", new XmlComment(@"    Indicates that the generated endpoint should return a response body composed of a subset of the
+properties of the value produced by the command, instead of the full value.", null, null, null, null, false, null, null, null));
+            cache.Add(@"M:RoyalCode.SmartCommands.MapResponseValuesAttribute.#ctor(System.String[])", new XmlComment(@"Initializes a new instance of the MapResponseValuesAttribute class.", null, null, null, null, false, null, [new XmlParameterComment(@"propertiesNames", @"The names of the properties, from the value returned by the command, to include in the response body.", null, false)], null));
             cache.Add(@"T:RoyalCode.SmartCommands.MapSearchAttribute", new XmlComment(@"    Maps a command class to an HTTP GET endpoint that performs a search or listing operation (paged, filtered, etc.).
     Combine with SearchReferenceAttribute&lt;TEntity, TModel&gt; or SearchReferenceAttribute&lt;TEntity&gt;
 for entity-based search scenarios.
@@ -297,14 +325,51 @@ public class SearchProducts
     public bool? Active { get; set; }
 }```", null, null, null, null, false, null, null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.MapSearchAttribute.#ctor(System.String,System.String)", new XmlComment(@"Initializes a new instance of the MapSearchAttribute class.", null, null, null, null, false, null, [new XmlParameterComment(@"endpointRoutePattern", @"The route pattern for the search endpoint, commonly `""/""` or a sub-path like `""/active""`.", null, false), new XmlParameterComment(@"endpointName", @"A unique name for the endpoint, e.g. `""search-products""`.", null, false)], null));
+            cache.Add(@"T:RoyalCode.SmartCommands.Mediator`2", new XmlComment(@"    Drives the pipeline of IDecorator&lt;TModel, TResult&gt; instances applied to a command when the
+command method is decorated with WithDecoratorsAttribute. Instantiated by the source generator
+in the generated handler implementation; not intended to be used directly.", null, null, null, null, false, null, null, null));
+            cache.Add(@"M:RoyalCode.SmartCommands.Mediator`2.#ctor(System.Collections.Generic.IEnumerable{RoyalCode.SmartCommands.IDecorator{`0,`1}},System.Func{System.Threading.Tasks.Task{`1}},`0,System.Threading.CancellationToken)", new XmlComment(@"Initializes a new instance of the Mediator&lt;TModel, TResult&gt; class.", null, null, null, null, false, null, [new XmlParameterComment(@"decorators", @"The decorators to run, in order, before the final handler.", null, false), new XmlParameterComment(@"finalHandler", @"The delegate that executes the command logic once all decorators have run.", null, false), new XmlParameterComment(@"model", @"The command instance being handled.", null, false), new XmlParameterComment(@"ct", @"Cancellation token.", null, false)], null));
+            cache.Add(@"M:RoyalCode.SmartCommands.Mediator`2.NextAsync", new XmlComment(@"Invokes the next decorator in the pipeline, or the final handler when there are no more decorators.", null, null, @"The result produced by the next decorator or by the final handler.", null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.ProduceNewEntityAttribute", new XmlComment(@"    Indicates that the command method creates a new entity, which is added to the unit of work and
+persisted when the unit of work completes. The value returned by the command method is the new entity.
+    Requires WithUnitOfWorkAttribute&lt;T&gt;.", null, null, null, null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.SearchReferenceAttribute`1", new XmlComment(@"    Used together with MapSearchAttribute to indicate that the search command queries
+entities of type TEntity, returning the entity itself as the search result.
+    Combine with WithFilterAttribute to apply custom filtering logic to the query.", null, null, null, null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.SearchReferenceAttribute`2", new XmlComment(@"    Used together with MapSearchAttribute to indicate that the search command queries
+entities of type TEntity, projecting each result to TModel.
+    Combine with WithFilterAttribute to apply custom filtering logic to the query.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithAuthorizationAttribute", new XmlComment(@"Applies authorization requirements to an endpoint generated from a command.", null, null, null, null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.WithDbContextAttribute", new XmlComment(@"    Opts the command into the full unit-of-work lifecycle backed directly by an Entity Framework Core
+DbContext, without requiring an explicit context type argument. Equivalent to
+WithUnitOfWorkAttribute&lt;T&gt; using the ambient DbContext as the unit of work context.
+    Cannot be combined with WithUnitOfWorkAttribute&lt;T&gt; or WithWorkContextAttribute.", null, null, null, null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.WithDecoratorsAttribute", new XmlComment(@"    Opts the command into a decorator pipeline: the generated handler resolves the registered
+IDecorator&lt;TModel, TResult&gt; services for the command and result types and executes them,
+via Mediator&lt;TModel, TResult&gt;, before invoking the command method.
+    The command method must return a value (it cannot be `void` or a value-less Task).", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithDescriptionAttribute", new XmlComment(@"Specifies a description for an endpoint generated from a command.", null, @"Apply this attribute to a class to provide a human-readable description.", null, null, false, [@"    ```[WithDescription(""This command does something useful."")]
 public class MyCommand { }```"], null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.WithDescriptionAttribute.#ctor(System.String)", new XmlComment(@"Initializes a new instance of the WithDescriptionAttribute class with the specified description.", null, null, null, null, false, null, [new XmlParameterComment(@"description", @"The description of the endpoint.", null, false)], null));
+            cache.Add(@"T:RoyalCode.SmartCommands.WithFilterAttribute", new XmlComment(@"    Marks the method, in a class decorated with SearchReferenceAttribute&lt;TEntity&gt; or
+SearchReferenceAttribute&lt;TEntity, TModel&gt;, that applies custom filtering logic to the
+search query. The generated search handler invokes this method to build the filtered query.
+    Only one method per search command class can be marked with this attribute.", null, null, null, null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.WithFindEntitiesAttribute`1", new XmlComment(@"    Opts the command into loading entities before executing the command method, using an
+IRepositoriesAccessor&lt;T&gt; of context type T, without starting a
+full unit of work (no begin/complete transaction lifecycle).
+    Entity parameters (or collections of entities) with a matching id property or parameter in the command
+class are resolved and loaded automatically, returning a NotFound problem when an entity is missing.
+Use WithUnitOfWorkAttribute&lt;T&gt; instead when the command also needs to persist changes.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithOpenApiAttribute", new XmlComment(@"    Used with MapApiHandlersAttribute to indicate that the generated endpoints should include OpenAPI documentation.
     This attribute is applied to classes marked with MapApiHandlersAttribute.
     After .Net 10 the OpenAPI documentation is automatically generated for minimal APIs, 
 so this attribute is not necessary in most scenarios.", null, null, null, null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.WithParameterAttribute", new XmlComment(@"    Marks a command method parameter as coming from outside the command payload: instead of being read from
+the command instance, the generated handler exposes it as an additional Minimal API endpoint parameter,
+bound the usual ASP.NET Core way (route, query, services, etc.).
+    Cannot be combined with a parameter that is already recognized as an entity, a collection of entities,
+or the unit of work context.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithPolicyAttribute", new XmlComment(@"Applies a policy requirement to an endpoint generated from a command.", null, null, null, null, false, null, null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.WithPolicyAttribute.#ctor(System.String[])", new XmlComment(@"Initializes a new instance of the WithPolicyAttribute class with the specified policy.", null, null, null, null, false, null, [new XmlParameterComment(@"policy", @"A string array of policy names to apply to the endpoint.", null, false)], null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithRetryOnConcurrencyAttribute", new XmlComment(@"    Opt-in attribute that makes the generated command handler retry the command body on optimistic-concurrency
@@ -323,6 +388,20 @@ to create the problem returned when the retry budget is exhausted.", null, null,
             cache.Add(@"P:RoyalCode.SmartCommands.WithRetryOnConcurrencyAttribute.Operation", new XmlComment(@"The semantic operation key used by the retry problem factory when the retry budget is exhausted.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithSummaryAttribute", new XmlComment(@"Specifies a summary for an endpoint generated from a command.", null, null, null, null, false, null, null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.WithSummaryAttribute.#ctor(System.String)", new XmlComment(@"Initializes a new instance of the WithSummaryAttribute class with the specified summary.", null, null, null, null, false, null, [new XmlParameterComment(@"summary", @"The summary of the endpoint.", null, false)], null));
+            cache.Add(@"T:RoyalCode.SmartCommands.WithUnitOfWorkAttribute`1", new XmlComment(@"    Opts the command into the full unit-of-work lifecycle, using an IUnitOfWorkAccessor&lt;T&gt; of
+context type T: the generated handler begins the unit of work, loads any entities
+the command needs, invokes the command method, and completes (persists) the unit of work.
+    Combine with ProduceNewEntityAttribute or EditEntityAttribute&lt;TEntity, TId&gt; to
+create or edit an entity as part of the command.", null, null, null, null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.WithValidateModelAttribute", new XmlComment(@"    Opts the command into model validation before the command method runs. The command class must declare a
+HasProblems validation method following the pattern expected by the source generator; the generated
+handler calls it and short-circuits, returning the resulting problems, when validation fails.", null, null, null, null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.WithWorkContextAttribute", new XmlComment(@"    Opts the command into the full unit-of-work lifecycle backed by an IWorkContext
+(from the RoyalCode.SmartCommands.WorkContext package). Equivalent to
+WithUnitOfWorkAttribute&lt;T&gt; using the work context as the unit of work context.
+    Required by WithRetryOnConcurrencyAttribute, which retries the command body on
+optimistic-concurrency conflicts. Cannot be combined with WithUnitOfWorkAttribute&lt;T&gt; or
+WithDbContextAttribute.", null, null, null, null, false, null, null, null));
 
             cache.Add(@"T:RoyalCode.SmartCommands.WorkContext.Adapters.UnitOfWorkAccessor`1", new XmlComment(@"A service that provides access to the unit of work.", null, null, null, null, false, null, null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.WorkContext.Adapters.UnitOfWorkAccessor`1.#ctor(`0,Microsoft.Extensions.Options.IOptions{RoyalCode.SmartCommands.WorkContext.Options.WorkContextAdapterOptions})", new XmlComment(@"Creates a new instance of UnitOfWorkAccessor&lt;TWorkContext&gt;.", null, null, null, null, false, null, [new XmlParameterComment(@"workContext", @"The work context.", null, false), new XmlParameterComment(@"options", @"The options.", null, false)], null));

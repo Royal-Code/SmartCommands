@@ -20,16 +20,16 @@ public class Tests
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedInterface = output.SyntaxTrees.Skip(1).FirstOrDefault()?.ToString();
-        Assert.Equal(interfaceCode, generatedInterface);
+        Assert.Equal(Util.GeneratedCode(interfaceCode), generatedInterface);
 
         var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
-        Assert.Equal(handlerCode, generatedHandler);
+        Assert.Equal(Util.GeneratedCode(handlerCode), generatedHandler);
 
         var generatedAddServices = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        Assert.Equal(addServicesCode, generatedAddServices);
+        Assert.Equal(Util.GeneratedCode(addServicesCode), generatedAddServices);
 
         var generatedApiHandlers = output.SyntaxTrees.Skip(4).FirstOrDefault()?.ToString();
-        Assert.Equal(apiHandlersCode, generatedApiHandlers);
+        Assert.Equal(Util.GeneratedCode(apiHandlersCode), generatedApiHandlers);
     }
 }
 
@@ -133,7 +133,7 @@ public static partial class MapApiSomeApi
 
     private static OkMatch CreateSomeHandle(
         ICreateSomeHandler handler, 
-        CreateSome command)
+        CreateSome? command)
     {
         if (command is null)
             return Problems.InvalidParameter("The request body is required.");
@@ -293,7 +293,7 @@ public static partial class MapApiSomeApi
 
     private static async Task<CreatedMatch<Some>> CreateSomeHandleAsync(
         ICreateSomeHandler handler, 
-        CreateSome command, 
+        CreateSome? command, 
         CancellationToken ct)
     {
         if (command is null)

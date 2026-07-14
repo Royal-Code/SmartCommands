@@ -13,13 +13,13 @@ public class GenerateWasValidatedTests
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedInterface = output.SyntaxTrees.Skip(1).FirstOrDefault()?.ToString();
-        Assert.Equal(Code.MyCommandInterface, generatedInterface);
+        Assert.Equal(Util.GeneratedCode(Code.MyCommandInterface), generatedInterface);
 
         var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
-        Assert.Equal(Code.MyCommandHandler, generatedHandler);
+        Assert.Equal(Util.GeneratedCode(Code.MyCommandHandler), generatedHandler);
 
         var generatedPartial = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        Assert.Equal(Code.MyCommandWasValidated, generatedPartial);
+        Assert.Equal(Util.GeneratedValidatedCode(Code.MyCommandWasValidated), generatedPartial);
     }
 }
 
@@ -112,10 +112,6 @@ public class MyCommandHandler : IMyCommandHandler
 
     public const string MyCommandWasValidated =
 """
-
-#nullable disable
-#pragma warning disable
-
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 

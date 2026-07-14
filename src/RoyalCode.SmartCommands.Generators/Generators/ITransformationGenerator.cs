@@ -2,12 +2,12 @@
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public interface ITransformationGenerator
+internal interface ITransformationGenerator
 {
     public void Generate(SourceProductionContext spc);
 }
 
-public interface ITransformationGenerator<in TModel>
+internal interface ITransformationGenerator<in TModel>
 {
     public void Generate(SourceProductionContext spc, IEnumerable<TModel> models);
 }

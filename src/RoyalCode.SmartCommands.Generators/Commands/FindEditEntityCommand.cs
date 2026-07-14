@@ -2,7 +2,7 @@
 
 namespace RoyalCode.SmartCommands.Generators.Commands;
 
-public class FindEditEntityCommand : GeneratorNode, IWithNamespaces
+internal class FindEditEntityCommand : GeneratorNode, IWithNamespaces
 {
     private readonly EditTypeDescriptor descriptor;
     private readonly string accessorVarName;
@@ -36,8 +36,11 @@ public class FindEditEntityCommand : GeneratorNode, IWithNamespaces
     /// <param name="indent"></param>
     public override void Write(StringBuilder sb, int indent = 0)
     {
+        var parameter = descriptor.Parameter
+            ?? throw new InvalidOperationException("An edit command must have an entity parameter before source generation.");
+
         bool entityVarDeclared = false;
-        var idParamName = $"{descriptor.Parameter.Name}Id";
+        var idParamName = $"{parameter.Name}Id";
 
         // quando a propriedade do comando pode ser nula,
         // deve ser feito um if para verificar se se deve executar o find.
@@ -45,7 +48,7 @@ public class FindEditEntityCommand : GeneratorNode, IWithNamespaces
         {
             // a variável do parâmetro deve ser declarada antes do if
             sb.Indent(indent);
-            sb.Append(descriptor.Parameter.Name).Append(' ').Append(descriptor.Parameter.Name).Append(" = null;").AppendLine();
+            sb.Append(parameter.Name).Append(' ').Append(parameter.Name).Append(" = null;").AppendLine();
             entityVarDeclared = true;
 
             // declaração do if
@@ -58,9 +61,9 @@ public class FindEditEntityCommand : GeneratorNode, IWithNamespaces
         }
 
         sb.Indent(indent);
-        sb.Append("var ").Append(descriptor.Parameter.Name).Append("Entry = ")
+        sb.Append("var ").Append(parameter.Name).Append("Entry = ")
             .Append("await this.").Append(accessorVarName).Append(".FindEntityAsync<")
-            .Append(descriptor.Parameter.Type.UnderlyingType).Append(", ")
+            .Append(parameter.Type.UnderlyingType).Append(", ")
             .Append(descriptor.IdType.UnderlyingType).Append(">(")
             .Append(idParamName);
 
@@ -71,7 +74,7 @@ public class FindEditEntityCommand : GeneratorNode, IWithNamespaces
             .AppendLine();
 
         sb.Indent(indent);
-        sb.Append("if (").Append(descriptor.Parameter.Name).Append("Entry.NotFound(out notFoundProblem))").AppendLine();
+        sb.Append("if (").Append(parameter.Name).Append("Entry.NotFound(out notFoundProblem))").AppendLine();
 
         sb.IndentPlus(indent);
         sb.AppendLine("return notFoundProblem;");
@@ -79,7 +82,7 @@ public class FindEditEntityCommand : GeneratorNode, IWithNamespaces
         sb.Indent(indent);
         if (!entityVarDeclared)
             sb.Append("var ");
-        sb.Append(descriptor.Parameter.Name).Append(" = ").Append(descriptor.Parameter.Name).AppendLine("Entry.Entity;");
+        sb.Append(parameter.Name).Append(" = ").Append(parameter.Name).AppendLine("Entry.Entity;");
 
         if (descriptor.IdType.MayBeNull)
         {

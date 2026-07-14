@@ -2,7 +2,7 @@
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-public class AddServiceDescriptor
+internal class AddServiceDescriptor
 {
     public AddServiceDescriptor(ServiceTypeDescriptor serviceTypeDescriptor, ContextAccessorModes contextAccessorMode)
     {

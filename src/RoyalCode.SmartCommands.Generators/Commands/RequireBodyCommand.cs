@@ -9,7 +9,7 @@ namespace RoyalCode.SmartCommands.Generators.Commands;
 ///     instead of dereferencing null further down the handler.
 /// </para>
 /// </summary>
-public class RequireBodyCommand : GeneratorNode, IWithNamespaces
+internal class RequireBodyCommand : GeneratorNode, IWithNamespaces
 {
     private readonly string commandVarName;
     private readonly string detail;

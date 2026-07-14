@@ -20,10 +20,10 @@ public class GenerateFindEntitiesTests
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var generatedInterface = output.SyntaxTrees.Skip(1).FirstOrDefault()?.ToString();
-        Assert.Equal(interfaceCode, generatedInterface);
+        Assert.Equal(Util.GeneratedCode(interfaceCode), generatedInterface);
 
         var generatedHandler = output.SyntaxTrees.Skip(2).FirstOrDefault()?.ToString();
-        Assert.Equal(handlerCode, generatedHandler);
+        Assert.Equal(Util.GeneratedCode(handlerCode), generatedHandler);
     }
 }
 
@@ -393,9 +393,9 @@ public class CreateMovieFull
 
     public string? PosterUri { get; set; }
 
-    public ICollection<int> Genres { get; set; }
+    public ICollection<int> Genres { get; set; } = [];
 
-    public ICollection<int> ActorsIds { get; set; }
+    public ICollection<int> ActorsIds { get; set; } = [];
 
     [MemberNotNullWhen(false, nameof(Title))]
     public bool HasProblems([NotNullWhen(true)] out Problems? problems)
