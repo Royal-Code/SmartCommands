@@ -246,7 +246,8 @@ public class SemanticGenerationTests
         var interfaceHints = output.SyntaxTrees
             .Skip(1)
             .Select(tree => Path.GetFileName(tree.FilePath))
-            .Where(path => path.EndsWith(".IDoSameHandler.g.cs", StringComparison.Ordinal))
+            .Where(path => path.StartsWith("IDoSameHandler.", StringComparison.Ordinal)
+                && path.EndsWith(".g.cs", StringComparison.Ordinal))
             .ToArray();
         Assert.Equal(2, interfaceHints.Length);
         Assert.Equal(2, interfaceHints.Distinct(StringComparer.Ordinal).Count());
@@ -261,8 +262,12 @@ public class SemanticGenerationTests
         var second = HintName.Create($"Tests.Semantic.Second.{readableName}", readableName);
 
         Assert.NotEqual(first, second);
-        Assert.True(first.Length <= 54, $"Hint name too long: {first}");
-        Assert.True(second.Length <= 54, $"Hint name too long: {second}");
+        Assert.True(first.Length <= 46, $"Hint name too long: {first}");
+        Assert.True(second.Length <= 46, $"Hint name too long: {second}");
+        Assert.StartsWith($"{new string('T', 32)}.", first, StringComparison.Ordinal);
+        Assert.Equal(8, first.Split('.')[1].Length);
+        Assert.All(first.Split('.')[1], character =>
+            Assert.True(character is >= 'A' and <= 'Z' or >= '2' and <= '7'));
         Assert.EndsWith(".g.cs", first, StringComparison.Ordinal);
         Assert.EndsWith(".g.cs", second, StringComparison.Ordinal);
     }
@@ -387,7 +392,9 @@ public class SemanticGenerationTests
         AssertOutputCompiles(output);
 
         var responseSource = output.SyntaxTrees
-            .FirstOrDefault(tree => tree.FilePath.EndsWith(".CreateWithResponseResponse.g.cs", StringComparison.Ordinal))
+            .FirstOrDefault(tree =>
+                Path.GetFileName(tree.FilePath).StartsWith("CreateWithResponseResponse.", StringComparison.Ordinal)
+                && tree.FilePath.EndsWith(".g.cs", StringComparison.Ordinal))
             ?.ToString();
 
         Assert.NotNull(responseSource);

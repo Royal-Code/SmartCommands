@@ -11,7 +11,7 @@ namespace RoyalCode.SmartCommands.Generators.Generators;
 internal static class HintName
 {
     private const int ReadableNameMaxLength = 32;
-    private const int HashByteCount = 8;
+    private const string Base32Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
     internal static string Create(string identity, string readableName)
     {
@@ -26,11 +26,27 @@ internal static class HintName
 
         using var sha256 = SHA256.Create();
         var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(identity));
-        var hash = new StringBuilder(HashByteCount * 2);
-        for (var index = 0; index < HashByteCount; index++)
-            hash.Append(hashBytes[index].ToString("x2"));
+        var hash = EncodeBase32(hashBytes);
 
-        return $"{hash}.{safeName}.g.cs";
+        return $"{safeName}.{hash}.g.cs";
+    }
+
+    /// <summary>
+    /// Encodes the first 40 bits of SHA-256 as eight file-name-safe Base32 characters. Five bytes align exactly
+    /// with eight Base32 symbols, so padding is unnecessary and no entropy is discarded by the encoding itself.
+    /// </summary>
+    private static string EncodeBase32(byte[] hash)
+    {
+        var encoded = new char[8];
+        encoded[0] = Base32Alphabet[hash[0] >> 3];
+        encoded[1] = Base32Alphabet[((hash[0] & 0x07) << 2) | (hash[1] >> 6)];
+        encoded[2] = Base32Alphabet[(hash[1] >> 1) & 0x1F];
+        encoded[3] = Base32Alphabet[((hash[1] & 0x01) << 4) | (hash[2] >> 4)];
+        encoded[4] = Base32Alphabet[((hash[2] & 0x0F) << 1) | (hash[3] >> 7)];
+        encoded[5] = Base32Alphabet[(hash[3] >> 2) & 0x1F];
+        encoded[6] = Base32Alphabet[((hash[3] & 0x03) << 3) | (hash[4] >> 5)];
+        encoded[7] = Base32Alphabet[hash[4] & 0x1F];
+        return new string(encoded);
     }
 
     private static string Sanitize(string value)
