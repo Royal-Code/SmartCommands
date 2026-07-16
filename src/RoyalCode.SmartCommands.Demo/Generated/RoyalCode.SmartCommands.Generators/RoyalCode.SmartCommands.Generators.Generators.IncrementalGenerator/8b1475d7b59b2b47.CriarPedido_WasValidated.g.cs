@@ -10,6 +10,6 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Pedidos;
 public partial class CriarPedido
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    [MemberNotNull(nameof(Itens))]
+    [MemberNotNull("Itens")]
     internal protected void WasValidated() { }
 }

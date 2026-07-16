@@ -79,7 +79,39 @@ WithDecoratorsAttribute, and WithValidateModelAttribute to customize the generat
             cache.Add(@"T:RoyalCode.SmartCommands.EditEntityAttribute`2", new XmlComment(@"    Marks the command method as editing an existing entity. The generated handler loads the entity of type
 TEntity by its identifier of type TId before invoking the
 command method, returning a NotFound problem when the entity does not exist.
-    Requires WithUnitOfWorkAttribute&lt;T&gt;. The loaded entity must be the first parameter of the command method.", null, null, null, null, false, null, null, null));
+    Requires WithUnitOfWorkAttribute&lt;T&gt;. The loaded entity must be the first parameter of the command method.
+    When the command is mapped to an endpoint, the entity id is bound from a route parameter, resolved in
+this order: the explicit string? EditEntityAttribute&lt;TEntity, TId&gt;.RouteParameterName; the single route parameter when the template
+declares exactly one; a route parameter named {entityParameterName}Id; a route parameter with the
+same name as the entity parameter. When the template has multiple parameters and none matches, the
+generator emits a diagnostic and does not generate the endpoint.
+    Examples:
+          ```// template com uma única variável: '{id}' é usada automaticamente
+[MapPut(""/{id}"", ""editar-produto"")]
+public class EditarProduto
+{
+    [Command, WithUnitOfWork{AppDbContext}, EditEntity{Produto, Guid}]
+    internal void Executar(Produto produto) { /* ... */ }
+}
+
+// várias variáveis: '{produtoId}' casa com o parâmetro 'produto' + sufixo Id
+[MapPut(""/{lojaId}/produtos/{produtoId}"", ""editar-produto-da-loja"")]
+public class EditarProdutoDaLoja
+{
+    [Command, WithUnitOfWork{AppDbContext}, EditEntity{Produto, Guid}]
+    internal void Executar(Produto produto) { /* ... */ }
+}
+
+// seleção explícita quando nenhuma convenção se aplica
+[MapPut(""/{parent}/itens/{codigo}"", ""editar-item"")]
+public class EditarItem
+{
+    [Command, WithUnitOfWork{AppDbContext}, EditEntity{Item, int}(RouteParameterName = ""codigo"")]
+    internal void Executar(Item item) { /* ... */ }
+}```", null, null, null, null, false, null, null, null));
+            cache.Add(@"P:RoyalCode.SmartCommands.EditEntityAttribute`2.RouteParameterName", new XmlComment(@"    The name of the route parameter that carries the entity id. Optional: when omitted, the generator
+resolves the parameter by convention (single route parameter; {entityParameterName}Id;
+entityParameterName).", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.EntityReferenceAttribute`2", new XmlComment(@"Attribute used to reference an entity and its ID type.
 Used together with MapFindAttribute.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.IDecorator`2", new XmlComment(@"    A decorator that wraps the execution of a command marked with WithDecoratorsAttribute,

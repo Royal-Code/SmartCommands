@@ -65,7 +65,7 @@ internal static class Util
             ?.Split(Path.PathSeparator)
             ?? [];
 
-        // assemblies references requered to compile the source code
+        // assembly references required to compile the source code
         var referencePaths = trustedPlatformAssemblies
             .Concat(Directory.GetFiles(AppContext.BaseDirectory, "*.dll"))
             .Concat(

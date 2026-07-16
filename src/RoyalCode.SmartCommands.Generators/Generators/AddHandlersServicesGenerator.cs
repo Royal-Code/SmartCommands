@@ -36,9 +36,11 @@ internal static class AddHandlersServicesGenerator
     {
         cancellationToken.ThrowIfCancellationRequested();
         var classSyntax = (ClassDeclarationSyntax)context.TargetNode;
+        var classSymbol = (INamedTypeSymbol)context.TargetSymbol;
 
         var errors = new List<DiagnosticInfo>();
 
+        // a classe deve ser partial (fato sintático; não há equivalente no símbolo)
         if (!classSyntax.Modifiers.Any(SyntaxKind.PartialKeyword))
         {
             var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidCommandType,
@@ -48,7 +50,8 @@ internal static class AddHandlersServicesGenerator
             errors.Add(diagnostic);
         }
 
-        if (!classSyntax.Modifiers.Any(SyntaxKind.StaticKeyword))
+        // a classe deve ser static (decisão pelo símbolo)
+        if (!classSymbol.IsStatic)
         {
             var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidCommandType,
                 location: classSyntax.Identifier.GetLocation(),
@@ -57,8 +60,10 @@ internal static class AddHandlersServicesGenerator
             errors.Add(diagnostic);
         }
 
-        if (!classSyntax.TryGetAttribute("AddHandlersServices", out AttributeSyntax? attr)
-            || attr?.ArgumentList?.Arguments.Count is not 1)
+        // lê o atributo pela identidade semântica; o título vem do TypedConstant, então
+        // constantes referenciadas também são aceitas (não apenas literais).
+        if (!KnownAttributes.TryGet(classSymbol, KnownAttributes.AddHandlersServices, out var attr)
+            || attr!.ConstructorArguments.Length is not 1)
         {
             var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidCommandType,
                     location: classSyntax.Identifier.GetLocation(),
@@ -67,27 +72,21 @@ internal static class AddHandlersServicesGenerator
             errors.Add(diagnostic);
         }
 
-        var titleExpression = attr?.ArgumentList?.Arguments is { Count: 1 } arguments
-            ? arguments[0].Expression
+        var title = attr?.ConstructorArguments.Length == 1
+            ? KnownAttributes.GetString(attr.ConstructorArguments[0])
             : null;
 
-        var title = string.Empty;
-        if (titleExpression is LiteralExpressionSyntax literal &&
-            literal.IsKind(SyntaxKind.StringLiteralExpression))
-        {
-            title = literal.Token.ValueText;
-        }
-        else
+        if (title is null)
         {
             var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidCommandType,
                     location: classSyntax.Identifier.GetLocation(),
-                    "The title for AddHandlersServicesAttribute must be a literal string");
+                    "The title for AddHandlersServicesAttribute must be a constant string");
 
             errors.Add(diagnostic);
         }
 
         var handlerType = TypeDescriptor.Create((ITypeSymbol)context.TargetSymbol);
-        return new AddHandlersServicesInformation(handlerType, title, errors);
+        return new AddHandlersServicesInformation(handlerType, title ?? string.Empty, errors);
     }
 
     public static void Generate(
@@ -168,7 +167,8 @@ internal static class AddHandlersServicesGenerator
 
         classGenerator.Methods.Add(method);
 
-        classGenerator.FileName = $"{left.ClassType.Name}_AddHandlersServices.g.cs";
+        var hintIdentity = $"{left.ClassType.Namespaces[0]}.{left.ClassType.Name}_AddHandlersServices";
+        classGenerator.FileName = HintName.Create(hintIdentity, $"{left.ClassType.Name}_AddHandlersServices");
         GeneratedFileHeader.AddTo(classGenerator);
         classGenerator.Generate(spc);
 

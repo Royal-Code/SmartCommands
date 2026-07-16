@@ -1,6 +1,6 @@
-﻿using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.Extensions.SourceGenerator.Collections;
 using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 using RoyalCode.Extensions.SourceGenerator.Generation;
 using RoyalCode.SmartCommands.Generators.Models;
@@ -10,17 +10,6 @@ namespace RoyalCode.SmartCommands.Generators.Generators;
 internal static class SearchGenerator
 {
     public const string SearchAttributeName = "RoyalCode.SmartCommands.MapSearchAttribute";
-
-    private const string MapSearchAttributeName = "MapSearch";
-    private const string SearchReferenceAttributeAttributeName = "SearchReference";
-
-    private const string MapGroupAttributeName = "MapGroup";
-    private const string WithDescriptionAttributeName = "WithDescription";
-    private const string WithSummaryAttributeName = "WithSummary";
-    private const string WithAuthorizationAttributeName = "WithAuthorization";
-    private const string WithPolicyAttributeName = "WithPolicy";
-    private const string WithFilterAttributeName = "WithFilter";
-    private const string WithParameterAttributeName = "WithParameter";
 
     public static bool Predicate(SyntaxNode node, CancellationToken cancellationToken)
     {
@@ -34,50 +23,75 @@ internal static class SearchGenerator
     {
         cancellationToken.ThrowIfCancellationRequested();
         var information = TransformWorking(context, cancellationToken);
+        if (information is null)
+        {
+            // entrada incompleta (argumento não constante em digitação): o compilador já reporta;
+            // rejeição silenciosa, sem modelo e sem RCCMD (DF9).
+            return GenerationCandidate<SearchModel>.Invalid(default(EquatableArray<DiagnosticInfo>));
+        }
+
         var diagnostics = PipelineDiagnostic.Snapshot(information.Diagnostics);
         return diagnostics.IsEmpty
             ? GenerationCandidate<SearchModel>.Valid(SearchModel.Create(information))
             : GenerationCandidate<SearchModel>.Invalid(diagnostics);
     }
 
-    private static SearchInformation TransformWorking(
+    private static SearchInformation? TransformWorking(
         GeneratorAttributeSyntaxContext context,
         CancellationToken cancellationToken)
     {
         // classe que contém o atributo
         var classDeclaration = (ClassDeclarationSyntax)context.TargetNode;
+        var classSymbol = (INamedTypeSymbol)context.TargetSymbol;
+        var classLocation = classDeclaration.Identifier.GetLocation();
 
-        // lê o atributo MapSearch
-        if (!classDeclaration.TryGetAttribute(MapSearchAttributeName, out AttributeSyntax? mapSearchAttribute))
+        // lê o atributo MapSearch pela identidade semântica (metadata name)
+        if (!KnownAttributes.TryGet(classSymbol, KnownAttributes.MapSearch, out var mapSearchAttribute))
         {
-            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapSearchUsage,
-                location: classDeclaration.Identifier.GetLocation(),
-                "The MapSearchAttribute is not present in the class");
-
-            return new SearchInformation(diagnostic);
+            return new SearchInformation(DiagnosticInfo.Create(CmdDiagnostics.InvalidMapSearchUsage,
+                classLocation,
+                "The MapSearchAttribute is not present in the class"));
         }
 
-        // lê o atributo SearchReferenceAttribute
-        if (!classDeclaration.TryGetAttribute(SearchReferenceAttributeAttributeName, out AttributeSyntax? searchReferenceAttribute))
+        // lê o atributo SearchReferenceAttribute (aridade 1 ou 2)
+        if (!KnownAttributes.TryGet(classSymbol, KnownAttributes.SearchReference1, out var searchReferenceAttribute) &&
+            !KnownAttributes.TryGet(classSymbol, KnownAttributes.SearchReference2, out searchReferenceAttribute))
         {
-            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapSearchUsage,
-                location: classDeclaration.Identifier.GetLocation(),
-                "The SearchReferenceAttribute is not present in the class");
-
-            return new SearchInformation(diagnostic);
+            return new SearchInformation(DiagnosticInfo.Create(CmdDiagnostics.InvalidMapSearchUsage,
+                classLocation,
+                "The SearchReferenceAttribute is not present in the class"));
         }
 
-        if (mapSearchAttribute!.ArgumentList?.Arguments is not { Count: 2 } mapArguments)
+        // a quantidade de argumentos escritos vem da sintaxe; os valores vêm dos TypedConstants
+        var writtenArgumentCount =
+            (mapSearchAttribute!.ApplicationSyntaxReference?.GetSyntax(cancellationToken) as AttributeSyntax)?
+                .ArgumentList?.Arguments.Count ?? 0;
+        if (writtenArgumentCount != 2)
         {
-            var diagnostic = DiagnosticInfo.Create(
+            return new SearchInformation(DiagnosticInfo.Create(
                 CmdDiagnostics.InvalidMapSearchUsage,
-                mapSearchAttribute.GetLocation(),
-                "MapSearchAttribute requires a route pattern and an endpoint name");
-            return new SearchInformation(diagnostic);
+                KnownAttributes.GetLocation(mapSearchAttribute, cancellationToken, classLocation),
+                "MapSearchAttribute requires a route pattern and an endpoint name"));
         }
 
-        var endpointRoutePattern = mapArguments[0].Expression.ToString();
-        var endpointName = mapArguments[1].Expression.ToString();
+        var mapArguments = mapSearchAttribute.ConstructorArguments;
+        if (mapArguments.Length != 2 ||
+            mapArguments[0].Kind == TypedConstantKind.Error ||
+            mapArguments[1].Kind == TypedConstantKind.Error)
+        {
+            return null; // argumento não constante/incompleto: o compilador já reporta (DF9)
+        }
+
+        var endpointRoutePattern = KnownAttributes.GetString(mapArguments[0]);
+        var endpointName = KnownAttributes.GetString(mapArguments[1]);
+        if (endpointRoutePattern is null || endpointName is null)
+        {
+            // null é constante válida para o compilador, mas é uso inválido do atributo
+            return new SearchInformation(DiagnosticInfo.Create(
+                CmdDiagnostics.InvalidMapSearchUsage,
+                KnownAttributes.GetLocation(mapSearchAttribute, cancellationToken, classLocation),
+                "MapSearchAttribute requires a route pattern and an endpoint name"));
+        }
 
         string? description = null;
         string? summary = null;
@@ -85,67 +99,68 @@ internal static class SearchGenerator
         string? groupName = null;
 
         // tenta obter a description
-        if (classDeclaration.TryGetAttribute(WithDescriptionAttributeName, out AttributeSyntax? descAttr) && descAttr!.ArgumentList?.Arguments.Count is 1)
-            description = descAttr.ArgumentList.Arguments[0].Expression.ToString();
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithDescription, out var descAttr) &&
+            descAttr!.ConstructorArguments.Length == 1)
+        {
+            description = KnownAttributes.GetString(descAttr.ConstructorArguments[0]);
+        }
 
         // tenta obter o summary
-        if (classDeclaration.TryGetAttribute(WithSummaryAttributeName, out AttributeSyntax? displayNameAttr) && displayNameAttr!.ArgumentList?.Arguments.Count is 1)
-            summary = displayNameAttr.ArgumentList.Arguments[0].Expression.ToString();
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithSummary, out var summaryAttr) &&
+            summaryAttr!.ConstructorArguments.Length == 1)
+        {
+            summary = KnownAttributes.GetString(summaryAttr.ConstructorArguments[0]);
+        }
 
         // tenta obter o MapGroup attribute
-        if (classDeclaration.TryGetAttribute(MapGroupAttributeName, out AttributeSyntax? groupAttr) && groupAttr!.ArgumentList?.Arguments.Count is 1)
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.MapGroup, out var groupAttr) &&
+            groupAttr!.ConstructorArguments.Length == 1)
         {
-            groupName = groupAttr.ArgumentList.Arguments[0].Expression.ToString().RemoveQuotes();
+            groupName = KnownAttributes.GetString(groupAttr.ConstructorArguments[0]);
         }
-        else
-        {
-            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapSearchUsage,
-                location: classDeclaration.Identifier.GetLocation(),
-                "The MapGroupAttribute is not present in the class");
-        }
+        // NOTA (Fase 9): a obrigatoriedade de MapGroup para Search será decidida e diagnosticada lá;
+        // hoje o grupo ausente segue nulo, comportamento preservado.
 
         // tenta obter o authorization
-        if (classDeclaration.TryGetAttribute(WithAuthorizationAttributeName, out AttributeSyntax? authAttr))
+        if (KnownAttributes.Has(classSymbol, KnownAttributes.WithAuthorization))
             authorizationPolicies = [];
 
-        // se tiver o attribute WithPolicy, deve obter o(s) nome(s) da(s) política(s)
-        if (classDeclaration.TryGetAttribute(WithPolicyAttributeName, out AttributeSyntax? policyAttr))
+        // se tiver o attribute WithPolicy, deve obter o(s) nome(s) da(s) política(s) — aceita params e array explícito
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithPolicy, out var policyAttr))
         {
-            var arguments = policyAttr!.ArgumentList?.Arguments;
-            if (arguments is not null && arguments.Value.Count > 0)
-            {
-                // obtém os nomes das políticas
-                authorizationPolicies = arguments.Value.Select(a => a.Expression.ToString()).ToArray();
-            }
-            else
-            {
-                authorizationPolicies ??= [];
-            }
+            var policies = policyAttr!.ConstructorArguments.Length > 0
+                ? KnownAttributes.GetStrings(policyAttr.ConstructorArguments[0]).ToArray()
+                : [];
+            authorizationPolicies = policies.Length > 0 ? policies : authorizationPolicies ?? [];
         }
 
-        if (searchReferenceAttribute!.Name is not GenericNameSyntax syntax ||
-            syntax.TypeArgumentList.Arguments.Count is < 1 or > 2)
+        // os tipos da entidade (e opcionalmente o de projeção) vêm dos argumentos genéricos do atributo
+        if (searchReferenceAttribute!.AttributeClass is not
+            {
+                TypeKind: not TypeKind.Error,
+                TypeArguments.Length: 1 or 2,
+            } searchReferenceClass)
         {
-            var diagnostic = DiagnosticInfo.Create(
+            return new SearchInformation(DiagnosticInfo.Create(
                 CmdDiagnostics.InvalidMapSearchUsage,
-                searchReferenceAttribute.GetLocation(),
-                "SearchReferenceAttribute requires one or two type arguments");
-            return new SearchInformation(diagnostic);
+                KnownAttributes.GetLocation(searchReferenceAttribute!, cancellationToken, classLocation),
+                "SearchReferenceAttribute requires one or two type arguments"));
         }
 
-        var entitySyntaxType = syntax.TypeArgumentList.Arguments[0];
+        var entitySymbol = searchReferenceClass.TypeArguments[0];
+        var selectSymbol = searchReferenceClass.TypeArguments.Length == 2
+            ? searchReferenceClass.TypeArguments[1]
+            : null;
 
-        TypeSyntax? selectSyntaxType = null;
-        if (syntax.TypeArgumentList.Arguments.Count is 2)
-            selectSyntaxType = syntax.TypeArgumentList.Arguments[1];
-
-        var entityType = TypeDescriptor.Create(entitySyntaxType, context.SemanticModel);
-        var selectType = selectSyntaxType is null ? null : TypeDescriptor.Create(selectSyntaxType, context.SemanticModel);
+        var entityType = SemanticTypes.CreateDescriptor(entitySymbol);
+        var selectType = selectSymbol is null ? null : SemanticTypes.CreateDescriptor(selectSymbol);
         var filterType = TypeDescriptor.Create((ITypeSymbol)context.TargetSymbol);
 
         // obtém os métodos da classe, em busca de métodos anotados com WithFilter
         if (!TryCreateFilter(
-            classDeclaration,
+            classSymbol,
+            endpointRoutePattern,
+            groupName,
             context.SemanticModel,
             cancellationToken,
             out SearchFilterInformation? searchFilterInformation,
@@ -158,21 +173,23 @@ internal static class SearchGenerator
             entityType,
             selectType,
             filterType,
-            endpointRoutePattern ?? string.Empty,
-            endpointName ?? string.Empty,
+            endpointRoutePattern,
+            endpointName,
             description,
             summary,
             authorizationPolicies,
             groupName!,
             searchFilterInformation)
         {
-            EndpointNameLocation = mapArguments[1].GetLocation(),
+            EndpointNameLocation = KnownAttributes.GetArgumentLocation(
+                mapSearchAttribute, 1, cancellationToken, classLocation),
         };
     }
 
-
     public static bool TryCreateFilter(
-        ClassDeclarationSyntax classDeclarationSyntax,
+        INamedTypeSymbol classSymbol,
+        string routePattern,
+        string? groupName,
         SemanticModel semanticModel,
         CancellationToken cancellationToken,
         out SearchFilterInformation? searchFilterInformation,
@@ -181,23 +198,20 @@ internal static class SearchGenerator
         diagnostics = null;
         searchFilterInformation = null;
 
-        var methods = classDeclarationSyntax.Members.OfType<MethodDeclarationSyntax>()
-            .Select(m =>
-            {
-                m.TryGetAttribute(WithFilterAttributeName, out AttributeSyntax? attr);
-                return (m, attr);
-            })
-            .Where(m => m.attr is not null)
+        var methods = classSymbol.GetMembers()
+            .OfType<IMethodSymbol>()
+            .Where(candidate => KnownAttributes.Has(candidate, KnownAttributes.WithFilter))
             .ToList();
 
         cancellationToken.ThrowIfCancellationRequested();
 
         if (methods.Count > 1)
         {
-            diagnostics = methods.Select(m =>
+            diagnostics = methods.Select(candidate =>
             {
+                var location = candidate.Locations.FirstOrDefault(l => l.IsInSource) ?? Location.None;
                 return DiagnosticInfo.Create(CmdDiagnostics.InvalidWithFilterUsage,
-                    location: m.m.Identifier.GetLocation(),
+                    location,
                     "Only one method with WithFilterAttribute is allowed in the search filter class");
             }).ToList();
 
@@ -205,11 +219,22 @@ internal static class SearchGenerator
         }
         else if (methods.Count is 1)
         {
-            var methodWithFilter = methods[0].m;
+            var methodWithFilter = methods[0];
 
-            var methodName = methodWithFilter.Identifier.Text;
-            var isAsync = methodWithFilter.Modifiers.Any(SyntaxKind.AsyncKeyword);
-            var parameters = CreateSearchFilterParameters(methodWithFilter, semanticModel);
+            var methodName = methodWithFilter.Name;
+            // detecção semântica de assíncrono: pelo tipo de retorno (Task/ValueTask),
+            // nunca pelo modificador 'async'
+            var isAsync = IsAwaitableType(methodWithFilter.ReturnType);
+
+            var errors = new List<DiagnosticInfo>();
+            var parameters = CreateSearchFilterParameters(
+                methodWithFilter, routePattern, groupName, semanticModel, errors, cancellationToken);
+
+            if (errors.Count > 0)
+            {
+                diagnostics = errors;
+                return false;
+            }
 
             searchFilterInformation = new SearchFilterInformation(methodName, isAsync, parameters);
         }
@@ -217,18 +242,72 @@ internal static class SearchGenerator
         return true;
     }
 
+    private static bool IsAwaitableType(ITypeSymbol returnType) =>
+        KnownAttributes.IsType(returnType, "System.Threading.Tasks", "Task") ||
+        KnownAttributes.IsType(returnType, "System.Threading.Tasks", "Task`1") ||
+        KnownAttributes.IsType(returnType, "System.Threading.Tasks", "ValueTask") ||
+        KnownAttributes.IsType(returnType, "System.Threading.Tasks", "ValueTask`1");
+
     private static SearchFilterParameterInformation[] CreateSearchFilterParameters(
-        MethodDeclarationSyntax method, SemanticModel semanticModel)
+        IMethodSymbol method,
+        string routePattern,
+        string? groupName,
+        SemanticModel semanticModel,
+        List<DiagnosticInfo> errors,
+        CancellationToken cancellationToken)
     {
-        var parameters = method.ParameterList.Parameters
-            .Select(p =>
+        var parameters = method.Parameters
+            .Select(parameterSymbol =>
             {
-                var hasWithParameterAttribute = p.TryGetAttribute(WithParameterAttributeName, out AttributeSyntax? _);
-                var parameterDescriptor = ParameterDescriptor.Create(p, semanticModel);
-                return new SearchFilterParameterInformation(hasWithParameterAttribute, parameterDescriptor);
+                var hasWithParameterAttribute = KnownAttributes.Has(parameterSymbol, KnownAttributes.WithParameter);
+
+                // o descritor para emissão continua vindo da sintaxe (nome do tipo como escrito);
+                // as classificações são semânticas, congeladas aqui como fatos booleanos.
+                var parameterSyntax = parameterSymbol.DeclaringSyntaxReferences
+                    .Select(reference => reference.GetSyntax(cancellationToken))
+                    .OfType<ParameterSyntax>()
+                    .FirstOrDefault();
+
+                var parameterDescriptor = CreateParameterDescriptor(parameterSymbol, parameterSyntax, semanticModel);
+
+                // DF3: captura e valida os bindings explícitos dos parâmetros [WithParameter] do filtro
+                // (o search sempre participa de um endpoint mapeado)
+                var bindings = default(RoyalCode.Extensions.SourceGenerator.Collections.EquatableArray<ParameterBindingModel>);
+                if (hasWithParameterAttribute)
+                {
+                    var captured = BindingAttributes.Capture(parameterSymbol);
+                    var location = parameterSymbol.Locations.FirstOrDefault(l => l.IsInSource) ?? Location.None;
+                    BindingAttributes.Validate(captured, parameterSymbol.Name, location, routePattern, groupName, errors);
+                    bindings = captured.Bindings;
+                }
+
+                return new SearchFilterParameterInformation(
+                    hasWithParameterAttribute,
+                    parameterDescriptor,
+                    isCriteriaParameter: KnownAttributes.IsType(parameterSymbol.Type, "RoyalCode.SmartSearch", "ICriteria`1"),
+                    isCancellationTokenParameter: KnownAttributes.IsType(parameterSymbol.Type, "System.Threading", "CancellationToken"),
+                    isHttpContextParameter: KnownAttributes.IsType(parameterSymbol.Type, "Microsoft.AspNetCore.Http", "HttpContext"),
+                    bindings);
             })
             .ToArray();
 
         return parameters;
+    }
+
+    private static ParameterDescriptor CreateParameterDescriptor(
+        IParameterSymbol parameterSymbol,
+        ParameterSyntax? parameterSyntax,
+        SemanticModel semanticModel)
+    {
+        if (parameterSyntax is null)
+            return new ParameterDescriptor(SemanticTypes.CreateDescriptor(parameterSymbol.Type), parameterSymbol.Name);
+
+        // o método [WithFilter] pode estar declarado em outra árvore (classe partial em outro arquivo);
+        // o semantic model precisa ser o da árvore do parâmetro, senão o Roslyn lança exceção.
+        var parameterModel = parameterSyntax.SyntaxTree == semanticModel.SyntaxTree
+            ? semanticModel
+            : semanticModel.Compilation.GetSemanticModel(parameterSyntax.SyntaxTree);
+
+        return ParameterDescriptor.Create(parameterSyntax, parameterModel);
     }
 }

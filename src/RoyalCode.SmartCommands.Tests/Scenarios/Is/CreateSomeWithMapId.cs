@@ -503,7 +503,7 @@ public static partial class MapSomeApi
 
         group.MapPost("", CreateSomeHandleAsync)
             .WithName("create-some")
-            .RequireAuthorization([ "1", "2", "3" ])
+            .RequireAuthorization("1", "2", "3")
             .WithOpenApi();
 
         return group;

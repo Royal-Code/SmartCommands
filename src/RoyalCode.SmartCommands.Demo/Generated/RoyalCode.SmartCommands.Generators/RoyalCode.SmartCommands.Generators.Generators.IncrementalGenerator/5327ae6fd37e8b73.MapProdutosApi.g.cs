@@ -38,11 +38,11 @@ public static partial class MapProdutosApi
         group.MapGet("{id:guid}/estoque", FindProdutoEstoqueHandleAsync)
             .WithName("Get product stock details");
 
-        group.MapGet("/filtro/{id:int}", SearchProdutoByExemploProdutoFiltroAsync)
-            .WithName("Listagem paginada de produtos exemplos");
-
         group.MapGet("", SearchProdutoByProdutoFiltroAsync)
             .WithName("Listagem paginada de produtos");
+
+        group.MapGet("/filtro/{id:int}", SearchProdutoByExemploProdutoFiltroAsync)
+            .WithName("Listagem paginada de produtos exemplos");
 
         group.MapPatch("/{id}/reativar", ReativarProdutoHandleAsync)
             .WithName("Reativar Produto");
@@ -119,22 +119,6 @@ public static partial class MapProdutosApi
     }
 
     [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
-    private static Task<MatchSearch<ProdutoDetalhes>> SearchProdutoByExemploProdutoFiltroAsync(
-        [AsParameters]  ExemploProdutoFiltro filter, 
-        [AsParameters]  SearchOptions options, 
-        [FromQuery]  Sorting[]? orderby, 
-        [FromServices]  ICriteria<Produto> criteria, 
-        [FromServices]  ILogger<ICriteria<Produto>> logger, 
-        HttpContext context, 
-        [FromServices]  SomeService some, 
-        [FromRoute]  int id, 
-        CancellationToken ct)
-    {
-        Action<ICriteria<Produto>>? configure = (criteria) => filter.ConfigureSearch(criteria, context, some, id);
-        return Performer.SearchAsync<Produto, ProdutoDetalhes, ExemploProdutoFiltro>(filter, options, orderby, criteria, configure, logger, ct);
-    }
-
-    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
     private static Task<MatchSearch<ProdutoDetalhes>> SearchProdutoByProdutoFiltroAsync(
         [AsParameters]  ProdutoFiltro filter, 
         [AsParameters]  SearchOptions options, 
@@ -145,6 +129,22 @@ public static partial class MapProdutosApi
     {
         Action<ICriteria<Produto>>? configure = (criteria) => filter.AplicarVisibilidade(criteria);
         return Performer.SearchAsync<Produto, ProdutoDetalhes, ProdutoFiltro>(filter, options, orderby, criteria, configure, logger, ct);
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
+    private static Task<MatchSearch<ProdutoDetalhes>> SearchProdutoByExemploProdutoFiltroAsync(
+        [AsParameters]  ExemploProdutoFiltro filter, 
+        [AsParameters]  SearchOptions options, 
+        [FromQuery]  Sorting[]? orderby, 
+        [FromServices]  ICriteria<Produto> criteria, 
+        [FromServices]  ILogger<ICriteria<Produto>> logger, 
+        HttpContext context, 
+        [FromServices]  SomeService some, 
+        int id, 
+        CancellationToken ct)
+    {
+        Action<ICriteria<Produto>>? configure = (criteria) => filter.ConfigureSearch(criteria, context, some, id);
+        return Performer.SearchAsync<Produto, ProdutoDetalhes, ExemploProdutoFiltro>(filter, options, orderby, criteria, configure, logger, ct);
     }
 
     private static async Task<OkMatch> ReativarProdutoHandleAsync(

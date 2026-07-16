@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
@@ -141,18 +142,21 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
 
     private static MethodInvokeGenerator GenerateMapMethodInvoke(FindInformation mapInfo, string handlerMethodName, bool withOpenApi)
     {
+        // os valores vêm dos TypedConstants (sem aspas); a emissão os formata como literais C#
         var methodInvoke = new MethodInvokeGenerator("group", $"MapGet");
-        methodInvoke.AddArgument(mapInfo.EndpointRoutePattern);
+        methodInvoke.AddArgument(SymbolDisplay.FormatLiteral(mapInfo.EndpointRoutePattern, quote: true));
         methodInvoke.AddArgument(handlerMethodName);
 
-        methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithName", mapInfo.EndpointName)
+        methodInvoke = new MethodInvokeGenerator(
+            methodInvoke, "WithName", SymbolDisplay.FormatLiteral(mapInfo.EndpointName, quote: true))
         {
             LineIdent = true
         };
 
         if (mapInfo.Description is not null)
         {
-            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithDescription", mapInfo.Description)
+            methodInvoke = new MethodInvokeGenerator(
+                methodInvoke, "WithDescription", SymbolDisplay.FormatLiteral(mapInfo.Description, quote: true))
             {
                 LineIdent = true
             };
@@ -160,7 +164,8 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
 
         if (mapInfo.Summary is not null)
         {
-            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithSummary", mapInfo.Summary)
+            methodInvoke = new MethodInvokeGenerator(
+                methodInvoke, "WithSummary", SymbolDisplay.FormatLiteral(mapInfo.Summary, quote: true))
             {
                 LineIdent = true
             };
@@ -172,7 +177,7 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
             ArgumentsGenerator arguments = new();
             foreach (var policy in mapInfo.AuthorizationPolicies)
             {
-                arguments.AddArgument(policy);
+                arguments.AddArgument(SymbolDisplay.FormatLiteral(policy, quote: true));
             }
             methodInvoke = new MethodInvokeGenerator(methodInvoke, "RequireAuthorization", arguments)
             {

@@ -38,6 +38,13 @@ severidade e uma orientação de correção. Entradas inválidas produzem o diag
 | [RCCMD028](#rccmd028) | Error | Atributo `Map*` exige route pattern e endpoint name |
 | [RCCMD029](#rccmd029) | Error | Parâmetro colide com identificador reservado do código gerado |
 | [RCCMD030](#rccmd030) | Error | Nome de endpoint duplicado entre endpoints mapeados |
+| [RCCMD031](#rccmd031) | Error | Parâmetro de rota do id de `EditEntity` não pôde ser resolvido |
+| [RCCMD032](#rccmd032) | Error | Parâmetro de rota incompatível com o id de `EditEntity` |
+| [RCCMD033](#rccmd033) | Error | Parâmetro declara mais de uma fonte de binding |
+| [RCCMD034](#rccmd034) | Error | `AsParameters` não é suportado em parâmetros externos |
+| [RCCMD035](#rccmd035) | Error | `FromRoute` aponta para variável ausente no template |
+| [RCCMD036](#rccmd036) | Error | GET/DELETE não podem inferir body |
+| [RCCMD037](#rccmd037) | Error | Mais de uma fonte de body no mesmo endpoint |
 
 ---
 
@@ -150,3 +157,38 @@ Um parâmetro do comando usa um nome reservado pelo código gerado no mesmo esco
 O mesmo endpoint name é usado por mais de um endpoint mapeado (`WithName` exige nomes globais únicos). O erro é
 reportado em cada ocorrência, na localização do argumento do atributo, e os endpoints conflitantes não são
 emitidos no host. **Correção:** use nomes de endpoint únicos.
+
+## RCCMD031
+O parâmetro de rota que carrega o id da entidade de `EditEntity` não pôde ser resolvido (DF4). A resolução segue a
+ordem: `RouteParameterName` explícito; única variável do template; `{parâmetroDaEntidade}Id`;
+`parâmetroDaEntidade`. **Correção:** ajuste o template ou informe
+`[EditEntity<TEntity, TId>(RouteParameterName = "...")]` apontando para uma variável existente.
+
+## RCCMD032
+O parâmetro de rota resolvido para o id de `EditEntity` é incompatível: a variável é opcional (`{id?}`) ou possui
+uma constraint de tipo que não corresponde ao tipo do id (ex.: `{id:int}` com id `Guid`).
+**Correção:** torne a variável obrigatória e/ou alinhe a constraint ao tipo do id.
+
+## RCCMD033
+Um parâmetro externo (`[WithParameter]` de comando ou parâmetro de filtro do Search) declara mais de um atributo
+de fonte de binding (`FromRoute`, `FromQuery`, `FromHeader`, `FromForm`, `FromBody`, `FromServices`).
+**Correção:** mantenha uma única fonte explícita — ou nenhuma, deixando o ASP.NET Core inferir.
+
+## RCCMD034
+`[AsParameters]` não é suportado em parâmetros externos: cada valor deve ser vinculado individualmente.
+**Correção:** remova o atributo e receba os valores em parâmetros separados.
+
+## RCCMD035
+Um parâmetro com `[FromRoute]` aponta para uma variável (via `Name` ou pelo próprio nome do parâmetro) que não
+existe no template do endpoint (grupo + rota). **Correção:** corrija o `Name` ou adicione a variável ao template.
+
+## RCCMD036
+Um comando com propriedades de corpo está mapeado para GET ou DELETE; o ASP.NET Core não infere body nesses
+verbos e o aplicativo falharia na inicialização. Comandos com `BindAsync`/`TryParse` estáticos próprios não são
+afetados (usam o binding customizado). **Correção:** use POST/PUT/PATCH, ou remova as propriedades públicas com
+setter (o comando será instanciado via `new`, sem body).
+
+## RCCMD037
+O endpoint teria mais de uma fonte de body: um parâmetro `[WithParameter]` com `[FromBody]`/`[FromForm]` em
+conflito com o body implícito do comando (propriedades de corpo) ou com outro parâmetro de body. O ASP.NET Core
+falharia na inicialização do app. **Correção:** mantenha uma única fonte de body por endpoint.

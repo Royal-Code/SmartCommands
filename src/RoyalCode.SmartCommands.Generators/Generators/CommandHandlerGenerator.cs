@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System.Collections.Immutable;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using RoyalCode.SmartCommands.Generators.Commands;
@@ -18,30 +19,6 @@ internal static class CommandHandlerGenerator
     public const string CommandAttributeName = "RoyalCode.SmartCommands.CommandAttribute";
 
     private const string CommandNamespace = "RoyalCode.SmartCommands";
-    private const string WithValidateModelAttributeName = "WithValidateModel";
-    private const string WithDecoratorsAttributeName = "WithDecorators";
-    private const string WithUnitOfWorkAttributeName = "WithUnitOfWork";
-    private const string WithDbContextAttributeName = "WithDbContext";
-    private const string WithWorkContextAttributeName = "WithWorkContext";
-    private const string WithRetryOnConcurrencyAttributeName = "WithRetryOnConcurrency";
-    private const string WithFindEntitiesAttributeName = "WithFindEntities";
-    private const string ProduceNewEntityAttributeName = "ProduceNewEntity";
-    private const string MapIdResultValueAttributeName = "MapIdResultValue";
-    private const string MapResponseValuesAttributeName = "MapResponseValues";
-    private const string ProduceProblemsAttributeName = "ProduceProblems";
-    private const string MapPostAttributeName = "MapPost";
-    private const string MapPutAttributeName = "MapPut";
-    private const string MapPatchAttributeName = "MapPatch";
-    private const string MapDeleteAttributeName = "MapDelete";
-    private const string MapGetAttributeName = "MapGet";
-    private const string MapGroupAttributeName = "MapGroup";
-    private const string MapCreatedRouteAttributeName = "MapCreatedRoute";
-    private const string WithDescriptionAttributeName = "WithDescription";
-    private const string WithSummaryAttributeName = "WithSummary";
-    private const string WithAuthorizationAttributeName = "WithAuthorization";
-    private const string WithPolicyAttributeName = "WithPolicy";
-
-    private const string EditEntityAttributeName = "EditEntity";
     private const string ModelVarName = "command";
     private const string CancellationTokenParameterName = "ct";
     private const string DecoratorsVarName = "decorators";
@@ -97,8 +74,7 @@ internal static class CommandHandlerGenerator
         var commandType = context.TargetSymbol.ContainingType;
         var commandMethodCount = commandType.GetMembers()
             .OfType<IMethodSymbol>()
-            .Count(candidate => candidate.GetAttributes().Any(attribute =>
-                attribute.AttributeClass?.ToDisplayString() == CommandAttributeName));
+            .Count(candidate => KnownAttributes.Has(candidate, KnownAttributes.Command));
         if (commandMethodCount > 1)
         {
             errors.Add(DiagnosticInfo.Create(
@@ -107,7 +83,8 @@ internal static class CommandHandlerGenerator
                 commandType.Name));
         }
 
-        var mapAttributeCount = commandType.GetAttributes().Count(attribute => IsMapAttribute(attribute.AttributeClass));
+        var mapAttributeCount = commandType.GetAttributes()
+            .Count(attribute => KnownAttributes.MapVerbs.Any(verb => verb.Spec.Matches(attribute)));
         if (mapAttributeCount > 1)
         {
             errors.Add(DiagnosticInfo.Create(
@@ -172,30 +149,35 @@ internal static class CommandHandlerGenerator
                 "The command method must be accessible to the generated handler (public or internal)"));
         }
 
+        // Classificação semântica e symbol-free do retorno do método, decidida pelo símbolo (nunca pelo texto
+        // nem pelo modificador 'async'): aliases, nomes qualificados e métodos que retornam Task via
+        // Task.FromResult resolvem para o mesmo modelo. A emissão usa Task como formato normalizado
+        // também para métodos ValueTask, mas o modelo preserva o tipo declarado e seu payload.
+        var declaredMethodReturnType = SemanticTypes.CreateDescriptor(methodSymbol.ReturnType);
+        var returnModel = ReturnModel.Create(TypeSnapshot.Create(declaredMethodReturnType));
+        var isAsync = returnModel.IsAwaitable;
+        var methodReturnType = PipelineModelConversions.ToLegacyMethodReturn(returnModel);
+
         // lista dos parâmetros de ProblemCategory que o comando pode produzir
         // esta lista é preenchida a partir do método HasProblems da classe e do método do comando
         // através do attribute ProduceProblems
         List<string> produceProblems = [];
 
-        // verifica se existe problemas no método da do comando
-        if (method.TryGetAttribute(ProduceProblemsAttributeName, out AttributeSyntax? produceProblemsAttr))
-        {
-            // se tem o attribute, extrai os parâmetros
-            var problemsProduced = produceProblemsAttr!.ArgumentList?.Arguments.Select(a => a.Expression.ToString());
-            if (problemsProduced is not null)
-                produceProblems.AddRange(problemsProduced);
-        }
+        // verifica se existe problemas no método do comando
+        if (KnownAttributes.TryGet(methodSymbol, KnownAttributes.ProduceProblems, out var produceProblemsAttr))
+            AddProduceProblems(produceProblemsAttr!, produceProblems);
 
-        MethodDeclarationSyntax? hasProblemsMethod = null;
+        IMethodSymbol? hasProblemsMethod = null;
+        DiagnosticInfo? error = null;
 
         // Verifica se o método possui o atributo WithValidateModel
         // Se tiver, busca pelo método na classe e já valida se está dentro do padrão
-        var hasWithValidateModel = method.TryGetAttribute(WithValidateModelAttributeName, out AttributeSyntax? withValidateModelAttr);
+        var hasWithValidateModel = KnownAttributes.TryGet(methodSymbol, KnownAttributes.WithValidateModel, out var withValidateModelAttr);
         if (withValidateModelAttr is not null
-            && !classDeclaration.ValidateClassWithHasProblemsMethod(
-                withValidateModelAttr,
+            && !commandType.ValidateTypeWithHasProblemsMethod(
+                KnownAttributes.GetLocation(withValidateModelAttr, cancellationToken, method.Identifier.GetLocation()),
                 out hasProblemsMethod,
-                out var error))
+                out error))
         {
             // quando há erros, não deve considerar o atributo, além de adicionar o diagnostic
             // isso não gerará o código de validação e mostrará o erro na saída.
@@ -204,14 +186,12 @@ internal static class CommandHandlerGenerator
         }
 
         // se tem hasProblemsMethod, verifica se tem o attribute ProduceProblems
-        if (hasProblemsMethod is not null )
+        if (hasProblemsMethod is not null)
         {
-            if (hasProblemsMethod.TryGetAttribute(ProduceProblemsAttributeName, out produceProblemsAttr))
+            if (KnownAttributes.TryGet(hasProblemsMethod, KnownAttributes.ProduceProblems, out produceProblemsAttr))
             {
                 // se tem o attribute, extrai os parâmetros
-                var problemsProduced = produceProblemsAttr!.ArgumentList?.Arguments.Select(a => a.Expression.ToString());
-                if (problemsProduced is not null)
-                    produceProblems.AddRange(problemsProduced);
+                AddProduceProblems(produceProblemsAttr!, produceProblems);
             }
             else
             {
@@ -221,40 +201,42 @@ internal static class CommandHandlerGenerator
         }
 
         // Verifica se o método possui o atributo WithDecorators
-        var hasWithDecorators = method.TryGetAttribute(WithDecoratorsAttributeName, out _);
+        var hasWithDecorators = KnownAttributes.Has(methodSymbol, KnownAttributes.WithDecorators);
 
-        // se tem WithDecorators, deve retornar algum tipo de dado (não pode ser Task ou void).
-        if (hasWithDecorators && !method.ValidateReturnType(out error))
+        // se tem WithDecorators, deve retornar algum tipo de dado (não pode ser Task ou void) — decisão semântica.
+        if (hasWithDecorators && returnModel.IsVoid)
         {
             // quando há erros, não deve considerar o atributo, além de adicionar o diagnostic
             // isso não gerará o código de decoradores e mostrará o erro na saída.
-            errors.Add(error!);
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.InvalidReturnType,
+                method.Identifier.GetLocation()));
             hasWithDecorators = false;
         }
 
         // verifica se tem o attribute WithUnitOfWork
         TypeDescriptor? accessorType = null;
         ContextAccessorModes contextAccessorMode = ContextAccessorModes.None;
-        var hasUow = method.TryGetAttribute(WithUnitOfWorkAttributeName, out AttributeSyntax? withUowAttr);
+        var hasUow = KnownAttributes.TryGet(methodSymbol, KnownAttributes.WithUnitOfWork, out var withUowAttr);
         if (hasUow)
         {
-            if (TryGetGenericTypeArguments(withUowAttr, 1, out var typeArguments))
+            if (TryGetTypeArguments(withUowAttr!, 1, out var typeArguments))
             {
-                accessorType = TypeDescriptor.Create(typeArguments[0], context.SemanticModel);
+                accessorType = SemanticTypes.CreateDescriptor(typeArguments[0]);
                 contextAccessorMode = ContextAccessorModes.Specified;
             }
             else
             {
                 errors.Add(DiagnosticInfo.Create(
                     CmdDiagnostics.InvalidCommandType,
-                    withUowAttr?.GetLocation() ?? method.Identifier.GetLocation(),
+                    KnownAttributes.GetLocation(withUowAttr!, cancellationToken, method.Identifier.GetLocation()),
                     "WithUnitOfWorkAttribute requires one context type argument"));
                 hasUow = false;
             }
         }
-        
+
         // verifica se tem o attribute WithDbContext
-        var hasDbContext = method.TryGetAttribute(WithDbContextAttributeName, out AttributeSyntax? withDbContextAttr);
+        var hasDbContext = KnownAttributes.TryGet(methodSymbol, KnownAttributes.WithDbContext, out var withDbContextAttr);
         if (hasDbContext)
         {
             if (withUowAttr is not null)
@@ -271,9 +253,9 @@ internal static class CommandHandlerGenerator
             contextAccessorMode = ContextAccessorModes.DbContext;
             accessorType = new TypeDescriptor("DbContext", ["Microsoft.EntityFrameworkCore"]);
         }
-        
+
         // verifica se tem o attribute WithWorkContext
-        var hasWorkContext = method.TryGetAttribute(WithWorkContextAttributeName, out AttributeSyntax? _);
+        var hasWorkContext = KnownAttributes.Has(methodSymbol, KnownAttributes.WithWorkContext);
         if (hasWorkContext)
         {
             if (withUowAttr is not null)
@@ -302,7 +284,7 @@ internal static class CommandHandlerGenerator
         }
 
         // verifica se tem WithRetryOnConcurrency (opt-in; só suportado com WorkContext nesta versão)
-        var hasRetryOnConcurrency = method.TryGetAttribute(WithRetryOnConcurrencyAttributeName, out AttributeSyntax? retryAttr);
+        var hasRetryOnConcurrency = KnownAttributes.TryGet(methodSymbol, KnownAttributes.WithRetryOnConcurrency, out var retryAttr);
         int? retryMaxAttempts = null;
         string? retryOperation = null;
         if (hasRetryOnConcurrency)
@@ -316,59 +298,9 @@ internal static class CommandHandlerGenerator
                 errors.Add(error);
                 hasRetryOnConcurrency = false;
             }
-            else if (retryAttr!.ArgumentList?.Arguments.Count > 0)
+            else
             {
-                foreach (var argument in retryAttr.ArgumentList.Arguments)
-                {
-                    var argumentName = argument.NameEquals?.Name.Identifier.Text
-                        ?? argument.NameColon?.Name.Identifier.Text;
-
-                    var constant = context.SemanticModel.GetConstantValue(argument.Expression);
-                    if (!constant.HasValue)
-                        continue;
-
-                    var isMaxAttemptsArgument = argumentName is null
-                        || string.Equals(argumentName, "maxAttempts", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(argumentName, "MaxAttempts", StringComparison.Ordinal);
-
-                    if (isMaxAttemptsArgument && constant.Value is int maxAttempts)
-                    {
-                        // valor explícito no atributo sobrescreve as options; <= 0 é inválido
-                        if (maxAttempts <= 0)
-                        {
-                            error = DiagnosticInfo.Create(
-                                CmdDiagnostics.RetryOnConcurrencyInvalidMaxAttempts,
-                                location: method.Identifier.GetLocation());
-                            errors.Add(error);
-                        }
-                        else
-                        {
-                            retryMaxAttempts = maxAttempts;
-                        }
-
-                        continue;
-                    }
-
-                    var isOperationArgument = argumentName is null
-                        || string.Equals(argumentName, "operation", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(argumentName, "Operation", StringComparison.Ordinal);
-
-                    if (isOperationArgument && constant.Value is string operation)
-                    {
-                        if (string.IsNullOrWhiteSpace(operation))
-                        {
-                            error = DiagnosticInfo.Create(
-                                CmdDiagnostics.InvalidCommandType,
-                                location: method.Identifier.GetLocation(),
-                                "The retry operation must not be empty");
-                            errors.Add(error);
-                        }
-                        else
-                        {
-                            retryOperation = operation;
-                        }
-                    }
-                }
+                ReadRetryArguments(retryAttr!, method, errors, ref retryMaxAttempts, ref retryOperation, cancellationToken);
             }
         }
 
@@ -376,18 +308,18 @@ internal static class CommandHandlerGenerator
         var hasFindEntities = false;
         if (!hasUow)
         {
-            hasFindEntities = method.TryGetAttribute(WithFindEntitiesAttributeName, out AttributeSyntax? withFindEntitiesAttr);
+            hasFindEntities = KnownAttributes.TryGet(methodSymbol, KnownAttributes.WithFindEntities, out var withFindEntitiesAttr);
             if (hasFindEntities)
             {
-                if (TryGetGenericTypeArguments(withFindEntitiesAttr, 1, out var typeArguments))
+                if (TryGetTypeArguments(withFindEntitiesAttr!, 1, out var typeArguments))
                 {
-                    accessorType = TypeDescriptor.Create(typeArguments[0], context.SemanticModel);
+                    accessorType = SemanticTypes.CreateDescriptor(typeArguments[0]);
                 }
                 else
                 {
                     errors.Add(DiagnosticInfo.Create(
                         CmdDiagnostics.InvalidCommandType,
-                        withFindEntitiesAttr?.GetLocation() ?? method.Identifier.GetLocation(),
+                        KnownAttributes.GetLocation(withFindEntitiesAttr!, cancellationToken, method.Identifier.GetLocation()),
                         "WithFindEntitiesAttribute requires one context type argument"));
                     hasFindEntities = false;
                 }
@@ -395,7 +327,7 @@ internal static class CommandHandlerGenerator
         }
 
         // verifica se retorna uma nova entidade
-        var hasProduceNewEntity = method.TryGetAttribute(ProduceNewEntityAttributeName, out _);
+        var hasProduceNewEntity = KnownAttributes.Has(methodSymbol, KnownAttributes.ProduceNewEntity);
         if (hasProduceNewEntity && !hasUow)
         {
             // quando retorna entidade, deve haver uow
@@ -408,9 +340,17 @@ internal static class CommandHandlerGenerator
 
         // verifica se edita uma entidade existente
         EditTypeDescriptor? editType = null;
-        var hasEditEntity = method.TryGetAttribute(EditEntityAttributeName, out AttributeSyntax? editEntityAttr);
+        ITypeSymbol? editEntityTypeSymbol = null;
+        string? editRouteParameterNameExplicit = null;
+        var hasEditEntity = KnownAttributes.TryGet(methodSymbol, KnownAttributes.EditEntity, out var editEntityAttr);
         if (hasEditEntity)
         {
+            // DF4: seleção explícita do parâmetro de rota do id, quando informada
+            editRouteParameterNameExplicit = editEntityAttr!.NamedArguments
+                .Where(argument => argument.Key == "RouteParameterName")
+                .Select(argument => KnownAttributes.GetString(argument.Value))
+                .FirstOrDefault();
+
             // editar entidade requer uow
             if (!hasUow)
             {
@@ -431,41 +371,40 @@ internal static class CommandHandlerGenerator
                 errors.Add(error);
             }
 
-            if (TryGetGenericTypeArguments(editEntityAttr, 2, out var typeArguments))
+            if (TryGetTypeArguments(editEntityAttr!, 2, out var typeArguments))
             {
+                editEntityTypeSymbol = typeArguments[0];
                 editType = new EditTypeDescriptor(
-                    TypeDescriptor.Create(typeArguments[0], context.SemanticModel),
-                    TypeDescriptor.Create(typeArguments[1], context.SemanticModel));
+                    SemanticTypes.CreateDescriptor(typeArguments[0]),
+                    SemanticTypes.CreateDescriptor(typeArguments[1]));
             }
             else
             {
                 errors.Add(DiagnosticInfo.Create(
                     CmdDiagnostics.InvalidCommandType,
-                    editEntityAttr?.GetLocation() ?? method.Identifier.GetLocation(),
+                    KnownAttributes.GetLocation(editEntityAttr!, cancellationToken, method.Identifier.GetLocation()),
                     "EditEntityAttribute requires entity and id type arguments"));
             }
         }
 
-        // Classificação semântica e symbol-free do retorno. A emissão usa Task como formato normalizado também
-        // para métodos ValueTask, mas o modelo preserva o tipo declarado e seu payload.
-        var declaredMethodReturnType = TypeDescriptor.Create(method.ReturnType, context.SemanticModel);
-        var returnModel = ReturnModel.Create(TypeSnapshot.Create(declaredMethodReturnType));
-        var isAsync = returnModel.IsAwaitable;
-        var methodReturnType = PipelineModelConversions.ToLegacyMethodReturn(returnModel);
+        // Desembrulho semântico do retorno (Task/ValueTask e Result) para conhecer o tipo de valor real,
+        // usado por ProduceNewEntity e pelos mapeamentos de resposta (MapIdResultValue/MapResponseValues).
+        var valueReturnTypeSymbol = UnwrapValueReturnType(methodSymbol.ReturnType);
 
         // se produz uma nova entidade, então o retorno do método será a nova entidade
-        TypeSyntax? newEntityTypeSyntax = null;
         TypeDescriptor? newEntityType = null;
         if (hasProduceNewEntity)
         {
-            newEntityTypeSyntax = method.ReturnType;
+            // quando o comando retorna Result sem valor, não há entidade produzida a retornar
+            if (returnModel.IsResult && returnModel.ValueType is null)
+            {
+                error = DiagnosticInfo.Create(
+                    CmdDiagnostics.ProduceNewEntityMustReturnResultWithValue,
+                    location: method.ReturnType.GetLocation());
 
-            // se for uma Task, extrai o tipo genérico, senão é o próprio tipo
-            if (isAsync)
-                newEntityTypeSyntax = newEntityTypeSyntax.GetInnerType();
-
-            var newEntityTypeInfo = context.SemanticModel.GetTypeInfo(newEntityTypeSyntax);
-            if (newEntityTypeInfo.Type is not INamedTypeSymbol newEntityNameSymbol)
+                errors.Add(error);
+            }
+            else if (valueReturnTypeSymbol is null)
             {
                 error = DiagnosticInfo.Create(CmdDiagnostics.InvalidCommandType,
                     location: method.Identifier.GetLocation(),
@@ -475,26 +414,9 @@ internal static class CommandHandlerGenerator
             }
             else
             {
-                // se for um Result, deve ser o tipo genérico
-                if (newEntityNameSymbol.Name.StartsWith("Result"))
-                {
-                    // O Result deve ser genérico, se não for, retorna um erro.
-                    if (!newEntityNameSymbol.IsGenericType)
-                    {
-                        error = DiagnosticInfo.Create(
-                            CmdDiagnostics.ProduceNewEntityMustReturnResultWithValue,
-                            location: method.ReturnType.GetLocation());
-
-                        errors.Add(error);
-                    }
-
-                    // extrai o tipo genérico do Result
-                    newEntityTypeSyntax = newEntityTypeSyntax.GetInnerType();
-                }
+                // cria o tipo da nova entidade
+                newEntityType = SemanticTypes.CreateDescriptor(valueReturnTypeSymbol);
             }
-
-            // cria o tipo da nova entidade
-            newEntityType = TypeDescriptor.Create(newEntityTypeSyntax, context.SemanticModel);
         }
 
         // lista dos parâmetros do método com o attribute Command
@@ -504,16 +426,25 @@ internal static class CommandHandlerGenerator
 
         // obtém os parâmetros do método com o attribute Command
         var commandMethodParameters = method.ParameterList.Parameters;
+        var parameterSymbols = methodSymbol.Parameters;
+
+        // bindings de [WithParameter] capturados para o delegate Minimal API (DF3); a validação e a
+        // emissão ocorrem apenas quando o comando é mapeado
+        var capturedBindings = new List<(string Name, Location Location, CapturedBindings Captured)>();
         for (int paramIndex = 0; paramIndex < commandMethodParameters.Count; paramIndex++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var p = commandMethodParameters[paramIndex];
+            var parameterSymbol = paramIndex < parameterSymbols.Length ? parameterSymbols[paramIndex] : null;
 
             // cria o descritor
             var paramDescriptor = ParameterDescriptor.Create(p, context.SemanticModel);
 
-            // valida CancellationToken, só pode haver caso o método seja assíncrono
-            if (paramDescriptor.Type.IsCancellationToken && !isAsync)
+            // valida CancellationToken (decisão semântica), só pode haver caso o método seja assíncrono
+            var isCancellationTokenParameter = parameterSymbol is not null
+                ? IsType(parameterSymbol.Type, "System.Threading", "CancellationToken")
+                : paramDescriptor.Type.IsCancellationToken;
+            if (isCancellationTokenParameter && !isAsync)
             {
                 error = DiagnosticInfo.Create(
                     CmdDiagnostics.CancellationTokenParameterMustBeAsync,
@@ -524,9 +455,13 @@ internal static class CommandHandlerGenerator
 
             if (paramIndex == 0 && editType is not null)
             {
-                // quando há EditEntityAttribute o primeiro parâmetro deverá ser do mesmo tipo informado no attr.
+                // quando há EditEntityAttribute o primeiro parâmetro deverá ser do mesmo tipo informado no attr;
+                // a comparação é por símbolo, então aliases e nomes qualificados são equivalentes.
+                var matchesEditEntityType = editEntityTypeSymbol is not null && parameterSymbol is not null
+                    ? SymbolEqualityComparer.Default.Equals(parameterSymbol.Type, editEntityTypeSymbol)
+                    : Equals(paramDescriptor.Type, editType.EntityType);
 
-                if (!Equals(paramDescriptor.Type, editType.EntityType))
+                if (!matchesEditEntityType)
                 {
                     error = DiagnosticInfo.Create(
                     CmdDiagnostics.EditEntityRequiresFirstParameter,
@@ -592,8 +527,8 @@ internal static class CommandHandlerGenerator
                 }
             }
 
-            // verifica se o parâmetro tem o attribute WithParameter
-            if (p.TryGetAttribute("WithParameter", out _))
+            // verifica se o parâmetro tem o attribute WithParameter (identificação semântica)
+            if (parameterSymbol is not null && KnownAttributes.Has(parameterSymbol, KnownAttributes.WithParameter))
             {
                 // se o parâmetro estiver marcado como alguma coisa, ele não pode ser marcado como WithParameter
                 if (paramDescriptor.Type.IsEntity ||
@@ -609,6 +544,11 @@ internal static class CommandHandlerGenerator
                 else
                 {
                     paramDescriptor.Type.MarkAsHandlerParameter();
+
+                    // DF3: captura os atributos de binding do parâmetro-fonte
+                    var captured = BindingAttributes.Capture(parameterSymbol);
+                    if (captured.SourceCount > 0 || captured.HasAsParameters)
+                        capturedBindings.Add((paramDescriptor.Name, p.Identifier.GetLocation(), captured));
                 }
             }
 
@@ -630,12 +570,15 @@ internal static class CommandHandlerGenerator
         if (classDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword)
             && hasProblemsMethod is not null)
         {
-            // obtém atributos MemberNotNullWhen do método
-            // depois obtém os parâmetros a partir do segundo parâmetro do atributo
-            // e converte para string no formato de parâmetros
-            notNullProperties = hasProblemsMethod.GetAttributes("MemberNotNullWhen")
-                .Where(a => a.ArgumentList?.Arguments.Count > 1)
-                .Select(a => string.Join(", ", a.ArgumentList!.Arguments.Skip(1).Select(m => m.Expression.ToString())))
+            // obtém atributos MemberNotNullWhen do método HasProblems e extrai os nomes dos membros
+            // (a partir do segundo argumento) como constantes reais, reemitidos como literais string
+            notNullProperties = hasProblemsMethod.GetAttributes()
+                .Where(attribute => KnownAttributes.MemberNotNullWhen.Matches(attribute))
+                .Where(attribute => attribute.ConstructorArguments.Length > 1)
+                .Select(attribute => string.Join(", ",
+                    KnownAttributes.GetStrings(attribute.ConstructorArguments[1])
+                        .Select(member => SymbolDisplay.FormatLiteral(member, quote: true))))
+                .Where(joined => joined.Length > 0)
                 .ToList();
         }
         else
@@ -649,12 +592,40 @@ internal static class CommandHandlerGenerator
         // verifica a necessidade do método do handler ser assíncrono
         var handlerMustBeAsync = isAsync || hasWithDecorators || hasUow || hasFindEntities;
 
-        // lê atributo Map... da classe do comando
+        // lê atributo Map... da classe do comando (leitura semântica por símbolo)
         var mapInformation = ReadMap(
-            classDeclaration,
-            newEntityTypeSyntax ?? method.ReturnType.GetValueReturnType(),
-            context.SemanticModel,
-            errors);
+            commandType,
+            valueReturnTypeSymbol,
+            method,
+            errors,
+            cancellationToken);
+
+        // DF4: resolve o parâmetro de rota que carrega o id da entidade editada e valida
+        // constraint/opcionalidade quando determináveis
+        if (mapInformation is not null && editType?.Parameter is not null)
+        {
+            mapInformation.EditRouteParameterName = ResolveEditRouteParameter(
+                mapInformation,
+                editType,
+                editRouteParameterNameExplicit,
+                KnownAttributes.GetLocation(editEntityAttr!, cancellationToken, method.Identifier.GetLocation()),
+                errors);
+        }
+
+        // DF3: bindings explícitos só têm efeito (e são validados) quando o comando é mapeado
+        if (mapInformation is not null)
+        {
+            foreach (var (parameterName, parameterLocation, captured) in capturedBindings)
+            {
+                BindingAttributes.Validate(
+                    captured,
+                    parameterName,
+                    parameterLocation,
+                    mapInformation.RoutePattern,
+                    mapInformation.GroupName,
+                    errors);
+            }
+        }
 
         // DF5: os nomes que o handler gerado emite no mesmo escopo são reservados; um parâmetro do comando que
         // caia nesse escopo (WithParameter, dependência de DI ou entidade carregada) não pode colidir com eles.
@@ -666,7 +637,9 @@ internal static class CommandHandlerGenerator
             hasWithDecorators,
             hasRetryOnConcurrency,
             retryMaxAttempts,
-            retryOperation);
+            retryOperation,
+            // o handler de EditEntity sempre declara '{entidade}Id' na assinatura (mapeado ou não)
+            editEntityIdParameterName: editType?.Parameter is not null ? $"{editType.Parameter.Name}Id" : null);
 
         // Quando o comando é mapeado, os parâmetros [WithParameter] são replicados na assinatura do método do
         // endpoint Minimal API, que também declara 'handler', a variável 'result' e, para EditEntity, o
@@ -695,14 +668,6 @@ internal static class CommandHandlerGenerator
             }
         }
 
-        // se map não for nulo, e tiver o MapIdResultValue, deve ser validado se o tipo retornado tem o campo Id
-        if (mapInformation is not null &&
-            mapInformation.MapIdResultValue &&
-            !method.ReturnType.ValidateMapIdResultValue(context.SemanticModel, out error))
-        {
-            errors.Add(error!);
-        }
-
         // Define o tipo de retorno do handler
         var handlerReturnType = methodReturnType;
         if (handlerMustBeAsync)
@@ -714,6 +679,47 @@ internal static class CommandHandlerGenerator
         // Sem isso, o endpoint não precisa receber o comando como parâmetro (pode instanciar via new),
         // e uma requisição sem corpo é válida.
         var hasRequestBody = HasRequestBodyShape(classDeclaration, context.SemanticModel);
+
+        // GET/DELETE não podem inferir body: o ASP.NET Core lança na inicialização do app.
+        // Comandos com BindAsync/TryParse estáticos próprios usam binding customizado e não inferem body.
+        if (mapInformation is not null && hasRequestBody &&
+            mapInformation.HttpMethod is "Get" or "Delete" &&
+            !HasCustomBindingMethod(commandType))
+        {
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.ImplicitBodyNotAllowed,
+                classDeclaration.Identifier.GetLocation(),
+                commandType.Name,
+                $"Map{mapInformation.HttpMethod}"));
+        }
+
+        // uma única fonte de body por endpoint: FromBody explícitos conflitam entre si e com o body implícito
+        // do comando; FromForm conflita com qualquer body JSON (o ASP.NET Core lança na inicialização)
+        if (mapInformation is not null)
+        {
+            var fromBodyParameters = capturedBindings
+                .Where(captured => captured.Captured.Bindings.Any(binding => binding.Attribute == "FromBody"))
+                .ToList();
+            var fromFormParameters = capturedBindings
+                .Where(captured => captured.Captured.Bindings.Any(binding => binding.Attribute == "FromForm"))
+                .ToList();
+
+            var jsonBodySources = fromBodyParameters.Count + (hasRequestBody ? 1 : 0);
+
+            if (jsonBodySources > 1)
+            {
+                foreach (var (parameterName, parameterLocation, _) in fromBodyParameters)
+                    errors.Add(DiagnosticInfo.Create(
+                        CmdDiagnostics.MultipleBodySources, parameterLocation, parameterName));
+            }
+
+            if (fromFormParameters.Count > 0 && jsonBodySources > 0)
+            {
+                foreach (var (parameterName, parameterLocation, _) in fromFormParameters)
+                    errors.Add(DiagnosticInfo.Create(
+                        CmdDiagnostics.MultipleBodySources, parameterLocation, parameterName));
+            }
+        }
 
         // armazena todas as informações coletadas
         var info = new CommandHandlerInformation
@@ -743,7 +749,13 @@ internal static class CommandHandlerGenerator
             HasRetryOnConcurrency = hasRetryOnConcurrency,
             RetryMaxAttempts = retryMaxAttempts,
             RetryOperation = retryOperation,
-            HasBodyProperties = hasRequestBody
+            HasBodyProperties = hasRequestBody,
+            ParameterBindings = capturedBindings.Count > 0
+                ? capturedBindings.ToDictionary(
+                    captured => captured.Name,
+                    captured => captured.Captured.Bindings,
+                    StringComparer.Ordinal)
+                : null
         };
 
         info.SetErrors(errors);
@@ -758,10 +770,14 @@ internal static class CommandHandlerGenerator
         bool hasWithDecorators,
         bool hasRetryOnConcurrency,
         int? retryMaxAttempts,
-        string? retryOperation)
+        string? retryOperation,
+        string? editEntityIdParameterName = null)
     {
         // nomes que o handler gerado emite como parâmetro/campo/local no mesmo escopo do comando.
         var reserved = new HashSet<string>(StringComparer.Ordinal) { ModelVarName };
+
+        if (editEntityIdParameterName is not null)
+            reserved.Add(editEntityIdParameterName);
 
         if (handlerMustBeAsync)
             reserved.Add(CancellationTokenParameterName);
@@ -782,21 +798,164 @@ internal static class CommandHandlerGenerator
         return reserved;
     }
 
+    /// <summary>
+    /// DF4: resolve o parâmetro de rota que carrega o id da entidade editada, na ordem:
+    /// <c>RouteParameterName</c> explícito; única variável do template; <c>{parâmetroDaEntidade}Id</c>;
+    /// <c>parâmetroDaEntidade</c>. Sem correspondência única, emite RCCMD031 e a geração é bloqueada.
+    /// Template sem variáveis: o id é vinculado por inferência (sem atributo, sem diagnóstico).
+    /// </summary>
+    private static string? ResolveEditRouteParameter(
+        MapInformation mapInformation,
+        EditTypeDescriptor editType,
+        string? explicitRouteParameterName,
+        Location location,
+        List<DiagnosticInfo> errors)
+    {
+        // o template completo (grupo + rota) é a fonte de variáveis, o mesmo usado pelo binding em runtime
+        // e pelo RCCMD035
+        var template = mapInformation.GroupName is null
+            ? mapInformation.RoutePattern
+            : $"{mapInformation.GroupName}/{mapInformation.RoutePattern}";
+        var routeParameters = RoutePatternParser.Parse(template);
+
+        RoutePatternParameter? resolved;
+
+        if (explicitRouteParameterName is not null)
+        {
+            resolved = routeParameters.FirstOrDefault(parameter =>
+                string.Equals(parameter.Name, explicitRouteParameterName, StringComparison.OrdinalIgnoreCase));
+
+            if (resolved is null)
+            {
+                errors.Add(DiagnosticInfo.Create(
+                    CmdDiagnostics.EditEntityRouteParameterNotResolved,
+                    location,
+                    template,
+                    $"the route parameter '{explicitRouteParameterName}' specified in RouteParameterName does not exist in the template"));
+                return null;
+            }
+        }
+        else if (routeParameters.Count == 0)
+        {
+            // sem variável de rota, o id é vinculado por inferência (query para tipos parseáveis);
+            // comportamento preservado, sem diagnóstico.
+            return null;
+        }
+        else if (routeParameters.Count == 1)
+        {
+            resolved = routeParameters[0];
+        }
+        else
+        {
+            var entityParameterName = editType.Parameter!.Name;
+            resolved = routeParameters.FirstOrDefault(parameter =>
+                    string.Equals(parameter.Name, $"{entityParameterName}Id", StringComparison.OrdinalIgnoreCase))
+                ?? routeParameters.FirstOrDefault(parameter =>
+                    string.Equals(parameter.Name, entityParameterName, StringComparison.OrdinalIgnoreCase));
+
+            if (resolved is null)
+            {
+                errors.Add(DiagnosticInfo.Create(
+                    CmdDiagnostics.EditEntityRouteParameterNotResolved,
+                    location,
+                    template,
+                    $"the template has multiple route parameters and none matches '{entityParameterName}Id' or '{entityParameterName}'; specify RouteParameterName on EditEntityAttribute"));
+                return null;
+            }
+        }
+
+        ValidateEditRouteParameter(resolved, editType, location, errors);
+        return resolved.Name;
+    }
+
+    /// <summary>Valida opcionalidade e constraints de tipo conhecidas contra o tipo do id da entidade.</summary>
+    private static void ValidateEditRouteParameter(
+        RoutePatternParameter routeParameter,
+        EditTypeDescriptor editType,
+        Location location,
+        List<DiagnosticInfo> errors)
+    {
+        if (routeParameter.IsOptional)
+        {
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.EditEntityRouteParameterIncompatible,
+                location,
+                routeParameter.Name,
+                "the entity id is required, but the route parameter is optional"));
+        }
+
+        if (routeParameter.IsCatchAll)
+        {
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.EditEntityRouteParameterIncompatible,
+                location,
+                routeParameter.Name,
+                "the route parameter is a catch-all and cannot bind a single entity id"));
+        }
+
+        if (routeParameter.Constraint is null)
+            return;
+
+        // valida somente constraints de tipo conhecidas; múltiplas constraints são separadas por ':'
+        foreach (var constraint in routeParameter.Constraint.Split(':'))
+        {
+            var baseName = constraint;
+            var parenthesis = baseName.IndexOf('(');
+            if (parenthesis >= 0)
+                baseName = baseName.Substring(0, parenthesis);
+
+            if (!ConstraintTypeNames.TryGetValue(baseName.Trim(), out var expectedTypeName))
+                continue;
+
+            // Nullable<T> no id ('int?') vincula normalmente uma rota '{id:int}'
+            var idTypeName = editType.IdType.Name.TrimEnd('?');
+            if (!string.Equals(idTypeName, expectedTypeName, StringComparison.Ordinal))
+            {
+                errors.Add(DiagnosticInfo.Create(
+                    CmdDiagnostics.EditEntityRouteParameterIncompatible,
+                    location,
+                    routeParameter.Name,
+                    $"the route constraint '{baseName}' expects '{expectedTypeName}' but the entity id type is '{editType.IdType.Name}'"));
+            }
+        }
+    }
+
+    /// <summary>Constraints de rota que determinam um tipo CLR (nome na forma mínima do C#).</summary>
+    private static readonly Dictionary<string, string> ConstraintTypeNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["int"] = "int",
+        ["long"] = "long",
+        ["guid"] = "Guid",
+        ["bool"] = "bool",
+        ["datetime"] = "DateTime",
+        ["decimal"] = "decimal",
+        ["double"] = "double",
+        ["float"] = "float",
+    };
+
     private static HashSet<string> CollectEndpointReservedNames(EditTypeDescriptor? editType)
     {
         // nomes emitidos no escopo do método do endpoint Minimal API, onde os parâmetros [WithParameter]
-        // são replicados ('command' e 'ct' já são reservados pelo escopo do handler).
-        var reserved = new HashSet<string>(StringComparer.Ordinal)
+        // são replicados ('command', 'ct' e o '{entidade}Id' de EditEntity já são reservados pelo escopo
+        // do handler).
+        _ = editType;
+        return new HashSet<string>(StringComparer.Ordinal)
         {
             EndpointHandlerParameterName,
             EndpointResultVarName,
         };
-
-        if (editType?.Parameter is not null)
-            reserved.Add($"{editType.Parameter.Name}Id");
-
-        return reserved;
     }
+
+    /// <summary>
+    /// Um tipo com <c>BindAsync</c> ou <c>TryParse</c> públicos e estáticos usa o binding customizado do
+    /// próprio tipo no Minimal API (o body não é inferido).
+    /// </summary>
+    private static bool HasCustomBindingMethod(INamedTypeSymbol commandType) =>
+        commandType.GetMembers()
+            .OfType<IMethodSymbol>()
+            .Any(candidate => candidate.IsStatic &&
+                candidate.DeclaredAccessibility == Accessibility.Public &&
+                candidate.Name is "BindAsync" or "TryParse");
 
     private static bool HasRequestBodyShape(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel)
     {
@@ -830,37 +989,167 @@ internal static class CommandHandlerGenerator
         return false;
     }
 
-    private static bool IsMapAttribute(INamedTypeSymbol? attributeType) =>
-        attributeType?.ToDisplayString() is
-            "RoyalCode.SmartCommands.MapPostAttribute" or
-            "RoyalCode.SmartCommands.MapPutAttribute" or
-            "RoyalCode.SmartCommands.MapPatchAttribute" or
-            "RoyalCode.SmartCommands.MapDeleteAttribute" or
-            "RoyalCode.SmartCommands.MapGetAttribute";
-
-    private static bool TryGetGenericTypeArguments(
-        AttributeSyntax? attribute,
+    /// <summary>
+    /// Obtém os argumentos de tipo do atributo genérico pela identidade semântica. Tipos de argumento não
+    /// resolvidos (em digitação) passam adiante — o compilador já reporta o erro no código do usuário.
+    /// </summary>
+    private static bool TryGetTypeArguments(
+        AttributeData attribute,
         int expectedCount,
-        out SeparatedSyntaxList<TypeSyntax> arguments)
+        out ImmutableArray<ITypeSymbol> typeArguments)
     {
-        if (attribute?.Name is GenericNameSyntax genericName &&
-            genericName.TypeArgumentList.Arguments.Count == expectedCount)
+        if (attribute.AttributeClass is { TypeKind: not TypeKind.Error } attributeClass &&
+            attributeClass.TypeArguments.Length == expectedCount)
         {
-            arguments = genericName.TypeArgumentList.Arguments;
+            typeArguments = attributeClass.TypeArguments;
             return true;
         }
 
-        arguments = default;
+        typeArguments = default;
         return false;
     }
 
-    private static MapInformation? ReadMap(
-        ClassDeclarationSyntax classDeclaration,
-        TypeSyntax valueReturnType,
-        SemanticModel semanticModel,
-        List<DiagnosticInfo> errors)
+    /// <summary>Comparação semântica de tipo por namespace + metadata name (nunca por nome simples).</summary>
+    private static bool IsType(ITypeSymbol type, string @namespace, string metadataName) =>
+        KnownAttributes.IsType(type, @namespace, metadataName);
+
+    /// <summary>
+    /// Desembrulha semanticamente o tipo de valor do retorno do método: <c>Task&lt;T&gt;</c>/<c>ValueTask&lt;T&gt;</c>
+    /// e <c>Result&lt;T&gt;</c> resolvem para <c>T</c>; <c>void</c>, <c>Task</c>, <c>ValueTask</c> e <c>Result</c>
+    /// (sem valor) resolvem para <see langword="null"/>.
+    /// </summary>
+    private static ITypeSymbol? UnwrapValueReturnType(ITypeSymbol returnType)
     {
-        string? httpMethod = null;
+        var current = returnType;
+
+        if (IsType(current, "System.Threading.Tasks", "Task") || IsType(current, "System.Threading.Tasks", "ValueTask"))
+            return null;
+
+        if (IsType(current, "System.Threading.Tasks", "Task`1") || IsType(current, "System.Threading.Tasks", "ValueTask`1"))
+            current = ((INamedTypeSymbol)current).TypeArguments[0];
+
+        if (IsType(current, "RoyalCode.SmartProblems", "Result"))
+            return null;
+
+        if (IsType(current, "RoyalCode.SmartProblems", "Result`1"))
+            return ((INamedTypeSymbol)current).TypeArguments[0];
+
+        return current.SpecialType == SpecialType.System_Void ? null : current;
+    }
+
+    /// <summary>
+    /// Extrai os valores de <c>ProduceProblems(params ProblemCategory[])</c> como <c>ProblemCategory.Membro</c>,
+    /// aceitando <c>params</c> expandido e array explícito; valores não constantes são ignorados.
+    /// </summary>
+    private static void AddProduceProblems(AttributeData attribute, List<string> produceProblems)
+    {
+        foreach (var argument in attribute.ConstructorArguments)
+        {
+            if (argument.Kind == TypedConstantKind.Array)
+            {
+                foreach (var item in argument.Values)
+                {
+                    if (KnownAttributes.FormatEnumMember(item) is { } value)
+                        produceProblems.Add(value);
+                }
+            }
+            else if (KnownAttributes.FormatEnumMember(argument) is { } single)
+            {
+                produceProblems.Add(single);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Lê os argumentos de <c>WithRetryOnConcurrency</c> (maxAttempts/operation) por <see cref="TypedConstant"/>,
+    /// validando os valores; argumentos não constantes são ignorados (o compilador já os reporta).
+    /// </summary>
+    private static void ReadRetryArguments(
+        AttributeData attribute,
+        MethodDeclarationSyntax method,
+        List<DiagnosticInfo> errors,
+        ref int? retryMaxAttempts,
+        ref string? retryOperation,
+        CancellationToken cancellationToken)
+    {
+        var constructorParameters = attribute.AttributeConstructor?.Parameters
+            ?? ImmutableArray<IParameterSymbol>.Empty;
+
+        // argumentos posicionais do construtor (nome vem do parâmetro do construtor resolvido)
+        for (var index = 0; index < attribute.ConstructorArguments.Length && index < constructorParameters.Length; index++)
+        {
+            var location = KnownAttributes.GetArgumentLocation(
+                attribute, index, cancellationToken, method.Identifier.GetLocation());
+            ApplyRetryArgument(
+                constructorParameters[index].Name,
+                attribute.ConstructorArguments[index],
+                location,
+                errors,
+                ref retryMaxAttempts,
+                ref retryOperation);
+        }
+
+        // argumentos nomeados de propriedade (ex.: Operation = "...", MaxAttempts = 3)
+        var attributeLocation = KnownAttributes.GetLocation(attribute, cancellationToken, method.Identifier.GetLocation());
+        foreach (var namedArgument in attribute.NamedArguments)
+        {
+            ApplyRetryArgument(
+                namedArgument.Key,
+                namedArgument.Value,
+                attributeLocation,
+                errors,
+                ref retryMaxAttempts,
+                ref retryOperation);
+        }
+    }
+
+    private static void ApplyRetryArgument(
+        string name,
+        TypedConstant argument,
+        Location location,
+        List<DiagnosticInfo> errors,
+        ref int? retryMaxAttempts,
+        ref string? retryOperation)
+    {
+        if (string.Equals(name, "maxAttempts", StringComparison.OrdinalIgnoreCase) &&
+            argument is { Kind: TypedConstantKind.Primitive, Value: int maxAttempts })
+        {
+            // valor explícito no atributo sobrescreve as options; <= 0 é inválido
+            if (maxAttempts <= 0)
+            {
+                errors.Add(DiagnosticInfo.Create(
+                    CmdDiagnostics.RetryOnConcurrencyInvalidMaxAttempts,
+                    location));
+            }
+            else
+            {
+                retryMaxAttempts = maxAttempts;
+            }
+        }
+        else if (string.Equals(name, "operation", StringComparison.OrdinalIgnoreCase) &&
+            argument is { Kind: TypedConstantKind.Primitive, Value: string operation })
+        {
+            if (string.IsNullOrWhiteSpace(operation))
+            {
+                errors.Add(DiagnosticInfo.Create(
+                    CmdDiagnostics.InvalidCommandType,
+                    location,
+                    "The retry operation must not be empty"));
+            }
+            else
+            {
+                retryOperation = operation;
+            }
+        }
+    }
+
+    private static MapInformation? ReadMap(
+        INamedTypeSymbol commandType,
+        ITypeSymbol? valueReturnType,
+        MethodDeclarationSyntax method,
+        List<DiagnosticInfo> errors,
+        CancellationToken cancellationToken)
+    {
         string? description = null;
         string? summary = null;
         string? groupName = null;
@@ -869,97 +1158,111 @@ internal static class CommandHandlerGenerator
         TypeDescriptor? idResultValueType = null;
         MapResponseValuesInformation? responseValues = null;
 
-        if (classDeclaration.TryGetAttribute(MapPostAttributeName, out AttributeSyntax? attr))
+        // localiza o atributo Map* de verbo HTTP pela identidade semântica (metadata name)
+        AttributeData? attr = null;
+        string? httpMethod = null;
+        foreach (var (spec, verb) in KnownAttributes.MapVerbs)
         {
-            httpMethod = "Post";
-        }
-        else if (classDeclaration.TryGetAttribute(MapPutAttributeName, out attr))
-        {
-            httpMethod = "Put";
-        }
-        else if (classDeclaration.TryGetAttribute(MapPatchAttributeName, out attr))
-        {
-            httpMethod = "Patch";
-        }
-        else if (classDeclaration.TryGetAttribute(MapDeleteAttributeName, out attr))
-        {
-            httpMethod = "Delete";
-        }
-        else if (classDeclaration.TryGetAttribute(MapGetAttributeName, out attr))
-        {
-            httpMethod = "Get";
+            if (KnownAttributes.TryGet(commandType, spec, out attr))
+            {
+                httpMethod = verb;
+                break;
+            }
         }
 
         if (attr is null || httpMethod is null)
             return null;
 
-        var mapArguments = attr.ArgumentList?.Arguments;
-        if (mapArguments is not { Count: 2 })
+        var attributeLocation = KnownAttributes.GetLocation(attr, cancellationToken, method.Identifier.GetLocation());
+
+        // a quantidade de argumentos escritos vem da sintaxe (o construtor pode nem ter sido resolvido);
+        // os valores vêm dos TypedConstants — argumento não constante/incompleto já é erro do compilador
+        // e bloqueia o mapeamento sem RCCMD (DF9).
+        var writtenArgumentCount =
+            (attr.ApplicationSyntaxReference?.GetSyntax(cancellationToken) as AttributeSyntax)?
+                .ArgumentList?.Arguments.Count ?? 0;
+        if (writtenArgumentCount != 2)
         {
             errors.Add(DiagnosticInfo.Create(
                 CmdDiagnostics.InvalidMapArguments,
-                attr.GetLocation(),
-                attr.Name.ToString()));
+                attributeLocation,
+                $"Map{httpMethod}"));
             return null;
         }
 
-        var endpointRoutePattern = mapArguments.Value[0].Expression.ToString();
-        var endpointName = mapArguments.Value[1].Expression.ToString();
+        var mapArguments = attr.ConstructorArguments;
+        if (mapArguments.Length != 2 ||
+            mapArguments[0].Kind == TypedConstantKind.Error ||
+            mapArguments[1].Kind == TypedConstantKind.Error)
+        {
+            // argumento não constante/incompleto: o compilador já reporta; sem RCCMD (DF9)
+            return null;
+        }
+
+        var endpointRoutePattern = KnownAttributes.GetString(mapArguments[0]);
+        var endpointName = KnownAttributes.GetString(mapArguments[1]);
+        if (endpointRoutePattern is null || endpointName is null)
+        {
+            // null é constante válida para o compilador, mas é uso inválido do atributo:
+            // sem RCCMD o endpoint sumiria em silêncio.
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.InvalidMapArguments,
+                attributeLocation,
+                $"Map{httpMethod}"));
+            return null;
+        }
 
         // tenta obter a descrição
-        if (classDeclaration.TryGetAttribute(WithDescriptionAttributeName, out AttributeSyntax? descAttr) && descAttr!.ArgumentList?.Arguments.Count is 1)
-            description = descAttr.ArgumentList.Arguments[0].Expression.ToString();
+        if (KnownAttributes.TryGet(commandType, KnownAttributes.WithDescription, out var descAttr) &&
+            descAttr!.ConstructorArguments.Length == 1)
+        {
+            description = KnownAttributes.GetString(descAttr.ConstructorArguments[0]);
+        }
 
         // tenta obter o summary
-        if (classDeclaration.TryGetAttribute(WithSummaryAttributeName, out AttributeSyntax? displayNameAttr) && displayNameAttr!.ArgumentList?.Arguments.Count is 1)
-            summary = displayNameAttr.ArgumentList.Arguments[0].Expression.ToString();
+        if (KnownAttributes.TryGet(commandType, KnownAttributes.WithSummary, out var summaryAttr) &&
+            summaryAttr!.ConstructorArguments.Length == 1)
+        {
+            summary = KnownAttributes.GetString(summaryAttr.ConstructorArguments[0]);
+        }
 
         // tenta obter o authorization
-        if (classDeclaration.TryGetAttribute(WithAuthorizationAttributeName, out AttributeSyntax? authAttr))
+        if (KnownAttributes.Has(commandType, KnownAttributes.WithAuthorization))
             authorizationPolicies = [];
 
-        // se tiver o attribute WithPolicy, deve obter o(s) nome(s) da(s) política(s)
-        if (classDeclaration.TryGetAttribute(WithPolicyAttributeName, out AttributeSyntax? policyAttr))
+        // se tiver o attribute WithPolicy, deve obter o(s) nome(s) da(s) política(s) — aceita params e array explícito
+        if (KnownAttributes.TryGet(commandType, KnownAttributes.WithPolicy, out var policyAttr))
         {
-            var arguments = policyAttr!.ArgumentList?.Arguments;
-            if (arguments is not null && arguments.Value.Count > 0)
-            {
-                // obtém os nomes das políticas
-                authorizationPolicies = arguments.Value.Select(a => a.Expression.ToString()).ToArray();
-            }
-            else
-            {
-                authorizationPolicies ??= [];
-            }
+            var policies = policyAttr!.ConstructorArguments.Length > 0
+                ? KnownAttributes.GetStrings(policyAttr.ConstructorArguments[0]).ToArray()
+                : [];
+            authorizationPolicies = policies.Length > 0 ? policies : authorizationPolicies ?? [];
         }
 
         // tenta obter o MapGroup attribute
-        if (classDeclaration.TryGetAttribute(MapGroupAttributeName, out AttributeSyntax? groupAttr) && groupAttr!.ArgumentList?.Arguments.Count is 1)
-            groupName = groupAttr.ArgumentList.Arguments[0].Expression.ToString().RemoveQuotes();
-
-        // tenta obter MapCreatedRoute
-        if (classDeclaration.TryGetAttribute(MapCreatedRouteAttributeName, out AttributeSyntax? createdRouteAttr))
+        if (KnownAttributes.TryGet(commandType, KnownAttributes.MapGroup, out var groupAttr) &&
+            groupAttr!.ConstructorArguments.Length == 1)
         {
-            var arguments = createdRouteAttr!.ArgumentList?.Arguments;
-            if (arguments is not null && arguments.Value.Count > 0)
-            {
-                // o primeiro parâmetro é a route pattern
-                var routePattern = arguments.Value[0].Expression.ToString().RemoveQuotes();
-                // pode haver outros parâmetros vindos do (params string[])
-                var propertiesNames = arguments.Value.Count > 1
-                    ? arguments.Value.Skip(1).Select(a => a.Expression.ToString().RemoveQuotes()).ToArray()
-                    : [];
+            groupName = KnownAttributes.GetString(groupAttr.ConstructorArguments[0]);
+        }
 
-                createdInformation = new MapCreatedInformation(routePattern, propertiesNames);
-            }
+        // tenta obter MapCreatedRoute — (route pattern, params nomes de propriedades)
+        if (KnownAttributes.TryGet(commandType, KnownAttributes.MapCreatedRoute, out var createdRouteAttr) &&
+            createdRouteAttr!.ConstructorArguments.Length > 0 &&
+            KnownAttributes.GetString(createdRouteAttr.ConstructorArguments[0]) is { } createdRoutePattern)
+        {
+            var propertiesNames = createdRouteAttr.ConstructorArguments.Length > 1
+                ? KnownAttributes.GetStrings(createdRouteAttr.ConstructorArguments[1]).ToArray()
+                : [];
+
+            createdInformation = new MapCreatedInformation(createdRoutePattern, propertiesNames);
         }
 
         // tenta obter MapIdResultValue
-        if (classDeclaration.TryGetAttribute(MapIdResultValueAttributeName, out _))
+        if (KnownAttributes.Has(commandType, KnownAttributes.MapIdResultValue))
         {
-            // quando há o attribute MapIdResultValue, deve obter a propriedade e o tipo dela.
-            var typeInfo = semanticModel.GetTypeInfo(valueReturnType);
-            var idProperty = typeInfo.Type
+            // quando há o attribute MapIdResultValue, deve obter a propriedade Id e o tipo dela no tipo de valor retornado.
+            var idProperty = valueReturnType?
                 .GetAllMembers()
                 .OfType<IPropertySymbol>()
                 .FirstOrDefault(p => p.Name == "Id");
@@ -970,41 +1273,41 @@ internal static class CommandHandlerGenerator
             }
             else
             {
-                // se não achar a propriedade, deveria gerar um diagnostico.
+                // se não achar a propriedade, gera o diagnóstico.
                 errors.Add(DiagnosticInfo.Create(
                     CmdDiagnostics.IdNotFoundInReturnedCommand,
-                    valueReturnType.GetLocation()));
+                    method.ReturnType.GetLocation()));
             }
         }
 
         // tenta obter MapResponseValues e seus parâmetros
-        if (classDeclaration.TryGetAttribute(MapResponseValuesAttributeName, out AttributeSyntax? resultValueAttr))
+        if (KnownAttributes.TryGet(commandType, KnownAttributes.MapResponseValues, out var resultValueAttr))
         {
-            var arguments = resultValueAttr!.ArgumentList?.Arguments;
-            if (arguments is not null && arguments.Value.Count > 0)
-            {
-                var propertiesNames = arguments.Value.Select(a => a.Expression.ToString().RemoveQuotes()).ToArray();
+            var propertiesNames = resultValueAttr!.ConstructorArguments.Length > 0
+                ? KnownAttributes.GetStrings(resultValueAttr.ConstructorArguments[0]).ToArray()
+                : [];
 
-                var returnTypeProperties = semanticModel.GetTypeInfo(valueReturnType).Type?
+            if (propertiesNames.Length > 0)
+            {
+                var returnTypeProperties = valueReturnType?
                     .GetAllMembers()
                     .OfType<IPropertySymbol>()
                     .ToList();
 
                 if (returnTypeProperties is null)
                 {
-                    // deve gerar algum diagnostic error
-                    // se não achar a propriedade, deveria gerar um diagnostico.
+                    // sem tipo de valor retornado não há como projetar as propriedades.
                     errors.Add(DiagnosticInfo.Create(
                         CmdDiagnostics.ReturnedCommandTypeNotFound,
-                        valueReturnType.GetLocation()));
+                        method.ReturnType.GetLocation()));
                 }
                 else
                 {
-                    // para cada propriedade, obtém o membro do comando que corresponde a ela,
+                    // para cada propriedade, obtém o membro do tipo retornado que corresponde a ela,
                     // então valida se é uma propriedade, e cria um PropertyDescription
                     var properties = propertiesNames.Select(name =>
                         {
-                            // obtém o membro do comando que corresponde a ela
+                            // obtém o membro do tipo retornado que corresponde a ela
                             var property = returnTypeProperties.Find(p => p.Name == name);
 
                             if (property is null)
@@ -1012,7 +1315,7 @@ internal static class CommandHandlerGenerator
                                 // se não achar a propriedade, deve gerar um erro de diagnostico
                                 errors.Add(DiagnosticInfo.Create(
                                     CmdDiagnostics.PropertyNotFoundInReturnedCommand,
-                                    valueReturnType.GetLocation(),
+                                    method.ReturnType.GetLocation(),
                                     name));
                                 return null;
                             }
@@ -1035,7 +1338,7 @@ internal static class CommandHandlerGenerator
             HttpMethod = httpMethod,
             RoutePattern = endpointRoutePattern,
             EndpointName = endpointName,
-            EndpointNameLocation = mapArguments.Value[1].GetLocation(),
+            EndpointNameLocation = KnownAttributes.GetArgumentLocation(attr, 1, cancellationToken, attributeLocation),
             Description = description,
             Summary = summary,
             GroupName = groupName,
@@ -1048,8 +1351,14 @@ internal static class CommandHandlerGenerator
 
     internal static ClassGenerator GenerateInterface(CommandHandlerInformation i)
     {
-        // cria interface do handler
-        var interfaceGen = new ClassGenerator(i.HandlerInterfaceName, i.Namespace, "interface");
+        // cria interface do handler; o hint name usa o nome completo (namespace + tipo) para que
+        // classes homônimas em namespaces diferentes gerem fontes distintas
+        var interfaceGen = new ClassGenerator(i.HandlerInterfaceName, i.Namespace, "interface")
+        {
+            FileName = HintName.Create(
+                $"{i.Namespace}.{i.HandlerInterfaceName}",
+                i.HandlerInterfaceName)
+        };
         interfaceGen.Modifiers.Public();
         //interfaceGen.Usings.AddNamespaces(i.HandlerReturnType.Namespaces);
 
@@ -1072,8 +1381,13 @@ internal static class CommandHandlerGenerator
 
     internal static ClassGenerator GenerateImplementation(CommandHandlerInformation i, MethodGenerator interfaceHandlerMethod)
     {
-        // cria classe que implementa o handler
-        var handlerGen = new ClassGenerator(i.HandlerImplementationName, $"{i.Namespace}.Internals");
+        // cria classe que implementa o handler; o hint name usa o nome completo (namespace + tipo)
+        var handlerGen = new ClassGenerator(i.HandlerImplementationName, $"{i.Namespace}.Internals")
+        {
+            FileName = HintName.Create(
+                $"{i.Namespace}.Internals.{i.HandlerImplementationName}",
+                i.HandlerImplementationName)
+        };
         handlerGen.Modifiers.Public();
         handlerGen.Hierarchy.AddImplements(new TypeDescriptor(i.HandlerInterfaceName, [i.Namespace]));
 
@@ -1335,11 +1649,13 @@ internal static class CommandHandlerGenerator
             var produceNewEntity = i.ProduceNewEntityType is not null;
 
             final = new CompleteUnitOfWorkCommand(
-                final, 
-                isInvokeAsync, 
+                final,
+                isInvokeAsync,
                 i.MethodReturnType,
-                AccessorVarName, 
-                CommandResultVarName, 
+                returnsResult: i.ReturnModel.IsResult,
+                resultHasValue: i.ReturnModel.IsResult && i.ReturnModel.ValueType is not null,
+                AccessorVarName,
+                CommandResultVarName,
                 produceNewEntity,
                 i.HasWithDecorators);
 
@@ -1385,7 +1701,9 @@ internal static class CommandHandlerGenerator
 
         var partialClass = new ClassGenerator(i.ModelType.Name, i.Namespace)
         {
-            FileName = $"{i.ModelType.Name}_WasValidated.g.cs"
+            FileName = HintName.Create(
+                $"{i.Namespace}.{i.ModelType.Name}_WasValidated",
+                $"{i.ModelType.Name}_WasValidated")
         };
         partialClass.Modifiers.Public();
         partialClass.Modifiers.Partial();
@@ -1411,7 +1729,8 @@ internal static class CommandHandlerGenerator
         MethodGenerator method,
         string? editEntityRouteParameterName = null,
         bool includeCommandParameter = true,
-        bool nullableCommandParameter = false)
+        bool nullableCommandParameter = false,
+        bool includeBindingAttributes = false)
     {
         // parâmetro do id da entidade a ser editada, quando necessário
         if (commandInfo.EditType is not null)
@@ -1428,7 +1747,8 @@ internal static class CommandHandlerGenerator
                     new AttributeGenerator(
                         "FromRoute",
                         ["Microsoft.AspNetCore.Mvc"],
-                        new StringValueNode($"Name = \"{editEntityRouteParameterName}\""))
+                        new StringValueNode(
+                            $"Name = {SymbolDisplay.FormatLiteral(editEntityRouteParameterName!, quote: true)}"))
                     {
                         InLine = true
                     });
@@ -1437,7 +1757,7 @@ internal static class CommandHandlerGenerator
             method.Parameters.Add(idParameter);
         }
 
-        // parâmetro do commando (omitido no endpoint quando o comando não tem corpo — ver includeCommandParameter).
+        // parâmetro do comando (omitido no endpoint quando o comando não tem corpo — ver includeCommandParameter).
         if (includeCommandParameter)
         {
             var commandType = nullableCommandParameter
@@ -1447,12 +1767,42 @@ internal static class CommandHandlerGenerator
             method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(commandType, ModelVarName)));
         }
 
-        // parâmetros com atributo WithParameter
+        // parâmetros com atributo WithParameter; no delegate Minimal API os bindings explícitos do
+        // parâmetro-fonte são copiados (DF3); sem binding, o ASP.NET Core infere a fonte (DF2)
         foreach (var p in commandInfo.Parameters.Where(p => p.Type.IsHandlerParameter))
-            method.Parameters.Add(new ParameterGenerator(p));
+        {
+            var parameterGenerator = new ParameterGenerator(p);
+
+            if (includeBindingAttributes &&
+                commandInfo.ParameterBindings is not null &&
+                commandInfo.ParameterBindings.TryGetValue(p.Name, out var bindings))
+            {
+                foreach (var binding in bindings)
+                    parameterGenerator.Attributes.Add(CreateBindingAttribute(binding));
+            }
+
+            method.Parameters.Add(parameterGenerator);
+        }
 
         // cancellation token, quando necessário (async)
         if (commandInfo.HandlerMustBeAsync)
             method.Parameters.Add(new ParameterGenerator(ParameterDescriptor.CancellationToken()));
+    }
+
+    /// <summary>Emite um atributo de binding capturado (DF3), preservando o argumento <c>Name</c> quando presente.</summary>
+    internal static AttributeGenerator CreateBindingAttribute(ParameterBindingModel binding)
+    {
+        return binding.Name is null
+            ? new AttributeGenerator(binding.Attribute, ["Microsoft.AspNetCore.Mvc"])
+            {
+                InLine = true
+            }
+            : new AttributeGenerator(
+                binding.Attribute,
+                ["Microsoft.AspNetCore.Mvc"],
+                new StringValueNode($"Name = {SymbolDisplay.FormatLiteral(binding.Name, quote: true)}"))
+            {
+                InLine = true
+            };
     }
 }

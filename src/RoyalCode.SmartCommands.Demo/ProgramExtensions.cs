@@ -56,6 +56,9 @@ public static partial class ProgramExtensions
                 typeId: "demo.pedido.concurrency_conflict"));
         builder.Services.AddTransient<SomeService>();
 
+        // serviço do comando de demonstração de binding (playground/{movieId}/views)
+        builder.Services.AddSingleton<Commands.Movies.IRelogioDemo, Commands.Movies.RelogioDemo>();
+
         // Catalogo RFC 9457 dos typeIds customizados do dominio; alimenta a conversao para ProblemDetails
         // e a pagina de documentacao publicada em /.problems (ver ConfigurePipeline).
         builder.Services.AddProblemDetailsDescriptions(ProblemDetailsCatalog.Configure);
@@ -91,6 +94,9 @@ public static partial class ProgramExtensions
         var produtosGroup = app.MapProdutosGroup().WithTags("Produtos");
         var pedidosGroup = app.MapPedidosGroup().WithTags("Pedidos");
         var lojasGroup = app.MapLojasGroup().WithTags("Lojas");
+        // grupo de demonstração do binding de parâmetros externos (Fase 5/DF2/DF3);
+        // o grupo Movies segue não mapeado: os endpoints de Review não têm search/repositório registrados
+        var playgroundGroup = app.MapPlaygroundGroup().WithTags("Playground");
 
 
         // como seria um find

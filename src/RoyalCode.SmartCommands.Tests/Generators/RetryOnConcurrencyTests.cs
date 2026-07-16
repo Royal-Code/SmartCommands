@@ -43,8 +43,9 @@ public class RetryOnConcurrencyTests
 
     private static string? FindGeneratedSource(Compilation compilation, string fileName)
     {
+        // os hint names agora incluem o namespace completo; localiza pelo sufixo ".{nome}"
         return compilation.SyntaxTrees
-            .FirstOrDefault(t => Path.GetFileName(t.FilePath).Equals(fileName, StringComparison.Ordinal))
+            .FirstOrDefault(t => Path.GetFileName(t.FilePath).EndsWith($".{fileName}", StringComparison.Ordinal))
             ?.ToString();
     }
 

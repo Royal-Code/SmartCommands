@@ -1,5 +1,8 @@
 ﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using RoyalCode.Extensions.SourceGenerator.Collections;
 using RoyalCode.Extensions.SourceGenerator.Diagnostics;
+using RoyalCode.SmartCommands.Generators.Models;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
@@ -130,18 +133,21 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
     {
         var handlerMethodName = $"Search{EntityType.Name}By{FilterType.Name}Async";
 
+        // os valores vêm dos TypedConstants (sem aspas); a emissão os formata como literais C#
         var methodInvoke = new MethodInvokeGenerator("group", $"MapGet");
-        methodInvoke.AddArgument(EndpointRoutePattern);
+        methodInvoke.AddArgument(SymbolDisplay.FormatLiteral(EndpointRoutePattern, quote: true));
         methodInvoke.AddArgument(handlerMethodName);
 
-        methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithName", EndpointName)
+        methodInvoke = new MethodInvokeGenerator(
+            methodInvoke, "WithName", SymbolDisplay.FormatLiteral(EndpointName, quote: true))
         {
             LineIdent = true
         };
 
         if (Description is not null)
         {
-            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithDescription", Description)
+            methodInvoke = new MethodInvokeGenerator(
+                methodInvoke, "WithDescription", SymbolDisplay.FormatLiteral(Description, quote: true))
             {
                 LineIdent = true
             };
@@ -149,7 +155,8 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
 
         if (Summary is not null)
         {
-            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithSummary", Summary)
+            methodInvoke = new MethodInvokeGenerator(
+                methodInvoke, "WithSummary", SymbolDisplay.FormatLiteral(Summary, quote: true))
             {
                 LineIdent = true
             };
@@ -161,7 +168,7 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
             ArgumentsGenerator arguments = new();
             foreach (var policy in AuthorizationPolicies)
             {
-                arguments.AddArgument(policy);
+                arguments.AddArgument(SymbolDisplay.FormatLiteral(policy, quote: true));
             }
             methodInvoke = new MethodInvokeGenerator(methodInvoke, "RequireAuthorization", arguments)
             {
@@ -263,7 +270,11 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
 
                 if (filterParam.HasWithParameterAttribute)
                 {
-                    parameter.Attributes.Add(new AttributeGenerator("FromRoute", ["Microsoft.AspNetCore.Mvc"]) { InLine = true });
+                    // DF2/DF3: sem atributo, o ASP.NET Core infere a fonte (rota quando o nome está no
+                    // template, query para tipos parseáveis); bindings explícitos do parâmetro-fonte
+                    // são copiados para o delegate
+                    foreach (var binding in filterParam.Bindings)
+                        parameter.Attributes.Add(CommandHandlerGenerator.CreateBindingAttribute(binding));
                 }
                 else if (!filterParam.IsHttpContextParameter)
                 {
@@ -329,7 +340,7 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
         var configureAssign = new AssignValueCommand(configureVar, configureValue);
         method.Commands.Add(configureAssign);
 
-        // 2.2 - Invoka Performer
+        // 2.2 - Invoca Performer
         var searchMethodName = SelectType is null 
             ? $"SearchAsync<{EntityType.Name}, {FilterType.Name}>" 
             : $"SearchAsync<{EntityType.Name}, {SelectType.Name}, {FilterType.Name}>";
@@ -400,21 +411,34 @@ internal class SearchFilterParameterInformation : IEquatable<SearchFilterParamet
 {
     public SearchFilterParameterInformation(
         bool hasWithParameterAttribute,
-        ParameterDescriptor parameterDescriptor)
+        ParameterDescriptor parameterDescriptor,
+        bool isCriteriaParameter,
+        bool isCancellationTokenParameter,
+        bool isHttpContextParameter,
+        EquatableArray<ParameterBindingModel> bindings = default)
     {
         HasWithParameterAttribute = hasWithParameterAttribute;
         ParameterDescriptor = parameterDescriptor;
+        IsCriteriaParameter = isCriteriaParameter;
+        IsCancellationTokenParameter = isCancellationTokenParameter;
+        IsHttpContextParameter = isHttpContextParameter;
+        Bindings = bindings;
     }
 
-    public bool IsCriteriaParameter => ParameterDescriptor.Type.Name.StartsWith("ICriteria<");
+    // Fatos semânticos congelados no transform (comparação por símbolo, nunca por nome simples).
 
-    public bool IsCancellationTokenParameter => ParameterDescriptor.Type.IsCancellationToken;
+    public bool IsCriteriaParameter { get; }
 
-    public bool IsHttpContextParameter => ParameterDescriptor.Type.Name == "HttpContext";
+    public bool IsCancellationTokenParameter { get; }
+
+    public bool IsHttpContextParameter { get; }
 
     public bool HasWithParameterAttribute { get; }
 
     public ParameterDescriptor ParameterDescriptor { get; }
+
+    /// <summary>Bindings explícitos capturados do parâmetro-fonte (DF3), emitidos no delegate Minimal API.</summary>
+    public EquatableArray<ParameterBindingModel> Bindings { get; }
 
     public bool Equals(SearchFilterParameterInformation other)
     {
@@ -423,6 +447,10 @@ internal class SearchFilterParameterInformation : IEquatable<SearchFilterParamet
 
         return ReferenceEquals(this, other) ||
             HasWithParameterAttribute == other.HasWithParameterAttribute &&
+            IsCriteriaParameter == other.IsCriteriaParameter &&
+            IsCancellationTokenParameter == other.IsCancellationTokenParameter &&
+            IsHttpContextParameter == other.IsHttpContextParameter &&
+            Bindings.Equals(other.Bindings) &&
             ParameterDescriptor.Equals(other.ParameterDescriptor);
     }
 
@@ -435,6 +463,10 @@ internal class SearchFilterParameterInformation : IEquatable<SearchFilterParamet
     {
         var hashCode = 1861411795;
         hashCode = hashCode * -1521134295 + HasWithParameterAttribute.GetHashCode();
+        hashCode = hashCode * -1521134295 + IsCriteriaParameter.GetHashCode();
+        hashCode = hashCode * -1521134295 + IsCancellationTokenParameter.GetHashCode();
+        hashCode = hashCode * -1521134295 + IsHttpContextParameter.GetHashCode();
+        hashCode = hashCode * -1521134295 + Bindings.GetHashCode();
         hashCode = hashCode * -1521134295 + ParameterDescriptor.GetHashCode();
         return hashCode;
     }

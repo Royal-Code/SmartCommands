@@ -7,6 +7,8 @@ internal class CompleteUnitOfWorkCommand : GeneratorNode
     private readonly GeneratorNode methodInvoke;
     private readonly bool invokeIsAsync;
     private readonly TypeDescriptor commandReturnType;
+    private readonly bool returnsResult;
+    private readonly bool resultHasValue;
     private readonly string accessorVarName;
     private readonly string commandResultVarName;
     private readonly bool produceNewEntity;
@@ -16,6 +18,8 @@ internal class CompleteUnitOfWorkCommand : GeneratorNode
         GeneratorNode methodInvoke,
         bool invokeIsAsync,
         TypeDescriptor commandReturnType,
+        bool returnsResult,
+        bool resultHasValue,
         string accessorVarName,
         string commandResultVarName,
         bool produceNewEntity = false,
@@ -24,6 +28,8 @@ internal class CompleteUnitOfWorkCommand : GeneratorNode
         this.methodInvoke = methodInvoke;
         this.invokeIsAsync = invokeIsAsync;
         this.commandReturnType = commandReturnType;
+        this.returnsResult = returnsResult;
+        this.resultHasValue = resultHasValue;
         this.accessorVarName = accessorVarName;
         this.commandResultVarName = commandResultVarName;
         this.produceNewEntity = produceNewEntity;
@@ -51,8 +57,8 @@ internal class CompleteUnitOfWorkCommand : GeneratorNode
             return;
         }
 
-        var commandReturnResult = commandReturnType.Name.StartsWith("Result") ||
-                                  commandReturnType.Name.StartsWith("Task<Result");
+        // fato semântico congelado no transform (ReturnModel.IsResult); nunca decidido pelo nome do tipo
+        var commandReturnResult = returnsResult;
 
         AssignValueCommand? assignValueCommand = null;
         MethodInvokeGenerator? invokeAddEntityAsync = null;
@@ -95,9 +101,8 @@ internal class CompleteUnitOfWorkCommand : GeneratorNode
 
             // verifica parâmetro da expressão lambda,
             // se retorna um Result<T> deve ser (_, a, ct)
-            // senão deve ser (a, ct)
-            var lambdaParam = commandReturnType.Name.StartsWith("Task<Result<") ||
-                              commandReturnType.Name.StartsWith("Result<")
+            // senão deve ser (a, ct) — fato semântico congelado no transform (ReturnModel.ValueType)
+            var lambdaParam = resultHasValue
                 ? "_, a, ct"
                 : "a, ct";
 

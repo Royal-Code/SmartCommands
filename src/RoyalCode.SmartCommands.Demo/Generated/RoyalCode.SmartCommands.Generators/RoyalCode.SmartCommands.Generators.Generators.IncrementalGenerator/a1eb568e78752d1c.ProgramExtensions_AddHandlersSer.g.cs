@@ -6,6 +6,8 @@ using RoyalCode.SmartCommands.Demo.Commands.Estoques;
 using RoyalCode.SmartCommands.Demo.Commands.Estoques.Internals;
 using RoyalCode.SmartCommands.Demo.Commands.Lojas;
 using RoyalCode.SmartCommands.Demo.Commands.Lojas.Internals;
+using RoyalCode.SmartCommands.Demo.Commands.Movies;
+using RoyalCode.SmartCommands.Demo.Commands.Movies.Internals;
 using RoyalCode.SmartCommands.Demo.Commands.Pedidos;
 using RoyalCode.SmartCommands.Demo.Commands.Pedidos.Internals;
 using RoyalCode.SmartCommands.Demo.Commands.Produtos;
@@ -24,6 +26,7 @@ public static partial class ProgramExtensions
         services.AddTransient<IRegistrarEstoqueInicialHandler, RegistrarEstoqueInicialHandler<TContext>>();
         services.AddTransient<IReservarEstoqueHandler, ReservarEstoqueHandler<TContext>>();
         services.AddTransient<ICriarLojaHandler, CriarLojaHandler>();
+        services.AddTransient<IRegistrarVisualizacaoHandler, RegistrarVisualizacaoHandler>();
         services.AddTransient<ICancelarPedidoHandler, CancelarPedidoHandler<TContext>>();
         services.AddTransient<ICriarPedidoHandler, CriarPedidoHandler<TContext>>();
         services.AddTransient<ICriarProduto2Handler, CriarProduto2Handler>();

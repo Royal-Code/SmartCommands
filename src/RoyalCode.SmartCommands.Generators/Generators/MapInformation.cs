@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using RoyalCode.SmartCommands.Generators.Commands;
 using RoyalCode.SmartCommands.Generators.Models;
 using System.Text;
@@ -35,6 +36,13 @@ internal sealed class MapInformation : IEquatable<MapInformation>
     public string[]? AuthorizationPolicies { get; set; }
 
     /// <summary>
+    /// O nome do parâmetro de rota que carrega o id da entidade editada (DF4), resolvido no transform;
+    /// <see langword="null"/> quando o comando não usa EditEntity ou o template não declara variáveis
+    /// (o id é então vinculado por inferência).
+    /// </summary>
+    public string? EditRouteParameterName { get; set; }
+
+    /// <summary>
     /// Localização do argumento do endpoint name no atributo Map*. Uso exclusivo do transform (vira snapshot
     /// no modelo do pipeline); não participa da igualdade porque a informação é transitória.
     /// </summary>
@@ -52,6 +60,7 @@ internal sealed class MapInformation : IEquatable<MapInformation>
             Equals(CreatedInformation, other.CreatedInformation) &&
             Equals(IdResultValueType, other.IdResultValueType) &&
             Equals(ResponseValues, other.ResponseValues) &&
+            EditRouteParameterName == other.EditRouteParameterName &&
             SequenceEqual(AuthorizationPolicies, other.AuthorizationPolicies);
     }
 
@@ -75,6 +84,7 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         hashCode = hashCode * -1521134295 + CreatedInformation?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + IdResultValueType?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + ResponseValues?.GetHashCode() ?? 0;
+        hashCode = hashCode * -1521134295 + (EditRouteParameterName?.GetHashCode() ?? 0);
         if (AuthorizationPolicies is not null)
             foreach (var policy in AuthorizationPolicies)
                 hashCode = hashCode * -1521134295 + policy.GetHashCode();
@@ -102,36 +112,40 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         var handlerMethod = GenerateHandlerMethod(this, commandInfo, returnModel, handlerMethodName);
         methods.Add(handlerMethod);
 
-        // se há ResponseValues, então cria a classe de resposta
+        // se há ResponseValues, então cria a classe de resposta (com cabeçalho de arquivo gerado)
         if (ResponseValues is not null)
         {
-            var responseClass = GenerateReponseClass(ResponseValues, commandInfo);
+            var responseClass = GenerateResponseClass(ResponseValues, commandInfo);
             responseClass.Generate(spc);
         }
     }
 
     private static MethodInvokeGenerator GenerateMapMethodInvoke(MapInformation mapInfo, string handlerMethodName, bool withOpenApi)
     {
+        // os valores vêm dos TypedConstants (sem aspas); a emissão os formata como literais C#
         var methodInvoke = new MethodInvokeGenerator("group", $"Map{mapInfo.HttpMethod}");
-        methodInvoke.AddArgument(mapInfo.RoutePattern);
+        methodInvoke.AddArgument(SymbolDisplay.FormatLiteral(mapInfo.RoutePattern, quote: true));
         methodInvoke.AddArgument(handlerMethodName);
 
-        methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithName", mapInfo.EndpointName)
+        methodInvoke = new MethodInvokeGenerator(
+            methodInvoke, "WithName", SymbolDisplay.FormatLiteral(mapInfo.EndpointName, quote: true))
         {
             LineIdent = true
         };
 
         if (mapInfo.Description is not null)
         {
-            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithDescription", mapInfo.Description)
+            methodInvoke = new MethodInvokeGenerator(
+                methodInvoke, "WithDescription", SymbolDisplay.FormatLiteral(mapInfo.Description, quote: true))
             {
                 LineIdent = true
             };
         }
-        
+
         if (mapInfo.Summary is not null)
         {
-            methodInvoke = new MethodInvokeGenerator(methodInvoke, "WithSummary", mapInfo.Summary)
+            methodInvoke = new MethodInvokeGenerator(
+                methodInvoke, "WithSummary", SymbolDisplay.FormatLiteral(mapInfo.Summary, quote: true))
             {
                 LineIdent = true
             };
@@ -143,7 +157,7 @@ internal sealed class MapInformation : IEquatable<MapInformation>
             ArgumentsGenerator arguments = new();
             foreach (var policy in mapInfo.AuthorizationPolicies)
             {
-                arguments.AddArgument(policy);
+                arguments.AddArgument(SymbolDisplay.FormatLiteral(policy, quote: true));
             }
             methodInvoke = new MethodInvokeGenerator(methodInvoke, "RequireAuthorization", arguments)
             {
@@ -179,7 +193,7 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         if (commandInfo.HandlerMustBeAsync)
             method.Modifiers.Async();
 
-        // adiciona os atributos, caso exitam
+        // adiciona os atributos, caso existam
         if (commandInfo.ProduceProblems?.Count > 0)
         {
             // deverá gerar algo como: [ProduceProblems(ProblemCategory.InvalidParameter)] onde
@@ -197,10 +211,9 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(
             handlerType, CommandHandlerGenerator.EndpointHandlerParameterName)));
 
-        // depois são os parâmetros do método do handler
-        var editEntityRouteParameterName = commandInfo.EditType is not null
-            ? GetFirstRouteParameterName(mapInfo.RoutePattern)
-            : null;
+        // depois são os parâmetros do método do handler; o parâmetro de rota do id da entidade editada
+        // foi resolvido no transform (DF4) e chega pronto no modelo
+        var editEntityRouteParameterName = mapInfo.EditRouteParameterName;
 
         // o comando só entra como parâmetro do endpoint quando tem corpo (setters públicos ou ctor com parâmetros);
         // sem corpo, é instanciado via new e a requisição pode ser enviada sem body.
@@ -209,7 +222,8 @@ internal sealed class MapInformation : IEquatable<MapInformation>
             method,
             editEntityRouteParameterName,
             includeCommandParameter: commandInfo.HasBodyProperties,
-            nullableCommandParameter: commandInfo.HasBodyProperties);
+            nullableCommandParameter: commandInfo.HasBodyProperties,
+            includeBindingAttributes: true);
 
         // implementação do método
 
@@ -297,30 +311,6 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         return method;
     }
 
-    private static string? GetFirstRouteParameterName(string routePattern)
-    {
-        var open = routePattern.IndexOf('{');
-        if (open < 0)
-            return null;
-
-        var close = routePattern.IndexOf('}', open + 1);
-        if (close < 0)
-            return null;
-
-        var parameter = routePattern.Substring(open + 1, close - open - 1).TrimStart('*').TrimEnd('?');
-        var constraintStart = parameter.IndexOf(':');
-        if (constraintStart >= 0)
-            parameter = parameter.Substring(0, constraintStart);
-
-        var defaultValueStart = parameter.IndexOf('=');
-        if (defaultValueStart >= 0)
-            parameter = parameter.Substring(0, defaultValueStart);
-
-        return string.IsNullOrWhiteSpace(parameter)
-            ? null
-            : parameter;
-    }
-
     private static TypeDescriptor DiscoveryReturnType(
         CommandHandlerInformation commandInfo,
         ReturnModel returnModel,
@@ -396,17 +386,23 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         // montando a rota
 
         // primeiro monta a rota com o nome do grupo e o padrão da rota informado no atributo MapCreatedRoute
-        var routePattern = $"{mapInfo.GroupName}/{createdInfo.RoutePattern}";
+        var routeTemplate = $"{mapInfo.GroupName}/{createdInfo.RoutePattern}";
 
-        // depois, para cada propriedade do MapCreatedRoute, substitui o {i} pelo valor da propriedade
+        // escapa o conteúdo literal da string interpolada (aspas, contrabarras e chaves); os
+        // placeholders {i} são escapados junto (viram {{i}}) e depois convertidos em interpolação
+        var escapedRoute = routeTemplate
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("{", "{{")
+            .Replace("}", "}}");
+
+        // por fim, para cada propriedade do MapCreatedRoute, substitui o placeholder escapado {{i}}
+        // pela interpolação do valor da propriedade
         for (int i = 0; i < createdInfo.PropertiesNames.Length; i++)
-        {
-            var prop = createdInfo.PropertiesNames[i];
-            routePattern = routePattern.Replace($"{{{i}}}", $"{{v.{prop}}}");
-        }
+            escapedRoute = escapedRoute.Replace($"{{{{{i}}}}}", $"{{v.{createdInfo.PropertiesNames[i]}}}");
 
         // adiciona o parâmetro da rota como expressão lambda
-        methodInvoke.AddArgument(new StringValueNode($"v => $\"{routePattern}\""));
+        methodInvoke.AddArgument(new StringValueNode($"v => $\"{escapedRoute}\""));
 
         // verifica se tem mapeamento de retorno
 
@@ -468,10 +464,15 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         return methodInvoke;
     }
 
-    private static PocoGenerator GenerateReponseClass(MapResponseValuesInformation responseValues,
+    private static ResponsePocoGenerator GenerateResponseClass(MapResponseValuesInformation responseValues,
         CommandHandlerInformation commandInfo)
     {
-        var responseClass = new PocoGenerator($"{commandInfo.ModelType.Name}Response", commandInfo.Namespace);
+        var responseClass = new ResponsePocoGenerator($"{commandInfo.ModelType.Name}Response", commandInfo.Namespace)
+        {
+            FileName = HintName.Create(
+                $"{commandInfo.Namespace}.{commandInfo.ModelType.Name}Response",
+                $"{commandInfo.ModelType.Name}Response")
+        };
         responseClass.Modifiers.Public();
         responseClass.Modifiers.Partial();
 

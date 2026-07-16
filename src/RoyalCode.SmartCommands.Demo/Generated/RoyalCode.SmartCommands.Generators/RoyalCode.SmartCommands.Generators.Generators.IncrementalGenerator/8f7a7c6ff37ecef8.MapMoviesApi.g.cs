@@ -53,7 +53,7 @@ public static partial class MapMoviesApi
         [FromQuery]  Sorting[]? orderby, 
         [FromServices]  ICriteria<Review> criteria, 
         [FromServices]  ILogger<ICriteria<Review>> logger, 
-        [FromRoute]  int movieId, 
+        int movieId, 
         CancellationToken ct)
     {
         Action<ICriteria<Review>>? configure = (criteria) => filter.Configure(movieId, criteria);

@@ -1,5 +1,6 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.Extensions.SourceGenerator.Collections;
 using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 using RoyalCode.Extensions.SourceGenerator.Generation;
 using RoyalCode.SmartCommands.Generators.Models;
@@ -9,14 +10,6 @@ namespace RoyalCode.SmartCommands.Generators.Generators;
 internal static class FindGenerator
 {
     public const string FindAttributeName = "RoyalCode.SmartCommands.MapFindAttribute";
-    
-    private const string MapFindAttributeName = "MapFind";
-    private const string EntityReferenceAttributeName = "EntityReference";
-    private const string MapGroupAttributeName = "MapGroup";
-    private const string WithDescriptionAttributeName = "WithDescription";
-    private const string WithSummaryAttributeName = "WithSummary";
-    private const string WithAuthorizationAttributeName = "WithAuthorization";
-    private const string WithPolicyAttributeName = "WithPolicy";
 
     public static bool Predicate(SyntaxNode node, CancellationToken cancellationToken)
     {
@@ -30,51 +23,75 @@ internal static class FindGenerator
     {
         cancellationToken.ThrowIfCancellationRequested();
         var information = TransformWorking(context, cancellationToken);
+        if (information is null)
+        {
+            // entrada incompleta (argumento não constante em digitação): o compilador já reporta;
+            // rejeição silenciosa, sem modelo e sem RCCMD (DF9).
+            return GenerationCandidate<FindModel>.Invalid(default(EquatableArray<DiagnosticInfo>));
+        }
+
         var diagnostics = PipelineDiagnostic.Snapshot(information.Diagnostics);
         return diagnostics.IsEmpty
             ? GenerationCandidate<FindModel>.Valid(FindModel.Create(information))
             : GenerationCandidate<FindModel>.Invalid(diagnostics);
     }
 
-    private static FindInformation TransformWorking(
+    private static FindInformation? TransformWorking(
         GeneratorAttributeSyntaxContext context,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         // classe que contém o atributo
         var classDeclaration = (ClassDeclarationSyntax)context.TargetNode;
+        var classSymbol = (INamedTypeSymbol)context.TargetSymbol;
+        var classLocation = classDeclaration.Identifier.GetLocation();
 
-        // lê o atributo MapFindAttribute
-        if (!classDeclaration.TryGetAttribute(MapFindAttributeName, out AttributeSyntax? mapFindAttribute))
+        // lê o atributo MapFindAttribute pela identidade semântica (metadata name)
+        if (!KnownAttributes.TryGet(classSymbol, KnownAttributes.MapFind, out var mapFindAttribute))
         {
-            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapFindUsage,
-                location: classDeclaration.Identifier.GetLocation(),
-                "The MapFindAttribute is not present in the class");
-
-            return new FindInformation(diagnostic);
+            return new FindInformation(DiagnosticInfo.Create(CmdDiagnostics.InvalidMapFindUsage,
+                classLocation,
+                "The MapFindAttribute is not present in the class"));
         }
 
         // lê o atributo EntityReferenceAttribute
-        if (!classDeclaration.TryGetAttribute(EntityReferenceAttributeName, out AttributeSyntax? entityReferenceAttribute))
+        if (!KnownAttributes.TryGet(classSymbol, KnownAttributes.EntityReference, out var entityReferenceAttribute))
         {
-            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapFindUsage,
-                location: classDeclaration.Identifier.GetLocation(),
-                "The EntityReferenceAttribute is not present in the class");
-
-            return new FindInformation(diagnostic);
+            return new FindInformation(DiagnosticInfo.Create(CmdDiagnostics.InvalidMapFindUsage,
+                classLocation,
+                "The EntityReferenceAttribute is not present in the class"));
         }
 
-        if (mapFindAttribute!.ArgumentList?.Arguments is not { Count: 2 } mapArguments)
+        // a quantidade de argumentos escritos vem da sintaxe; os valores vêm dos TypedConstants
+        var writtenArgumentCount =
+            (mapFindAttribute!.ApplicationSyntaxReference?.GetSyntax(cancellationToken) as AttributeSyntax)?
+                .ArgumentList?.Arguments.Count ?? 0;
+        if (writtenArgumentCount != 2)
         {
-            var diagnostic = DiagnosticInfo.Create(
+            return new FindInformation(DiagnosticInfo.Create(
                 CmdDiagnostics.InvalidMapFindUsage,
-                mapFindAttribute.GetLocation(),
-                "MapFindAttribute requires a route pattern and an endpoint name");
-            return new FindInformation(diagnostic);
+                KnownAttributes.GetLocation(mapFindAttribute, cancellationToken, classLocation),
+                "MapFindAttribute requires a route pattern and an endpoint name"));
         }
 
-        var endpointRoutePattern = mapArguments[0].Expression.ToString();
-        var endpointName = mapArguments[1].Expression.ToString();
+        var mapArguments = mapFindAttribute.ConstructorArguments;
+        if (mapArguments.Length != 2 ||
+            mapArguments[0].Kind == TypedConstantKind.Error ||
+            mapArguments[1].Kind == TypedConstantKind.Error)
+        {
+            return null; // argumento não constante/incompleto: o compilador já reporta (DF9)
+        }
+
+        var endpointRoutePattern = KnownAttributes.GetString(mapArguments[0]);
+        var endpointName = KnownAttributes.GetString(mapArguments[1]);
+        if (endpointRoutePattern is null || endpointName is null)
+        {
+            // null é constante válida para o compilador, mas é uso inválido do atributo
+            return new FindInformation(DiagnosticInfo.Create(
+                CmdDiagnostics.InvalidMapFindUsage,
+                KnownAttributes.GetLocation(mapFindAttribute, cancellationToken, classLocation),
+                "MapFindAttribute requires a route pattern and an endpoint name"));
+        }
 
         string? description = null;
         string? summary = null;
@@ -82,75 +99,84 @@ internal static class FindGenerator
         string? groupName = null;
 
         // tenta obter a description
-        if (classDeclaration.TryGetAttribute(WithDescriptionAttributeName, out AttributeSyntax? descAttr) && descAttr!.ArgumentList?.Arguments.Count is 1)
-            description = descAttr.ArgumentList.Arguments[0].Expression.ToString();
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithDescription, out var descAttr) &&
+            descAttr!.ConstructorArguments.Length == 1)
+        {
+            description = KnownAttributes.GetString(descAttr.ConstructorArguments[0]);
+        }
 
         // tenta obter o summary
-        if (classDeclaration.TryGetAttribute(WithSummaryAttributeName, out AttributeSyntax? displayNameAttr) && displayNameAttr!.ArgumentList?.Arguments.Count is 1)
-            summary = displayNameAttr.ArgumentList.Arguments[0].Expression.ToString();
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithSummary, out var summaryAttr) &&
+            summaryAttr!.ConstructorArguments.Length == 1)
+        {
+            summary = KnownAttributes.GetString(summaryAttr.ConstructorArguments[0]);
+        }
 
         // tenta obter o MapGroup attribute
-        if (classDeclaration.TryGetAttribute(MapGroupAttributeName, out AttributeSyntax? groupAttr) && groupAttr!.ArgumentList?.Arguments.Count is 1)
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.MapGroup, out var groupAttr) &&
+            groupAttr!.ConstructorArguments.Length == 1)
         {
-            groupName = groupAttr.ArgumentList.Arguments[0].Expression.ToString().RemoveQuotes();
+            groupName = KnownAttributes.GetString(groupAttr.ConstructorArguments[0]);
         }
-        else
-        {
-            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapFindUsage,
-                location: classDeclaration.Identifier.GetLocation(),
-                "The MapGroupAttribute is not present in the class");
-        }
+        // NOTA (Fase 9): a obrigatoriedade de MapGroup para Find será decidida e diagnosticada lá;
+        // hoje o grupo ausente segue nulo, comportamento preservado.
 
         // tenta obter o authorization
-        if (classDeclaration.TryGetAttribute(WithAuthorizationAttributeName, out AttributeSyntax? authAttr))
+        if (KnownAttributes.Has(classSymbol, KnownAttributes.WithAuthorization))
             authorizationPolicies = [];
 
-        // se tiver o attribute WithPolicy, deve obter o(s) nome(s) da(s) política(s)
-        if (classDeclaration.TryGetAttribute(WithPolicyAttributeName, out AttributeSyntax? policyAttr))
+        // se tiver o attribute WithPolicy, deve obter o(s) nome(s) da(s) política(s) — aceita params e array explícito
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithPolicy, out var policyAttr))
         {
-            var arguments = policyAttr!.ArgumentList?.Arguments;
-            if (arguments is not null && arguments.Value.Count > 0)
-            {
-                // obtém os nomes das políticas
-                authorizationPolicies = arguments.Value.Select(a => a.Expression.ToString()).ToArray();
-            }
-            else
-            {
-                authorizationPolicies ??= [];
-            }
+            var policies = policyAttr!.ConstructorArguments.Length > 0
+                ? KnownAttributes.GetStrings(policyAttr.ConstructorArguments[0]).ToArray()
+                : [];
+            authorizationPolicies = policies.Length > 0 ? policies : authorizationPolicies ?? [];
         }
 
-        if (entityReferenceAttribute!.Name is not GenericNameSyntax
-            {
-                TypeArgumentList.Arguments.Count: 2,
-            } syntax)
+        // os tipos da entidade e do id vêm dos argumentos genéricos do atributo (símbolos reais)
+        if (!TryGetEntityReferenceArguments(entityReferenceAttribute!, out var entitySymbol, out var idSymbol))
         {
-            var diagnostic = DiagnosticInfo.Create(
+            return new FindInformation(DiagnosticInfo.Create(
                 CmdDiagnostics.InvalidMapFindUsage,
-                entityReferenceAttribute.GetLocation(),
-                "EntityReferenceAttribute requires entity and id type arguments");
-            return new FindInformation(diagnostic);
+                KnownAttributes.GetLocation(entityReferenceAttribute!, cancellationToken, classLocation),
+                "EntityReferenceAttribute requires entity and id type arguments"));
         }
 
-        var entitySyntaxType = syntax.TypeArgumentList.Arguments[0];
-        var idSyntaxType = syntax.TypeArgumentList.Arguments[1];
-
-        var entityType = TypeDescriptor.Create(entitySyntaxType, context.SemanticModel);
-        var idType = TypeDescriptor.Create(idSyntaxType, context.SemanticModel);
+        var entityType = SemanticTypes.CreateDescriptor(entitySymbol!);
+        var idType = SemanticTypes.CreateDescriptor(idSymbol!);
         var modelType = TypeDescriptor.Create((ITypeSymbol)context.TargetSymbol);
 
         return new FindInformation(
             entityType,
             idType,
             modelType,
-            endpointRoutePattern ?? string.Empty,
-            endpointName ?? string.Empty,
+            endpointRoutePattern,
+            endpointName,
             description,
             summary,
             authorizationPolicies,
             groupName)
         {
-            EndpointNameLocation = mapArguments[1].GetLocation(),
+            EndpointNameLocation = KnownAttributes.GetArgumentLocation(
+                mapFindAttribute, 1, cancellationToken, classLocation),
         };
+    }
+
+    private static bool TryGetEntityReferenceArguments(
+        AttributeData attribute,
+        out ITypeSymbol? entityType,
+        out ITypeSymbol? idType)
+    {
+        if (attribute.AttributeClass is { TypeKind: not TypeKind.Error, TypeArguments.Length: 2 } attributeClass)
+        {
+            entityType = attributeClass.TypeArguments[0];
+            idType = attributeClass.TypeArguments[1];
+            return true;
+        }
+
+        entityType = null;
+        idType = null;
+        return false;
     }
 }

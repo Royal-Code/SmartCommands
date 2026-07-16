@@ -1,26 +1,56 @@
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 
 namespace RoyalCode.SmartCommands.Generators;
 
 internal static class CommandHelpers
 {
-    public static bool ValidateReturnType(this MethodDeclarationSyntax method, out DiagnosticInfo? diagnostic)
+    /// <summary>
+    /// <para>
+    ///     Localiza e valida o método <c>HasProblems</c> exigido por <c>WithValidateModel</c>, por símbolo:
+    ///     deve retornar <c>bool</c> e ter um único parâmetro <c>out RoyalCode.SmartProblems.Problems</c>.
+    ///     A validação semântica aceita aliases e nomes qualificados.
+    /// </para>
+    /// </summary>
+    public static bool ValidateTypeWithHasProblemsMethod(
+        this INamedTypeSymbol commandType,
+        Location attributeLocation,
+        out IMethodSymbol? hasProblemsMethod,
+        out DiagnosticInfo? diagnostic)
     {
-        // obtém o tipo retornado pelo método
-        var returnType = method.ReturnType;
+        // Tenta obter o método HasProblems
+        hasProblemsMethod = commandType.GetMembers("HasProblems")
+            .OfType<IMethodSymbol>()
+            .FirstOrDefault();
 
-        // Valida se o método retorna algum valor, ou seja, não é Task nem void.
-        if (returnType is GenericNameSyntax genericName &&
-                genericName.Identifier.Text == "Task" &&
-                genericName.TypeArgumentList.Arguments.Count is 0
-            || returnType is SimpleNameSyntax simpleName &&
-                simpleName.Identifier.Text == "void")
+        if (hasProblemsMethod is null)
         {
             diagnostic = DiagnosticInfo.Create(
-                CmdDiagnostics.InvalidReturnType,
-                method.Identifier.GetLocation());
+                CmdDiagnostics.HasProblemsMethodNotFound,
+                attributeLocation);
+            return false;
+        }
+
+        var methodLocation = hasProblemsMethod.Locations.FirstOrDefault(l => l.IsInSource) ?? attributeLocation;
+
+        // Valida o retorno do método HasProblems, deve retornar um bool
+        if (hasProblemsMethod.ReturnType.SpecialType != SpecialType.System_Boolean)
+        {
+            diagnostic = DiagnosticInfo.Create(
+                CmdDiagnostics.HasProblemsMethodDoesNotReturnBool,
+                methodLocation);
+            return false;
+        }
+
+        // valida o parâmetro: deve ter um, ser out e do tipo Problems (comparação por símbolo)
+        var parameters = hasProblemsMethod.Parameters;
+        if (parameters.Length != 1 ||
+            parameters[0].RefKind != RefKind.Out ||
+            !IsProblemsType(parameters[0].Type))
+        {
+            diagnostic = DiagnosticInfo.Create(
+                CmdDiagnostics.HasProblemsMethodDoesNotHaveOutParameterProblems,
+                methodLocation);
             return false;
         }
 
@@ -28,110 +58,21 @@ internal static class CommandHelpers
         return true;
     }
 
-    public static bool ValidateClassWithHasProblemsMethod(
-        this ClassDeclarationSyntax cls,
-        AttributeSyntax attributeNode,
-        out MethodDeclarationSyntax? hasProblemsMethod,
-        out DiagnosticInfo? diagnostic)
+    private static bool IsProblemsType(ITypeSymbol type)
     {
-        // Tenta obter o método HasProblems
-        hasProblemsMethod = cls.Members
-            .OfType<MethodDeclarationSyntax>()
-            .FirstOrDefault(m => m.Identifier.Text == "HasProblems");
+        // quando 'Problems' não resolve, o compilador enlaça 'Problems?' como Nullable<Problems>
+        // (não sabe se é reference type); desembrulha para inspecionar o tipo interno.
+        if (type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T, TypeArguments.Length: 1 } nullable)
+            type = nullable.TypeArguments[0];
 
-        if (hasProblemsMethod is null)
-        {
-            diagnostic = DiagnosticInfo.Create(
-                CmdDiagnostics.HasProblemsMethodNotFound,
-                attributeNode.Name.GetLocation());
-            return false;
-        }
+        // tipo não resolvido (em digitação/using ausente): aceita pelo nome escrito para não
+        // gerar RCCMD004 enquanto o compilador já reporta o tipo desconhecido.
+        if (type.TypeKind == TypeKind.Error)
+            return type.Name == "Problems";
 
-        // Valida o retorno do método HasProblems, deve retornar um bool
-        if (hasProblemsMethod.ReturnType is not PredefinedTypeSyntax predefinedType
-            || predefinedType.Keyword.Text != "bool")
-        {
-            diagnostic = DiagnosticInfo.Create(
-                CmdDiagnostics.HasProblemsMethodDoesNotReturnBool,
-                hasProblemsMethod.Identifier.GetLocation());
-            return false;
-        }
-
-        // valida o parâmetro, deve ter um, e ser out e do tipo Problems
-        var parameters = hasProblemsMethod.ParameterList.Parameters;
-        if (parameters.Count != 1)
-        {
-            diagnostic = DiagnosticInfo.Create(
-                CmdDiagnostics.HasProblemsMethodDoesNotHaveOutParameterProblems,
-                hasProblemsMethod.Identifier.GetLocation());
-            return false;
-        }
-
-        // valida se tem out
-        var parameter = parameters[0];
-        if (parameter.Modifiers.Count != 1
-            || parameter.Modifiers[0].Text != "out")
-        {
-            diagnostic = DiagnosticInfo.Create(
-                CmdDiagnostics.HasProblemsMethodDoesNotHaveOutParameterProblems,
-                hasProblemsMethod.Identifier.GetLocation());
-            return false;
-        }
-
-        // valida o tipo, que deve ser Problems
-        if (parameter.Type is NullableTypeSyntax { ElementType: IdentifierNameSyntax { Identifier.Text: "Problems" } })
-        {
-            diagnostic = null;
-            return true;
-        }
-
-        diagnostic = DiagnosticInfo.Create(
-            CmdDiagnostics.HasProblemsMethodDoesNotHaveOutParameterProblems,
-            hasProblemsMethod.Identifier.GetLocation());
-        return false;
-    }
-
-    public static bool ValidateMapIdResultValue(this TypeSyntax resultType, SemanticModel semanticModel, out DiagnosticInfo? diagnostic)
-    {
-        // se for task, pega o tipo genérico
-        if (resultType is GenericNameSyntax { Identifier.Text: "Task" } genericName)
-        {
-            resultType = genericName.TypeArgumentList.Arguments[0];
-        }
-
-        // se for um Result<T>, pega o tipo genérico
-        if (resultType is GenericNameSyntax { Identifier.Text: "Result" } genericName2)
-        {
-            resultType = genericName2.TypeArgumentList.Arguments[0];
-        }
-
-        // verifica se o tipo retornado tem uma propriedade chamada Id
-        var typeSymbol = semanticModel.GetTypeInfo(resultType).Type;
-        if (typeSymbol is null)
-        {
-            diagnostic = DiagnosticInfo.Create(
-                CmdDiagnostics.InvalidCommandType,
-                resultType.GetLocation(),
-                "the returned type was not found");
-            return false;
-        }
-
-        // verifica se tem a propriedade Id ou se possui herança, uma das classes bases tem a propriedade Id
-        while (typeSymbol is not null)
-        {
-            if (typeSymbol.GetMembers("Id").Length == 1)
-            {
-                diagnostic = null;
-                return true;
-            }
-
-            typeSymbol = typeSymbol.BaseType;
-        }
-
-        diagnostic = DiagnosticInfo.Create(
-            CmdDiagnostics.InvalidCommandType,
-            resultType.GetLocation(),
-            "Type must have a property called Id");
-        return false;
+        return type.OriginalDefinition is INamedTypeSymbol named &&
+            named.MetadataName == "Problems" &&
+            named.ContainingNamespace is { IsGlobalNamespace: false } ns &&
+            ns.ToDisplayString() == "RoyalCode.SmartProblems";
     }
 }

@@ -120,7 +120,7 @@ namespace RoyalCode.SmartCommands.Tests;
 public partial class MyCommand
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    [MemberNotNull(nameof(Nome))]
+    [MemberNotNull("Nome")]
     internal protected void WasValidated() { }
 }
 

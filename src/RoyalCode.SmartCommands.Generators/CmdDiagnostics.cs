@@ -255,6 +255,62 @@ internal static class CmdDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor EditEntityRouteParameterNotResolved = new(
+        id: "RCCMD031",
+        title: "The route parameter for the edited entity id cannot be resolved",
+        messageFormat: "Cannot resolve the route parameter for the edited entity id in the route '{0}': {1}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor EditEntityRouteParameterIncompatible = new(
+        id: "RCCMD032",
+        title: "The route parameter is not compatible with the edited entity id",
+        messageFormat: "The route parameter '{0}' is not compatible with the edited entity id: {1}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor ConflictingBindingSources = new(
+        id: "RCCMD033",
+        title: "The parameter declares more than one binding source",
+        messageFormat: "The parameter '{0}' declares more than one binding source attribute; use a single binding source",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor AsParametersNotSupported = new(
+        id: "RCCMD034",
+        title: "AsParameters is not supported on external parameters",
+        messageFormat: "The AsParametersAttribute is not supported on the parameter '{0}'; bind each value individually",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor RouteParameterNotInTemplate = new(
+        id: "RCCMD035",
+        title: "The bound route parameter does not exist in the endpoint route",
+        messageFormat: "The route parameter '{0}' bound by the parameter '{1}' does not exist in the endpoint route template",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor ImplicitBodyNotAllowed = new(
+        id: "RCCMD036",
+        title: "GET/DELETE endpoints cannot infer a request body",
+        messageFormat: "The command '{0}' is mapped to {1} and has body properties; GET/DELETE endpoints cannot infer a request body",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor MultipleBodySources = new(
+        id: "RCCMD037",
+        title: "The endpoint has more than one request body source",
+        messageFormat: "The parameter '{0}' binds the request body, which conflicts with another body source on the endpoint (the command body or another FromBody/FromForm parameter)",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> Descriptors =
         new[]
         {
@@ -289,6 +345,13 @@ internal static class CmdDiagnostics
             InvalidMapArguments,
             ReservedIdentifier,
             DuplicateEndpointName,
+            EditEntityRouteParameterNotResolved,
+            EditEntityRouteParameterIncompatible,
+            ConflictingBindingSources,
+            AsParametersNotSupported,
+            RouteParameterNotInTemplate,
+            ImplicitBodyNotAllowed,
+            MultipleBodySources,
         }
         .ToDictionary(descriptor => descriptor.Id, StringComparer.Ordinal);
 

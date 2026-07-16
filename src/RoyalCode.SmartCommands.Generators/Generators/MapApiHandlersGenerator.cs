@@ -10,7 +10,6 @@ namespace RoyalCode.SmartCommands.Generators.Generators;
 internal static class MapApiHandlersGenerator
 {
     public const string AddHandlersServicesAttributeName = "RoyalCode.SmartCommands.MapApiHandlersAttribute";
-    public const string WithOpenApiAttributeName = "WithOpenApi";
 
     public static bool Predicate(SyntaxNode node, CancellationToken token)
     {
@@ -36,10 +35,11 @@ internal static class MapApiHandlersGenerator
     {
         cancellationToken.ThrowIfCancellationRequested();
         var classSyntax = (ClassDeclarationSyntax)context.TargetNode;
+        var classSymbol = (INamedTypeSymbol)context.TargetSymbol;
 
         var errors = new List<DiagnosticInfo>();
 
-        // a classe deve ser partial
+        // a classe deve ser partial (fato sintático; não há equivalente no símbolo)
         if (!classSyntax.Modifiers.Any(SyntaxKind.PartialKeyword))
         {
             var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapApiHandlers,
@@ -49,8 +49,8 @@ internal static class MapApiHandlersGenerator
             errors.Add(diagnostic);
         }
 
-        // a classe deve ser static
-        if (!classSyntax.Modifiers.Any(SyntaxKind.StaticKeyword))
+        // a classe deve ser static (decisão pelo símbolo)
+        if (!classSymbol.IsStatic)
         {
             var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapApiHandlers,
                 location: classSyntax.Identifier.GetLocation(),
@@ -59,9 +59,8 @@ internal static class MapApiHandlersGenerator
             errors.Add(diagnostic);
         }
 
-        // verifica se a classe tem o atributo WithOpenApi
-
-        var withOpenApi = classSyntax.TryGetAttribute(WithOpenApiAttributeName, out AttributeSyntax? _);
+        // verifica se a classe tem o atributo WithOpenApi (identificação semântica)
+        var withOpenApi = KnownAttributes.Has(classSymbol, KnownAttributes.WithOpenApi);
         var hostAttribute = context.Attributes
             .Select(attribute => attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken))
             .OfType<AttributeSyntax>()
@@ -91,21 +90,24 @@ internal static class MapApiHandlersGenerator
                 ? safeGroupName
                 : $"{safeGroupName}Api";
 
-            // a classe terá um método estático que mapeará os handlers
+            // a classe terá um método estático que mapeará os handlers;
+            // o hint name usa o nome completo (namespace + tipo)
             var (classGenerator, methodGenerator) = CreateGroupClassAndMethod(
                 className: $"Map{className}",
                 classNamespace: left.ClassType.Namespaces[0],
                 methodName: $"Map{safeGroupName}Group");
+            var hintIdentity = $"{left.ClassType.Namespaces[0]}.Map{className}";
+            classGenerator.FileName = HintName.Create(hintIdentity, $"Map{className}");
 
             // comando que cria o group
             // deve gerar algo como: var group = builder.MapGroup("MyGroup")
-            var assigment = new AssignValueCommand(
+            var assignment = new AssignValueCommand(
                 new StringValueNode("var group"),
-                new StringValueNode($"builder.MapGroup(\"{groupName}\")"))
+                new StringValueNode($"builder.MapGroup({SymbolDisplay.FormatLiteral(groupName, quote: true)})"))
             {
                 AppendLine = true
             };
-            methodGenerator.Commands.Add(assigment);
+            methodGenerator.Commands.Add(assignment);
 
             // Para cada comando, será gerado um método que chamará o handler
             // para o método que mapeia o handlers, será criado um comando de mapeamento.

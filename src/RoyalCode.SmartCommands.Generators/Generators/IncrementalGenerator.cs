@@ -170,7 +170,7 @@ internal class IncrementalGenerator : IIncrementalGenerator
                 spc.ReportDiagnostic(Diagnostic.Create(
                     CmdDiagnostics.DuplicateEndpointName,
                     endpoint.NameLocation.ToLocation(),
-                    endpoint.EndpointName.Trim('"')));
+                    endpoint.EndpointName));
 
             orderedHosts[0].ToInformation().Generate(
                 spc,

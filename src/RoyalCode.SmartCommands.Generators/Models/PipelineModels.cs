@@ -78,15 +78,24 @@ internal sealed record ReturnModel(
     }
 }
 
+/// <summary>
+/// Um atributo de binding do ASP.NET Core capturado do parâmetro-fonte (DF3): o nome curto do atributo
+/// (ex.: <c>FromQuery</c>) e o argumento opcional <c>Name</c>. Copiado somente para o delegate Minimal API.
+/// </summary>
+internal sealed record ParameterBindingModel(string Attribute, string? Name);
+
 internal sealed record ParameterModel(
     ParameterSnapshot Snapshot,
     bool IsCancellationToken,
     bool IsEntity,
     bool IsContext,
     bool IsHandlerParameter,
-    bool IsCollectionOfEntities)
+    bool IsCollectionOfEntities,
+    EquatableArray<ParameterBindingModel> Bindings)
 {
-    internal static ParameterModel Create(ParameterDescriptor descriptor)
+    internal static ParameterModel Create(
+        ParameterDescriptor descriptor,
+        EquatableArray<ParameterBindingModel> bindings = default)
     {
         var snapshot = ParameterSnapshot.CreateFromHints(descriptor);
         return new ParameterModel(
@@ -95,7 +104,8 @@ internal sealed record ParameterModel(
             snapshot.TypeUsage.IsEntity,
             snapshot.TypeUsage.IsContext,
             snapshot.TypeUsage.IsHandlerParameter,
-            snapshot.TypeUsage.IsCollectionOfEntities);
+            snapshot.TypeUsage.IsCollectionOfEntities,
+            bindings);
     }
 }
 
@@ -140,7 +150,13 @@ internal sealed record CommandCoreModel(
             methodReturnType,
             TypeSnapshot.Create(information.HandlerReturnType),
             returnModel,
-            new EquatableArray<ParameterModel>(information.Parameters.Select(ParameterModel.Create)),
+            new EquatableArray<ParameterModel>(information.Parameters.Select(parameter =>
+                ParameterModel.Create(
+                    parameter,
+                    information.ParameterBindings is not null &&
+                    information.ParameterBindings.TryGetValue(parameter.Name, out var bindings)
+                        ? bindings
+                        : default))),
             information.HandlerInterfaceName,
             information.HandlerImplementationName,
             new EquatableArray<string>(information.NotNullProperties),
@@ -171,6 +187,9 @@ internal sealed record CommandCoreModel(
         HandlerReturnType = PipelineModelConversions.ToDescriptor(HandlerReturnType),
         ReturnModel = Return,
         Parameters = Parameters.Select(parameter => PipelineModelConversions.ToDescriptor(parameter.Snapshot)).ToList(),
+        ParameterBindings = Parameters
+            .Where(parameter => !parameter.Bindings.IsEmpty)
+            .ToDictionary(parameter => parameter.Snapshot.Name, parameter => parameter.Bindings, StringComparer.Ordinal),
         HandlerInterfaceName = HandlerInterfaceName,
         HandlerImplementationName = HandlerImplementationName,
         NotNullProperties = NotNullProperties.ToList(),
@@ -220,7 +239,8 @@ internal sealed record CommandEndpointModel(
     MapResponseValuesModel? ResponseValues,
     bool RequiresAuthorization,
     EquatableArray<string> AuthorizationPolicies,
-    LocationModel NameLocation) : IMapEndpointModel
+    LocationModel NameLocation,
+    string? EditRouteParameterName) : IMapEndpointModel
 {
     public string? Group => GroupName;
 
@@ -252,7 +272,8 @@ internal sealed record CommandEndpointModel(
                 information.ResponseValues.PropertiesNames.Select(PropertySnapshot.Create))),
         information.AuthorizationPolicies is not null,
         new EquatableArray<string>(information.AuthorizationPolicies),
-        LocationModel.Create(information.EndpointNameLocation));
+        LocationModel.Create(information.EndpointNameLocation),
+        information.EditRouteParameterName);
 
     internal MapInformation ToInformation()
     {
@@ -275,6 +296,7 @@ internal sealed record CommandEndpointModel(
                 : new MapResponseValuesInformation(
                     ResponseValues.Properties.Select(PipelineModelConversions.ToDescriptor).ToList()),
             AuthorizationPolicies = RequiresAuthorization ? AuthorizationPolicies.ToArray() : null,
+            EditRouteParameterName = EditRouteParameterName,
         };
         return map;
     }
@@ -338,7 +360,13 @@ internal sealed record FindModel(
         GroupName);
 }
 
-internal sealed record SearchFilterParameterModel(bool HasWithParameterAttribute, ParameterModel Parameter);
+internal sealed record SearchFilterParameterModel(
+    bool HasWithParameterAttribute,
+    ParameterModel Parameter,
+    bool IsCriteriaParameter,
+    bool IsCancellationTokenParameter,
+    bool IsHttpContextParameter,
+    EquatableArray<ParameterBindingModel> Bindings);
 
 internal sealed record SearchFilterModel(
     string MethodName,
@@ -385,7 +413,11 @@ internal sealed record SearchModel(
                 new EquatableArray<SearchFilterParameterModel>(information.Filter.Parameters.Select(parameter =>
                     new SearchFilterParameterModel(
                         parameter.HasWithParameterAttribute,
-                        ParameterModel.Create(parameter.ParameterDescriptor))))),
+                        ParameterModel.Create(parameter.ParameterDescriptor),
+                        parameter.IsCriteriaParameter,
+                        parameter.IsCancellationTokenParameter,
+                        parameter.IsHttpContextParameter,
+                        parameter.Bindings)))),
         LocationModel.Create(information.EndpointNameLocation));
 
     public IMapEndpointGenerator ToGenerator() => new SearchInformation(
@@ -405,7 +437,11 @@ internal sealed record SearchModel(
                 Filter.IsAsync,
                 Filter.Parameters.Select(parameter => new SearchFilterParameterInformation(
                     parameter.HasWithParameterAttribute,
-                    PipelineModelConversions.ToDescriptor(parameter.Parameter.Snapshot))).ToArray()));
+                    PipelineModelConversions.ToDescriptor(parameter.Parameter.Snapshot),
+                    parameter.IsCriteriaParameter,
+                    parameter.IsCancellationTokenParameter,
+                    parameter.IsHttpContextParameter,
+                    parameter.Bindings)).ToArray()));
 }
 
 internal sealed record AddServicesModel(TypeSnapshot ClassType, string Title)

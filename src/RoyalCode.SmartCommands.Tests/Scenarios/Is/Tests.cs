@@ -30,8 +30,9 @@ public class Tests
 
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
+        // o POCO de resposta agora carrega o cabeçalho padrão de arquivo gerado
         var generatedResponseModel = output.SyntaxTrees.Skip(3).FirstOrDefault()?.ToString();
-        Assert.Equal(responseModel, generatedResponseModel);
+        Assert.Equal(Util.GeneratedCode(responseModel), generatedResponseModel);
 
         var generatedMap = output.SyntaxTrees.Skip(4).FirstOrDefault()?.ToString();
         Assert.Equal(Util.GeneratedCode(mapCode), generatedMap);

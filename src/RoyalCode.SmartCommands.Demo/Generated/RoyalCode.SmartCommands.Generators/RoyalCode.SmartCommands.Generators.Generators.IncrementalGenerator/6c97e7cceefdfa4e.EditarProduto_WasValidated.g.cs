@@ -7,9 +7,9 @@ using System.Runtime.CompilerServices;
 
 namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
 
-public partial class CriarProduto2
+public partial class EditarProduto
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    [MemberNotNull(nameof(Nome), nameof(Sku))]
+    [MemberNotNull("Nome")]
     internal protected void WasValidated() { }
 }

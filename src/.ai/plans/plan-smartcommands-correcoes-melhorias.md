@@ -4,15 +4,15 @@
 
 ## Progresso
 
-`███░░░░░░░░░` **25%** - 3 de 12 fases concluídas
+`█████░░░░░░░` **42%** - 5 de 12 fases concluídas
 
 | Fase | Estado |
 |---|---|
 | Fase 1 - Baseline e decisões de contrato | Concluida |
 | Fase 2 - Modelos incrementais e isolamento de entradas inválidas | Concluida |
 | Fase 3 - Diagnósticos semânticos e catálogo | Concluida |
-| Fase 4 - Leitura semântica e emissão determinística | Pendente |
-| Fase 5 - Binding de `WithParameter` e resolução de `EditEntity` | Pendente |
+| Fase 4 - Leitura semântica e emissão determinística | Concluida |
+| Fase 5 - Binding de `WithParameter` e resolução de `EditEntity` | Concluida |
 | Fase 6 - Validações adicionais do comando | Pendente |
 | Fase 7 - Confiabilidade do adapter Entity Framework | Pendente |
 | Fase 8 - Runtime de decorators, WorkContext e retry | Pendente |
@@ -777,15 +777,15 @@ filtro); `Demo.Tests` **68/68**; base Utils **97/97**.
 
 **Tarefas:**
 
-- [ ] Substituir `TryGetAttribute` textual por símbolos/metadata names nas regras que afetam geração.
-- [ ] Ler construtores, arrays e propriedades nomeadas de atributos por `TypedConstant`, emitindo RCCMD quando não forem constantes válidas.
-- [ ] Detectar `Task`, `Task<T>`, `ValueTask` e `ValueTask<T>` semanticamente no transform e materializar `ReturnModel`; não usar modificador `async` como contrato de retorno nem reter símbolos.
-- [ ] Detectar `Result`/`Result<T>`, entidades, collections, context e `CancellationToken` por símbolo no transform; congelar os fatos estruturais em `TypeSnapshot` e os papéis contextuais em `TypeUsageSnapshot`, sem comparação por nome simples.
-- [ ] Criar parser único de route pattern para nomes, constraint, catch-all, optional e default; não usar `GetFirstRouteParameterName`/`Substring` espalhados.
-- [ ] Gerar hint names e nomes de tipos por metadata name completo, incluindo namespace/nesting sanitizados.
-- [ ] Adicionar cabeçalho gerado também a POCOs de resposta e manter `#nullable enable` em toda fonte.
-- [ ] Corrigir nomes internos `GenerateReponseClass`, `assigment`, `Invoka`, `exitam`, `commando` e `requered` conforme DF7.
-- [ ] Compilar cada fonte gerada dentro do teste, além de comparar snapshots relevantes.
+- [x] Substituir `TryGetAttribute` textual por símbolos/metadata names nas regras que afetam geração. (Novo `KnownAttributes`/`AttributeSpec`: comparação por namespace + metadata name com aridade em `AttributeData.AttributeClass`; fallback pelo nome escrito apenas para tipos de erro — preserva RCCMD000 de `[WithUnitOfWork]` malformado. Todos os readers — command, maps, find, search, DI, host, `WithParameter`, `WithFilter`, `MemberNotNullWhen`, `ProduceProblems` — convertidos.)
+- [x] Ler construtores, arrays e propriedades nomeadas de atributos por `TypedConstant`, emitindo RCCMD quando não forem constantes válidas. (Valores reais via `ConstructorArguments`/`NamedArguments`; `params`, array explícito e collection expression aceitos; constantes referenciadas resolvem; enum de `ProduceProblems` reemitido por membro. RCCMD028 continua para contagem errada de argumentos — via sintaxe, pois o construtor pode nem resolver; argumento não constante/incompleto bloqueia a geração sem RCCMD (DF9), pois o compilador já reporta.)
+- [x] Detectar `Task`, `Task<T>`, `ValueTask` e `ValueTask<T>` semanticamente no transform e materializar `ReturnModel`; não usar modificador `async` como contrato de retorno nem reter símbolos. (Retorno criado do símbolo (`SemanticTypes.CreateDescriptor`); o último uso de `AsyncKeyword` como contrato — filtro do Search — agora decide pelo tipo de retorno.)
+- [x] Detectar `Result`/`Result<T>`, entidades, collections, context e `CancellationToken` por símbolo no transform; congelar os fatos estruturais em `TypeSnapshot` e os papéis contextuais em `TypeUsageSnapshot`, sem comparação por nome simples. (`StartsWith("Result")` eliminado — `ProduceNewEntity` usa `UnwrapValueReturnType` semântico e `CompleteUnitOfWorkCommand` recebe `IsResult`/`ValueType` do `ReturnModel`; `ICriteria`/`HttpContext`/`CancellationToken` do filtro Search viram fatos booleanos congelados no modelo.)
+- [x] Criar parser único de route pattern para nomes, constraint, catch-all, optional e default; não usar `GetFirstRouteParameterName`/`Substring` espalhados. (`RoutePatternParser` com escapes `{{`/`}}` e constraints com argumentos; `GetFirstRouteParameterName` removido; testes dedicados.)
+- [x] Gerar hint names e nomes de tipos por metadata name completo, incluindo namespace/nesting sanitizados. (A identidade completa alimenta SHA-256; o hint físico usa `<hash-64-bit>.<nome-legível-limitado>.g.cs`, evitando paths longos quando `EmitCompilerGeneratedFiles` materializa a saída. Interfaces, handlers, WasValidated, Response, DI e grupos de map permanecem determinísticos e classes homônimas em namespaces diferentes geram fontes distintas — testado; nesting não se aplica pois classe aninhada é RCCMD000.)
+- [x] Adicionar cabeçalho gerado também a POCOs de resposta e manter `#nullable enable` em toda fonte. (`ResponsePocoGenerator` emite o cabeçalho padrão; testado por asserção de prefixo.)
+- [x] Corrigir nomes internos `GenerateReponseClass`, `assigment`, `Invoka`, `exitam`, `commando` e `requered` conforme DF7. (Todos renomeados/corrigidos, sem efeito no código gerado.)
+- [x] Compilar cada fonte gerada dentro do teste, além de comparar snapshots relevantes. (`SemanticGenerationTests` compila a saída completa (`GetDiagnostics` sem erros) para alias, `global::`, `Task.FromResult`, `ValueTask`, array explícito, constante referenciada, homônimos e Response POCO.)
 
 **Critérios de aceite:** aliases, qualified/global names, atributos com array explícito e métodos que retornam `Task` sem modificador `async` geram o mesmo modelo correto; nenhum acesso inseguro conhecido permanece; duas classes homônimas em namespaces diferentes geram fontes distintas; toda fonte possui cabeçalho.
 
@@ -793,7 +793,82 @@ filtro); `Demo.Tests` **68/68**; base Utils **97/97**.
 
 ### Resultado da Fase 4
 
-*a preencher*
+**Concluída em 2026-07-16.**
+
+**Leitura semântica (T1/T2):**
+- `Generators/KnownAttributes.cs` — catálogo de `AttributeSpec` (namespace + metadata name + aridade) e helpers:
+  `TryGet`/`Has` sobre `ISymbol`, localizações de atributo/argumento via `ApplicationSyntaxReference`, extração de
+  strings de `TypedConstant` (single/`params`/array/collection expression) e formatação de membro de enum.
+  Aliases, nomes qualificados e `global::` resolvem para o mesmo modelo. Para atributos que o compilador não
+  resolveu (tipo de erro, ex.: `[WithUnitOfWork]` sem argumento genérico), o fallback casa pelo nome escrito,
+  preservando os diagnósticos de uso malformado.
+- Todos os transforms convertidos: `CommandHandlerGenerator.TransformWorking`/`ReadMap`, `FindGenerator`,
+  `SearchGenerator`, `MapApiHandlersGenerator`, `AddHandlersServicesGenerator` e `CommandHelpers`
+  (`HasProblems` agora validado por símbolo: `bool` + `out RoyalCode.SmartProblems.Problems`, com unwrap de
+  `Nullable<T>` para o caso de tipo não resolvido em digitação).
+- Argumentos de atributos por `TypedConstant`: constantes referenciadas (`Routes.Create`) resolvem o valor real;
+  `WithPolicy` aceita `params`, array explícito e collection expression; `WithRetryOnConcurrency` lê argumentos
+  posicionais e nomeados (`Operation = ...`); título de `AddHandlersServices` aceita qualquer constante string.
+  Argumento não constante/incompleto: o compilador já reporta; a geração é bloqueada sem RCCMD (DF9) — commands
+  seguem sem mapa; Find/Search usam `GenerationCandidate.Invalid(vazio)` (rejeição silenciosa).
+- Emissão: os valores agora são armazenados sem aspas e formatados na saída com `SymbolDisplay.FormatLiteral`
+  (rota, endpoint name, description, summary, policies, group), normalizando qualquer forma de escrita do usuário.
+
+**Detecção semântica de tipos (T3/T4):**
+- `SemanticTypes.CreateDescriptor(ITypeSymbol)` — nome no formato mínimo do C# (keywords, genéricos curtos,
+  anotação de nulabilidade), usado para retorno do método e argumentos de tipo de atributos genéricos.
+- O último uso de `Modifiers.Any(AsyncKeyword)` como contrato (filtro do `MapSearch`) decide agora pelo tipo de
+  retorno (`Task`/`ValueTask`); `Task.FromResult` sem `async` produz o mesmo modelo (testado).
+- `StartsWith("Result")` eliminado: `ProduceNewEntity` usa `UnwrapValueReturnType` (desembrulho semântico de
+  Task/ValueTask/Result) e `CompleteUnitOfWorkCommand` recebe `returnsResult`/`resultHasValue` do `ReturnModel` —
+  um tipo do usuário chamado `Resultado` não é mais confundido com `Result`.
+- `ICriteria<T>`/`HttpContext`/`CancellationToken` do filtro Search classificados por símbolo no transform e
+  congelados como fatos booleanos em `SearchFilterParameterModel` (fim do `Name.StartsWith("ICriteria<")`).
+
+**Emissão determinística (T5-T8):**
+- `RoutePatternParser` — parser único (nome, constraint com argumentos, catch-all, optional, default, escapes
+  `{{`/`}}`); substitui `GetFirstRouteParameterName`/`Substring`.
+- Hint names por nome completo: `{namespace}.{tipo}(.g.cs)` em interface, handler (`.Internals`), WasValidated,
+  Response POCO, DI e classes de grupo de map — classes homônimas em namespaces diferentes geram fontes
+  distintas (antes: exceção de hint duplicado/CS8785). Os arquivos `Generated/` do Demo foram regenerados com os
+  novos nomes (alinhados ao padrão que o SmartSelector já usava).
+- Response POCO com cabeçalho `// <auto-generated/>` + `#nullable enable` (`ResponsePocoGenerator`).
+- DF7: `GenerateReponseClass`→`GenerateResponseClass`, `assigment`→`assignment`, `Invoka`→`Invoca`,
+  `exitam`→`existam`, `commando`→`comando`, `requered`→`required`.
+
+**Testes (T9):** novo `Generators/SemanticGenerationTests` (8 casos) compila a saída completa dentro do teste
+(`output.GetDiagnostics()` sem erros) para alias, atributos qualificados/`global::`, `Task.FromResult`,
+`ValueTask`, `WithPolicy` com array explícito, constante referenciada em rota, homônimos e cabeçalho do Response;
+`RoutePatternParserTests` (13 casos) cobre o parser. Snapshots ajustados onde a emissão mudou de forma
+equivalente: `[MemberNotNull("Nome")]` em vez de `nameof(Nome)` (valor real via `TypedConstant`),
+`RequireAuthorization("1", "2", "3")` em vez da collection expression copiada textualmente, e o Response POCO
+com cabeçalho.
+
+**Critérios de aceite — situação:** aliases/qualified/global e `Task` sem `async` geram o mesmo modelo ✔
+(testado com compilação da saída); array explícito ✔; acessos inseguros conhecidos eliminados
+(`Arguments[1]`, `Substring` de rota, `StartsWith` de nomes) ✔; homônimos geram fontes distintas ✔; toda fonte
+gerada possui cabeçalho (incl. Response POCO) ✔.
+
+**Revisão por subagente em 2026-07-16** (achados verificados e corrigidos na própria fase):
+- **[ALTA] Crash com classe parcial:** o método `[WithFilter]` declarado em outro arquivo da classe parcial
+  usava o semantic model da árvore errada → exceção do generator (CS8785) em código válido. Corrigido em
+  `SearchGenerator.CreateParameterDescriptor` (usa o model da árvore do parâmetro) + teste de regressão com
+  duas árvores.
+- **[MÉDIA] Endpoint sumia em silêncio com argumento `null` constante:** `null` compila sem erro; agora
+  `Map*`/`MapFind`/`MapSearch` reportam RCCMD028/RCCMD021/RCCMD022 para argumento constante nulo, mantendo o
+  silêncio (DF9) apenas para `TypedConstantKind.Error` (não constante/em digitação). Teste adicionado.
+- **[MÉDIA] `MapCreatedRoute`/`CreatedMatch`:** o conteúdo literal da rota interpolada agora é escapado
+  (aspas, contrabarras e chaves que não são placeholders `{i}`), evitando código gerado inválido com
+  `MapGroup` contendo parâmetros de rota. A validação completa do template é da Fase 9/DF17.
+- **[BAIXA] `[FromRoute(Name = ...)]`** passou a usar `SymbolDisplay.FormatLiteral`; **enum combinado (flags)**
+  em `ProduceProblems` agora é emitido como cast `(Enum)valor` em vez de descartado.
+- Registrados sem ação nesta fase (comportamento preservado, donos definidos): normalização de group name para
+  identificador de classe e `MemberNotNullWhen` sem filtrar o primeiro argumento `bool` (Fase 9/Fase 6);
+  localização de argumento nomeado fora de ordem em `GetArgumentLocation` (cosmético).
+
+Verificações finais (pós-revisão, executadas): solução Release **0 erros**; `SmartCommands.Tests` **159/159**
+(sem filtro; 136 anteriores + 21 da fase + 2 da revisão); `Demo.Tests` **68/68**; incrementais
+(caching/retenção) verdes.
 
 ---
 
@@ -807,15 +882,15 @@ filtro); `Demo.Tests` **68/68**; base Utils **97/97**.
 
 **Tarefas:**
 
-- [ ] Remover `[FromRoute]` automático de `SearchInformation` para `WithParameter`.
-- [ ] Capturar binding attributes suportados do parâmetro-fonte e copiá-los somente para o delegate Minimal API.
-- [ ] Diagnosticar mais de uma fonte explícita, `[AsParameters]` incompatível, body implícito em GET/DELETE e `[FromRoute(Name=...)]` ausente no template.
-- [ ] Adicionar `RouteParameterName` a `EditEntityAttribute<TEntity,TId>` com XML docs e exemplos.
-- [ ] Implementar prioridade: propriedade explícita; única variável; `${entityParameterName}Id`; `entityParameterName`; erro em qualquer outro caso.
-- [ ] Validar constraints/optionalidade da rota contra nulabilidade e tipo do ID quando determinável.
-- [ ] Manter ordem do handler: ID de edit, command, todos os `WithParameter`, `ct`.
-- [ ] Criar testes HTTP para route, query, header, DI, special type, custom `BindAsync` e nomes diferentes via atributo.
-- [ ] Criar testes `EditEntity` com zero, uma, várias, match implícito, match explícito e ambiguidade.
+- [x] Remover `[FromRoute]` automático de `SearchInformation` para `WithParameter`. (Removido; o delegate emite o parâmetro sem atributo — o ASP.NET Core infere rota quando o nome está no template — ou os bindings explícitos copiados do parâmetro-fonte; testado no generator e visível no Demo (`ExemploProdutoFiltro`).)
+- [x] Capturar binding attributes suportados do parâmetro-fonte e copiá-los somente para o delegate Minimal API. (Novo `BindingAttributes.Capture/Validate` — identidade semântica de `FromRoute`/`FromQuery`/`FromHeader`/`FromForm`/`FromBody`/`FromServices` com o named-arg `Name`; `ParameterBindingModel` no pipeline; emissão via `CreateBindingAttribute` apenas no delegate (DF3), nunca na interface do handler — testado.)
+- [x] Diagnosticar mais de uma fonte explícita, `[AsParameters]` incompatível, body implícito em GET/DELETE e `[FromRoute(Name=...)]` ausente no template. (RCCMD033/034/035/036; a validação só ocorre quando o comando é mapeado — comando handler-only ignora bindings sem ruído; `FromRoute` valida contra o template completo (grupo + rota); tudo aplicado igualmente aos filtros do Search.)
+- [x] Adicionar `RouteParameterName` a `EditEntityAttribute<TEntity,TId>` com XML docs e exemplos. (Propriedade opcional com docs e três exemplos: única variável, convenção `{param}Id` e seleção explícita.)
+- [x] Implementar prioridade: propriedade explícita; única variável; `${entityParameterName}Id`; `entityParameterName`; erro em qualquer outro caso. (`ResolveEditRouteParameter` no transform (DF4) usando o `RoutePatternParser` da Fase 4; RCCMD031 localizado no atributo para nome explícito inexistente e para ambiguidade; template sem variáveis mantém o comportamento anterior — id por inferência, sem diagnóstico.)
+- [x] Validar constraints/optionalidade da rota contra nulabilidade e tipo do ID quando determinável. (RCCMD032: variável opcional (`{id?}`) e constraints de tipo conhecidas (`int`, `long`, `guid`, `bool`, `datetime`, `decimal`, `double`, `float`) comparadas ao tipo do id; constraints não tipadas são ignoradas.)
+- [x] Manter ordem do handler: ID de edit, command, todos os `WithParameter`, `ct`. (Preservada e agora testada explicitamente no delegate e na interface do handler.)
+- [x] Criar testes HTTP para route, query, header, DI, special type, custom `BindAsync` e nomes diferentes via atributo. (Novo comando de vitrine `Movies/RegistrarVisualizacao` no Demo — rota (`Name` diferente), query, header, serviço DI inferido e `BindAsync` customizado — + `DemoBindingTests` via `WebApplicationFactory` com asserção fim-a-fim dos valores vinculados; grupo Movies passou a ser mapeado no pipeline do Demo.)
+- [x] Criar testes `EditEntity` com zero, uma, várias, match implícito, match explícito e ambiguidade. (`EditEntityRouteResolutionTests`: 11 casos — zero (inferência, sem diagnóstico), única, `{param}Id`, nome do parâmetro, explícito, explícito inexistente (RCCMD031), ambiguidade (RCCMD031 sem fonte), constraint incompatível/compatível, opcional, ordem.)
 
 **Critérios de aceite:** `WithParameter` sem atributo vem da rota quando seu nome está no template e da query quando não está para tipo parseável; header/form/service explícitos chegam ao método; `EditEntity` não seleciona o primeiro token incorreto; ambiguidade produz RCCMD e nenhuma fonte de endpoint.
 
@@ -823,7 +898,67 @@ filtro); `Demo.Tests` **68/68**; base Utils **97/97**.
 
 ### Resultado da Fase 5
 
-*a preencher*
+**Concluída em 2026-07-16.**
+
+**Binding de parâmetros externos (DF2/DF3):**
+- `Generators/BindingAttributes.cs` — captura semântica dos atributos de binding do parâmetro-fonte
+  (`FromRoute`/`FromQuery`/`FromHeader`/`FromForm`/`FromBody`/`FromServices`, com o named-arg `Name`) e
+  validação: fontes conflitantes (RCCMD033), `[AsParameters]` (RCCMD034) e `FromRoute` apontando para variável
+  ausente no template grupo+rota (RCCMD035). A validação e a emissão só ocorrem quando o comando é mapeado;
+  comandos handler-only ignoram bindings sem ruído.
+- `ParameterBindingModel` no pipeline (`ParameterModel.Bindings` / `SearchFilterParameterModel.Bindings`),
+  symbol-free e value-equatable; a ponte restaura para as informations de emissão.
+- Emissão (DF3): os atributos são copiados apenas para o delegate Minimal API (`AddRequiredParameters` com
+  `includeBindingAttributes`), nunca para a interface do handler (testado). O `[FromRoute]` automático do
+  Search para `[WithParameter]` foi removido — sem atributo vale a inferência do ASP.NET Core (rota quando o
+  nome está no template, query para tipos parseáveis, serviço registrado, `BindAsync` do tipo).
+- RCCMD036: comando com propriedades de corpo mapeado para GET/DELETE é erro (o ASP.NET Core lançaria na
+  inicialização do app ao inferir body nesses verbos).
+
+**Resolução de `EditEntity` (DF4):**
+- `EditEntityAttribute<TEntity,TId>.RouteParameterName` (opcional, com XML docs e exemplos).
+- `ResolveEditRouteParameter` no transform, na ordem fechada: explícito → única variável →
+  `{parâmetroDaEntidade}Id` → `parâmetroDaEntidade` → RCCMD031 (localizado no atributo; nenhuma fonte gerada).
+  Template sem variáveis preserva o comportamento anterior (id por inferência, sem diagnóstico). O nome
+  resolvido viaja no modelo (`CommandEndpointModel.EditRouteParameterName`); a emissão não decide mais nada.
+- RCCMD032: variável opcional (`{id?}`) ou constraint de tipo conhecida incompatível com o tipo do id.
+
+**Ordem (T7):** delegate e handler mantêm `id de edição, command, WithParameters, ct` — agora testada.
+
+**Demo/HTTP:** novo comando `Movies/RegistrarVisualizacao` demonstra rota (`Name` distinto), query, header,
+serviço DI inferido e `BindAsync` customizado; `DemoBindingTests` valida o fluxo fim-a-fim via
+`WebApplicationFactory`. O grupo Movies passou a ser mapeado no pipeline do Demo (`MapMoviesGroup`) — nota: o
+endpoint de reviews (Search de `Review`) fica exposto sem search registrado para a entidade; não é chamado
+pelos testes e a completude dos searches é assunto da Fase 9.
+
+**Diagnósticos:** RCCMD031-036 no catálogo único, em `AnalyzerReleases.Unshipped.md` e documentados em
+`.docs/diagnostics.md`.
+
+**Critérios de aceite — situação:** `WithParameter` sem atributo vem da rota quando o nome está no template e
+da query quando não está (inferência DF2; validado por HTTP no Demo) ✔; header/form/service explícitos chegam
+ao método (HTTP + generator) ✔; `EditEntity` não seleciona mais o primeiro token arbitrário (resolução DF4) ✔;
+ambiguidade produz RCCMD031 e nenhuma fonte de endpoint ✔.
+
+**Revisão por subagente em 2026-07-16** (achados verificados e corrigidos na própria fase):
+- **[ALTA] Resolução DF4 ignorava o template do grupo** (inconsistente com RCCMD035 e com o binding real):
+  agora resolve e valida contra grupo + rota; `RouteParameterName` pode apontar para variável do grupo (testado).
+- **[MÉDIA] `{entidade}Id` reservado só quando mapeado:** o handler de EditEntity declara o parâmetro sempre;
+  o nome passou ao conjunto reservado do escopo do handler — comando EditEntity não mapeado com `[WithParameter]`
+  homônimo agora produz RCCMD029 em vez de gerar C# inválido (testado).
+- **[MÉDIA] Conflito de fontes de body não diagnosticado:** novo **RCCMD037** — `FromBody` explícito × body
+  implícito do comando × `FromForm` (o ASP.NET Core lançaria na inicialização); um único `FromBody` em comando
+  sem body segue válido (testados os quatro cenários).
+- **[MÉDIA] Demo:** o comando de vitrine saiu do grupo Movies para um grupo próprio `playground`, evitando expor
+  os endpoints de Review sem search/repositório registrados; o grupo Movies segue não mapeado.
+- **[BAIXAS]** catch-all (`{*id}`) agora é RCCMD032; TId anulável (`int?`) não gera mais falso positivo de
+  constraint; RCCMD036 não dispara para comandos com `BindAsync`/`TryParse` estáticos próprios; removida a
+  duplicação de RCCMD031-036 em `.docs/diagnostics.md`.
+- Registrados sem ação nesta fase (donos definidos): atributo de binding em parâmetro de filtro sem
+  `[WithParameter]` é silenciosamente trocado por `[FromServices]` (assinaturas de Find/Search — Fase 9);
+  `[FromForm]` explícito em GET falha apenas em runtime (documentado).
+
+Verificações finais (pós-revisão, executadas): solução Release **0 erros**; `SmartCommands.Tests` **195/195**
+(160 anteriores + 35 da fase); `Demo.Tests` **70/70** (68 anteriores + 2 HTTP novos).
 
 ---
 

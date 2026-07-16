@@ -44,6 +44,12 @@ internal sealed class CommandHandlerInformation : TransformationGeneratorBase, I
 
 #nullable enable
 
+    /// <summary>
+    /// Atributos de binding capturados dos parâmetros <c>[WithParameter]</c> (DF3), por nome de parâmetro;
+    /// aplicados somente ao delegate Minimal API, nunca à interface do handler.
+    /// </summary>
+    public Dictionary<string, RoyalCode.Extensions.SourceGenerator.Collections.EquatableArray<ParameterBindingModel>>? ParameterBindings { get; internal set; }
+
     public TypeDescriptor? ContextAccessorType { get; internal set; }
     public ContextAccessorModes ContextAccessorMode { get; internal set; }
     public TypeDescriptor? ProduceNewEntityType { get; internal set; }
