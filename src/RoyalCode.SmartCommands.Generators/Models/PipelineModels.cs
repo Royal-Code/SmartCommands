@@ -109,6 +109,30 @@ internal sealed record ParameterModel(
     }
 }
 
+/// <summary>
+/// Uma validação adicional do comando (DF13) retida no pipeline: nome do método, contrato assíncrono e
+/// parâmetros classificados (com bindings quando externos).
+/// </summary>
+internal sealed record CommandValidationModel(
+    string MethodName,
+    bool IsAwaitable,
+    EquatableArray<ParameterModel> Parameters)
+{
+    internal static CommandValidationModel Create(
+        CommandValidationInformation information,
+        Func<string, EquatableArray<ParameterBindingModel>> bindingsResolver) =>
+        new(
+            information.MethodName,
+            information.IsAwaitable,
+            new EquatableArray<ParameterModel>(information.Parameters.Select(parameter =>
+                ParameterModel.Create(parameter, bindingsResolver(parameter.Name)))));
+
+    internal CommandValidationInformation ToInformation() => new(
+        MethodName,
+        IsAwaitable,
+        Parameters.Select(parameter => PipelineModelConversions.ToDescriptor(parameter.Snapshot)).ToList());
+}
+
 internal sealed record CommandCoreModel(
     TypeSnapshot ModelType,
     bool HasWithValidateModel,
@@ -120,6 +144,7 @@ internal sealed record CommandCoreModel(
     TypeSnapshot HandlerReturnType,
     ReturnModel Return,
     EquatableArray<ParameterModel> Parameters,
+    EquatableArray<CommandValidationModel> Validators,
     string HandlerInterfaceName,
     string HandlerImplementationName,
     EquatableArray<string> NotNullProperties,
@@ -140,6 +165,13 @@ internal sealed record CommandCoreModel(
     {
         var methodReturnType = TypeSnapshot.Create(information.MethodReturnType);
         var returnModel = information.ReturnModel ?? ReturnModel.Create(methodReturnType);
+
+        EquatableArray<ParameterBindingModel> ResolveBindings(string parameterName) =>
+            information.ParameterBindings is not null &&
+            information.ParameterBindings.TryGetValue(parameterName, out var bindings)
+                ? bindings
+                : default;
+
         return new CommandCoreModel(
             TypeSnapshot.Create(information.ModelType),
             information.HasWithValidateModel,
@@ -151,12 +183,9 @@ internal sealed record CommandCoreModel(
             TypeSnapshot.Create(information.HandlerReturnType),
             returnModel,
             new EquatableArray<ParameterModel>(information.Parameters.Select(parameter =>
-                ParameterModel.Create(
-                    parameter,
-                    information.ParameterBindings is not null &&
-                    information.ParameterBindings.TryGetValue(parameter.Name, out var bindings)
-                        ? bindings
-                        : default))),
+                ParameterModel.Create(parameter, ResolveBindings(parameter.Name)))),
+            new EquatableArray<CommandValidationModel>(information.Validators.Select(validator =>
+                CommandValidationModel.Create(validator, ResolveBindings))),
             information.HandlerInterfaceName,
             information.HandlerImplementationName,
             new EquatableArray<string>(information.NotNullProperties),
@@ -187,9 +216,12 @@ internal sealed record CommandCoreModel(
         HandlerReturnType = PipelineModelConversions.ToDescriptor(HandlerReturnType),
         ReturnModel = Return,
         Parameters = Parameters.Select(parameter => PipelineModelConversions.ToDescriptor(parameter.Snapshot)).ToList(),
+        Validators = Validators.Select(validator => validator.ToInformation()).ToList(),
         ParameterBindings = Parameters
+            .Concat(Validators.SelectMany(validator => validator.Parameters))
             .Where(parameter => !parameter.Bindings.IsEmpty)
-            .ToDictionary(parameter => parameter.Snapshot.Name, parameter => parameter.Bindings, StringComparer.Ordinal),
+            .GroupBy(parameter => parameter.Snapshot.Name, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First().Bindings, StringComparer.Ordinal),
         HandlerInterfaceName = HandlerInterfaceName,
         HandlerImplementationName = HandlerImplementationName,
         NotNullProperties = NotNullProperties.ToList(),

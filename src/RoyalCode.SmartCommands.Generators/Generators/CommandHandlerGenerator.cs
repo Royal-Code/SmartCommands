@@ -565,6 +565,22 @@ internal static class CommandHandlerGenerator
             errors.Add(error);
         }
 
+        // DF13: descobre e valida os métodos [CommandValidation]; executam após HasProblems e antes de
+        // UoW/retry (uma vez, fora do laço). Parâmetros usam o mesmo modelo do comando.
+        var validatorParameterChecks = new List<(ParameterDescriptor Parameter, Location Location)>();
+        var validators = DiscoverValidators(
+            commandType,
+            methodSymbol,
+            accessorType,
+            context.SemanticModel,
+            parameters,
+            capturedBindings,
+            validatorParameterChecks,
+            produceProblems,
+            errors,
+            method.Identifier.GetLocation(),
+            cancellationToken);
+
         // obtém informações para geração do WasValidated, caso seja possível
         List<string> notNullProperties;
         if (classDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword)
@@ -590,7 +606,8 @@ internal static class CommandHandlerGenerator
         var modelName = classDeclaration.Identifier.Text;
 
         // verifica a necessidade do método do handler ser assíncrono
-        var handlerMustBeAsync = isAsync || hasWithDecorators || hasUow || hasFindEntities;
+        var handlerMustBeAsync = isAsync || hasWithDecorators || hasUow || hasFindEntities
+            || validators.Any(validator => validator.IsAwaitable);
 
         // lê atributo Map... da classe do comando (leitura semântica por símbolo)
         var mapInformation = ReadMap(
@@ -639,7 +656,9 @@ internal static class CommandHandlerGenerator
             retryMaxAttempts,
             retryOperation,
             // o handler de EditEntity sempre declara '{entidade}Id' na assinatura (mapeado ou não)
-            editEntityIdParameterName: editType?.Parameter is not null ? $"{editType.Parameter.Name}Id" : null);
+            editEntityIdParameterName: editType?.Parameter is not null ? $"{editType.Parameter.Name}Id" : null,
+            hasWithValidateModel: hasWithValidateModel,
+            validatorCount: validators.Count);
 
         // Quando o comando é mapeado, os parâmetros [WithParameter] são replicados na assinatura do método do
         // endpoint Minimal API, que também declara 'handler', a variável 'result' e, para EditEntity, o
@@ -668,11 +687,31 @@ internal static class CommandHandlerGenerator
             }
         }
 
+        // os parâmetros dos validators (DF13) compartilham os mesmos escopos do handler/endpoint
+        foreach (var (validatorParameter, validatorParameterLocation) in validatorParameterChecks)
+        {
+            if (validatorParameter.Type.IsCancellationToken || validatorParameter.Type.IsContext)
+                continue;
+
+            var collides = reservedNames.Contains(validatorParameter.Name)
+                || (endpointReservedNames is not null
+                    && validatorParameter.Type.IsHandlerParameter
+                    && endpointReservedNames.Contains(validatorParameter.Name));
+
+            if (collides)
+            {
+                errors.Add(DiagnosticInfo.Create(
+                    CmdDiagnostics.ReservedIdentifier,
+                    validatorParameterLocation,
+                    validatorParameter.Name));
+            }
+        }
+
         // Define o tipo de retorno do handler
         var handlerReturnType = methodReturnType;
         if (handlerMustBeAsync)
             handlerReturnType = handlerReturnType.MustBeTask();
-        if (hasWithValidateModel || hasUow || hasFindEntities || mapInformation is not null)
+        if (hasWithValidateModel || hasUow || hasFindEntities || mapInformation is not null || validators.Count > 0)
             handlerReturnType = handlerReturnType.MustBeResult();
 
         // detecta se o comando tem shape de body no minimal API.
@@ -742,7 +781,9 @@ internal static class CommandHandlerGenerator
             ContextAccessorType = accessorType,
             ContextAccessorMode = contextAccessorMode,
             IdPropertiesBindings = idPropertiesBindings,
-            ProduceProblems = produceProblems,
+            // categorias agregadas do comando, do HasProblems e dos validators, sem duplicatas
+            ProduceProblems = produceProblems.Distinct().ToList(),
+            Validators = validators,
             ProduceNewEntityType = newEntityType,
             EditType = editType,
             MapInformation = mapInformation,
@@ -771,13 +812,26 @@ internal static class CommandHandlerGenerator
         bool hasRetryOnConcurrency,
         int? retryMaxAttempts,
         string? retryOperation,
-        string? editEntityIdParameterName = null)
+        string? editEntityIdParameterName = null,
+        bool hasWithValidateModel = false,
+        int validatorCount = 0)
     {
         // nomes que o handler gerado emite como parâmetro/campo/local no mesmo escopo do comando.
         var reserved = new HashSet<string>(StringComparer.Ordinal) { ModelVarName };
 
         if (editEntityIdParameterName is not null)
             reserved.Add(editEntityIdParameterName);
+
+        // local emitido por WithValidateModel (ValidateHasProblemsCommand)
+        if (hasWithValidateModel)
+            reserved.Add("validationProblems");
+
+        // locais emitidos por cada validação adicional (DF13)
+        for (var index = 1; index <= validatorCount; index++)
+        {
+            reserved.Add($"validationResult{index}");
+            reserved.Add($"validationProblems{index}");
+        }
 
         if (handlerMustBeAsync)
             reserved.Add(CancellationTokenParameterName);
@@ -796,6 +850,229 @@ internal static class CommandHandlerGenerator
             reserved.Add(RetryProblemFactoryVarName);
 
         return reserved;
+    }
+
+    /// <summary>
+    /// <para>
+    ///     DF13: descobre os métodos <c>[CommandValidation]</c> da classe do comando, valida a declaração
+    ///     (instância, não genérico, acessível, retorno <c>Result</c>/<c>Task&lt;Result&gt;</c>/<c>ValueTask&lt;Result&gt;</c>,
+    ///     sem <c>ref</c>/<c>out</c>/<c>in</c>/<c>params</c>) e classifica os parâmetros com o mesmo modelo do
+    ///     comando (token, <c>[WithParameter]</c> com bindings, dependência DI); entidades, contextos e
+    ///     acessores são rejeitados (a validação executa antes de qualquer carregamento).
+    /// </para>
+    /// <para>
+    ///     Retorna os validators ordenados por <c>Order</c> (padrão 10) com desempate determinístico pela
+    ///     assinatura totalmente qualificada — sem precedência observável para o usuário.
+    /// </para>
+    /// </summary>
+    private static List<CommandValidationInformation> DiscoverValidators(
+        INamedTypeSymbol commandType,
+        IMethodSymbol commandMethod,
+        TypeDescriptor? accessorType,
+        SemanticModel semanticModel,
+        List<ParameterDescriptor> commandParameters,
+        List<(string Name, Location Location, CapturedBindings Captured)> capturedBindings,
+        List<(ParameterDescriptor Parameter, Location Location)> validatorParameterChecks,
+        List<string> produceProblems,
+        List<DiagnosticInfo> errors,
+        Location fallbackLocation,
+        CancellationToken cancellationToken)
+    {
+        var discovered = new List<(int Order, string SortKey, CommandValidationInformation Information)>();
+
+        // mesmo nome de parâmetro entre comando e validators compartilha uma única dependência: o tipo deve
+        // ser o mesmo (RCCMD040)
+        var parameterTypesByName = new Dictionary<string, TypeDescriptor>(StringComparer.Ordinal);
+        foreach (var commandParameter in commandParameters)
+            parameterTypesByName[commandParameter.Name] = commandParameter.Type;
+
+        foreach (var candidate in commandType.GetMembers().OfType<IMethodSymbol>())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!KnownAttributes.TryGet(candidate, KnownAttributes.CommandValidation, out var validationAttr))
+                continue;
+
+            var methodLocation = candidate.Locations.FirstOrDefault(l => l.IsInSource) ?? fallbackLocation;
+
+            string? declarationProblem = null;
+            if (SymbolEqualityComparer.Default.Equals(candidate, commandMethod))
+                declarationProblem = "the command method cannot also be a validation method";
+            else if (candidate.MethodKind != MethodKind.Ordinary)
+                declarationProblem = "the validation must be an ordinary method";
+            else if (candidate.IsStatic)
+                declarationProblem = "the validation method must be an instance method";
+            else if (candidate.IsAbstract)
+                declarationProblem = "the validation method must not be abstract";
+            else if (candidate.Arity > 0)
+                declarationProblem = "the validation method must not be generic";
+            else if (candidate.DeclaredAccessibility is not (
+                Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal))
+                declarationProblem = "the validation method must be accessible to the generated handler (public or internal)";
+            else if (candidate.Parameters.Any(parameter => parameter.RefKind != RefKind.None || parameter.IsParams))
+                declarationProblem = "the validation method must not have ref/out/in/params parameters";
+
+            var isAwaitable = false;
+            if (declarationProblem is null && !TryClassifyValidatorReturn(candidate.ReturnType, out isAwaitable))
+                declarationProblem = "the validation method must return Result, Task<Result> or ValueTask<Result>";
+
+            if (declarationProblem is not null)
+            {
+                errors.Add(DiagnosticInfo.Create(
+                    CmdDiagnostics.InvalidCommandValidation,
+                    methodLocation,
+                    candidate.Name,
+                    declarationProblem));
+                continue;
+            }
+
+            // parâmetros: mesmo modelo do comando (token, [WithParameter] com bindings, DI)
+            var descriptors = new List<ParameterDescriptor>(candidate.Parameters.Length);
+            foreach (var parameterSymbol in candidate.Parameters)
+            {
+                var parameterSyntax = parameterSymbol.DeclaringSyntaxReferences
+                    .Select(reference => reference.GetSyntax(cancellationToken))
+                    .OfType<ParameterSyntax>()
+                    .FirstOrDefault();
+
+                var parameterModel = parameterSyntax is null || parameterSyntax.SyntaxTree == semanticModel.SyntaxTree
+                    ? semanticModel
+                    : semanticModel.Compilation.GetSemanticModel(parameterSyntax.SyntaxTree);
+
+                var descriptor = parameterSyntax is not null
+                    ? ParameterDescriptor.Create(parameterSyntax, parameterModel)
+                    : new ParameterDescriptor(SemanticTypes.CreateDescriptor(parameterSymbol.Type), parameterSymbol.Name);
+
+                var parameterLocation = parameterSyntax?.Identifier.GetLocation() ?? methodLocation;
+
+                if (IsType(parameterSymbol.Type, "System.Threading", "CancellationToken"))
+                {
+                    // mesmo contrato do comando: token só em método assíncrono
+                    if (!isAwaitable)
+                    {
+                        errors.Add(DiagnosticInfo.Create(
+                            CmdDiagnostics.CancellationTokenParameterMustBeAsync,
+                            parameterLocation));
+                    }
+                }
+                else if (IsForbiddenValidationParameter(parameterSymbol, parameterSyntax, parameterModel, descriptor, accessorType))
+                {
+                    errors.Add(DiagnosticInfo.Create(
+                        CmdDiagnostics.InvalidCommandValidationParameter,
+                        parameterLocation,
+                        parameterSymbol.Name,
+                        candidate.Name));
+                }
+                else
+                {
+                    if (KnownAttributes.Has(parameterSymbol, KnownAttributes.WithParameter))
+                    {
+                        descriptor.Type.MarkAsHandlerParameter();
+
+                        var captured = BindingAttributes.Capture(parameterSymbol);
+                        if (captured.SourceCount > 0 || captured.HasAsParameters)
+                            capturedBindings.Add((descriptor.Name, parameterLocation, captured));
+                    }
+
+                    // mesmo nome exige o mesmo tipo (dependência/parâmetro compartilhado no handler)
+                    if (parameterTypesByName.TryGetValue(descriptor.Name, out var existingType))
+                    {
+                        if (!existingType.Equals(descriptor.Type))
+                        {
+                            errors.Add(DiagnosticInfo.Create(
+                                CmdDiagnostics.ConflictingParameterTypes,
+                                parameterLocation,
+                                descriptor.Name));
+                        }
+                    }
+                    else
+                    {
+                        parameterTypesByName[descriptor.Name] = descriptor.Type;
+                    }
+                }
+
+                descriptors.Add(descriptor);
+                validatorParameterChecks.Add((descriptor, parameterLocation));
+            }
+
+            // agrega os ProduceProblems declarados no validator à metadata do endpoint
+            if (KnownAttributes.TryGet(candidate, KnownAttributes.ProduceProblems, out var validatorProduceProblems))
+                AddProduceProblems(validatorProduceProblems!, produceProblems);
+
+            var order = validationAttr!.NamedArguments
+                .Where(argument => argument.Key == "Order")
+                .Select(argument => argument.Value is { Kind: TypedConstantKind.Primitive, Value: int value } ? value : 10)
+                .DefaultIfEmpty(10)
+                .First();
+
+            // desempate por assinatura totalmente qualificada — apenas para determinismo da saída
+            var sortKey = $"{candidate.Name}({string.Join(",", candidate.Parameters.Select(p => p.Type.ToDisplayString()))})";
+
+            discovered.Add((order, sortKey, new CommandValidationInformation(candidate.Name, isAwaitable, descriptors)));
+        }
+
+        return discovered
+            .OrderBy(entry => entry.Order)
+            .ThenBy(entry => entry.SortKey, StringComparer.Ordinal)
+            .Select(entry => entry.Information)
+            .ToList();
+    }
+
+    private static bool TryClassifyValidatorReturn(ITypeSymbol returnType, out bool isAwaitable)
+    {
+        isAwaitable = false;
+
+        if (IsType(returnType, "RoyalCode.SmartProblems", "Result"))
+            return true;
+
+        if ((IsType(returnType, "System.Threading.Tasks", "Task`1") ||
+             IsType(returnType, "System.Threading.Tasks", "ValueTask`1")) &&
+            returnType is INamedTypeSymbol named &&
+            IsType(named.TypeArguments[0], "RoyalCode.SmartProblems", "Result"))
+        {
+            isAwaitable = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Entidades, coleções de entidades, contextos e acessores não estão disponíveis na validação
+    /// pré-carregamento (DF13); uma fase pós-carregamento é backlog separado.
+    /// </summary>
+    private static bool IsForbiddenValidationParameter(
+        IParameterSymbol parameterSymbol,
+        ParameterSyntax? parameterSyntax,
+        SemanticModel parameterModel,
+        ParameterDescriptor descriptor,
+        TypeDescriptor? accessorType)
+    {
+        if (accessorType is not null && descriptor.Type.Equals(accessorType))
+            return true;
+
+        if (parameterSyntax is not null &&
+            (parameterSyntax.IsEntity(parameterModel) || parameterSyntax.IsCollectionOfEntities(parameterModel)))
+        {
+            return true;
+        }
+
+        var type = parameterSymbol.Type;
+        if (IsType(type, "RoyalCode.SmartCommands", "IUnitOfWorkAccessor`1") ||
+            IsType(type, "RoyalCode.SmartCommands", "IRepositoriesAccessor`1") ||
+            IsType(type, "RoyalCode.WorkContext", "IWorkContext") ||
+            type.AllInterfaces.Any(candidate => IsType(candidate, "RoyalCode.WorkContext", "IWorkContext")))
+        {
+            return true;
+        }
+
+        for (var baseType = type; baseType is not null; baseType = baseType.BaseType)
+        {
+            if (IsType(baseType, "Microsoft.EntityFrameworkCore", "DbContext"))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -1468,24 +1745,30 @@ internal static class CommandHandlerGenerator
             ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(RetryProblemFactoryVarName));
         }
 
-        // para cada parâmetro do método do comando, valida se é necessário adicionar como campo do construtor.
-        foreach (var p in i.Parameters)
+        // dependências injetadas (comando + validators), sem duplicar campos/parâmetros do construtor
+        var injectedDependencyNames = new HashSet<string>(StringComparer.Ordinal);
+
+        void AddDependency(ParameterDescriptor p)
         {
             // não requer ct
             if (p.Type.IsCancellationToken)
-                continue;
+                return;
 
             // se for uma entidade, não deve recebê-la no construtor.
             if (p.Type.IsEntity || p.Type.IsCollectionOfEntities)
-                continue;
+                return;
 
             // se for o contexto, não deve recebê-la no construtor.
             if (p.Type.IsContext)
-                continue;
+                return;
 
             // se for um parâmetro marcado com WithParameter, não deve recebê-lo no construtor.
             if (p.Type.IsHandlerParameter)
-                continue;
+                return;
+
+            // dependência compartilhada por nome (o conflito de tipos é diagnosticado no transform)
+            if (!injectedDependencyNames.Add(p.Name))
+                return;
 
             // Adiciona o parâmetro como dependência do handler e o recebe no construtor.
             // adiciona o campo
@@ -1495,6 +1778,16 @@ internal static class CommandHandlerGenerator
             // adiciona comando de atribuição
             ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(p.Name));
         }
+
+        // para cada parâmetro do método do comando, valida se é necessário adicionar como campo do construtor.
+        foreach (var p in i.Parameters)
+            AddDependency(p);
+
+        // dependências dos validators (DF13)
+        foreach (var validator in i.Validators)
+            foreach (var p in validator.Parameters)
+                AddDependency(p);
+
         // adiciona o ctor a classe apenas se tiver algum parâmetro, quando não há parâmetros, não há necessidade de ctor.
         if (ctorGen.Parameters.Any())
             handlerGen.Constructors.Add(ctorGen);
@@ -1511,6 +1804,36 @@ internal static class CommandHandlerGenerator
         // comando de validação (fica sempre fora do laço de retry)
         if (i.HasWithValidateModel)
             handlerMethodImpl.Commands.Add(new ValidateHasProblemsCommand(ModelVarName));
+
+        // DF13: validações adicionais rodam após HasProblems e antes de UoW/retry (fora do laço, uma vez);
+        // o primeiro Result com problemas encerra o handler
+        for (var validatorIndex = 0; validatorIndex < i.Validators.Count; validatorIndex++)
+        {
+            var validator = i.Validators[validatorIndex];
+            var resultVarName = $"validationResult{validatorIndex + 1}";
+            var problemsVarName = $"validationProblems{validatorIndex + 1}";
+
+            var validatorInvoke = new MethodInvokeGenerator(ModelVarName, validator.MethodName)
+            {
+                Await = validator.IsAwaitable
+            };
+            foreach (var validatorParameter in validator.Parameters)
+            {
+                validatorInvoke.AddArgument(validatorParameter.Type.IsCancellationToken
+                    ? CancellationTokenParameterName
+                    : validatorParameter.Name);
+            }
+
+            handlerMethodImpl.Commands.Add(new AssignValueCommand(
+                new StringValueNode($"var {resultVarName}"),
+                validatorInvoke));
+
+            var problemsCheck = new MethodInvokeGenerator(resultVarName, "HasProblems");
+            problemsCheck.AddArgument($"out var {problemsVarName}");
+            var shortCircuit = new IfCommand(problemsCheck);
+            shortCircuit.AddCommand(new ReturnCommand(problemsVarName));
+            handlerMethodImpl.Commands.Add(shortCircuit);
+        }
 
         // quando há retry de concorrência, o corpo {Begin → finds → Execute → Complete} é coletado à parte
         // para ser envolvido por uma lambda passada à primitiva; senão, vai direto no corpo do método.
@@ -1767,10 +2090,16 @@ internal static class CommandHandlerGenerator
             method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(commandType, ModelVarName)));
         }
 
-        // parâmetros com atributo WithParameter; no delegate Minimal API os bindings explícitos do
-        // parâmetro-fonte são copiados (DF3); sem binding, o ASP.NET Core infere a fonte (DF2)
-        foreach (var p in commandInfo.Parameters.Where(p => p.Type.IsHandlerParameter))
+        // parâmetros com atributo WithParameter (do comando e dos validators, sem duplicar nomes);
+        // no delegate Minimal API os bindings explícitos do parâmetro-fonte são copiados (DF3);
+        // sem binding, o ASP.NET Core infere a fonte (DF2)
+        var externalParameterNames = new HashSet<string>(StringComparer.Ordinal);
+
+        void AddExternalParameter(ParameterDescriptor p)
         {
+            if (!externalParameterNames.Add(p.Name))
+                return;
+
             var parameterGenerator = new ParameterGenerator(p);
 
             if (includeBindingAttributes &&
@@ -1783,6 +2112,13 @@ internal static class CommandHandlerGenerator
 
             method.Parameters.Add(parameterGenerator);
         }
+
+        foreach (var p in commandInfo.Parameters.Where(p => p.Type.IsHandlerParameter))
+            AddExternalParameter(p);
+
+        foreach (var validator in commandInfo.Validators)
+            foreach (var p in validator.Parameters.Where(p => p.Type.IsHandlerParameter))
+                AddExternalParameter(p);
 
         // cancellation token, quando necessário (async)
         if (commandInfo.HandlerMustBeAsync)

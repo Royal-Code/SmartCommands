@@ -45,6 +45,9 @@ severidade e uma orientação de correção. Entradas inválidas produzem o diag
 | [RCCMD035](#rccmd035) | Error | `FromRoute` aponta para variável ausente no template |
 | [RCCMD036](#rccmd036) | Error | GET/DELETE não podem inferir body |
 | [RCCMD037](#rccmd037) | Error | Mais de uma fonte de body no mesmo endpoint |
+| [RCCMD038](#rccmd038) | Error | Uso inválido de `[CommandValidation]` (mensagem detalha o motivo) |
+| [RCCMD039](#rccmd039) | Error | Parâmetro não permitido em método de validação |
+| [RCCMD040](#rccmd040) | Error | Mesmo nome de parâmetro com tipos diferentes |
 
 ---
 
@@ -192,3 +195,21 @@ setter (o comando será instanciado via `new`, sem body).
 O endpoint teria mais de uma fonte de body: um parâmetro `[WithParameter]` com `[FromBody]`/`[FromForm]` em
 conflito com o body implícito do comando (propriedades de corpo) ou com outro parâmetro de body. O ASP.NET Core
 falharia na inicialização do app. **Correção:** mantenha uma única fonte de body por endpoint.
+
+## RCCMD038
+**Uso inválido de `CommandValidationAttribute` (DF13).** A mensagem detalha o motivo: método estático, abstrato,
+genérico ou inacessível; parâmetros `ref`/`out`/`in`/`params`; retorno diferente de `Result`, `Task<Result>` ou
+`ValueTask<Result>` (inclui `void`, `async void`, `Result<T>` e tipos arbitrários); ou o próprio método
+`[Command]` marcado como validação. **Correção:** declare a validação como método de instância
+`public`/`internal` retornando `Result`/`Task<Result>`/`ValueTask<Result>`.
+
+## RCCMD039
+Um parâmetro do método de validação usa um tipo indisponível na etapa de validação (que roda **antes** de
+qualquer carregamento): entidades, coleções de entidades, o contexto da unidade de trabalho, `IWorkContext`,
+`DbContext` ou acessores (`IUnitOfWorkAccessor<T>`/`IRepositoriesAccessor<T>`). **Correção:** use serviços de
+DI, `[WithParameter]` ou `CancellationToken`; validação pós-carregamento é um backlog separado.
+
+## RCCMD040
+O mesmo nome de parâmetro aparece com tipos diferentes entre o método do comando e os validators. Parâmetros com
+o mesmo nome compartilham uma única dependência/valor no handler gerado e devem ter o mesmo tipo.
+**Correção:** alinhe os tipos ou renomeie um dos parâmetros.

@@ -56,8 +56,9 @@ public static partial class ProgramExtensions
                 typeId: "demo.pedido.concurrency_conflict"));
         builder.Services.AddTransient<SomeService>();
 
-        // serviço do comando de demonstração de binding (playground/{movieId}/views)
+        // serviços do comando de demonstração de binding/validação (playground/{movieId}/views)
         builder.Services.AddSingleton<Commands.Movies.IRelogioDemo, Commands.Movies.RelogioDemo>();
+        builder.Services.AddSingleton<Commands.Movies.IPlataformasPermitidas, Commands.Movies.PlataformasPermitidas>();
 
         // Catalogo RFC 9457 dos typeIds customizados do dominio; alimenta a conversao para ProblemDetails
         // e a pagina de documentacao publicada em /.problems (ver ConfigurePipeline).

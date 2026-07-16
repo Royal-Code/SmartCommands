@@ -12,6 +12,7 @@ Projects target .NET 8, .NET 9, and .NET 10. The analyzer/generator targets .NET
 ## Features
 - Attribute-driven commands with generated handlers (`I{Command}Handler`, `{Command}Handler`).
 - Validation integration via `HasProblems(out Problems?)` and `WithValidateModel`.
+- Additional validations via `CommandValidation` instance methods (optional `Order`, default `10`) returning `Result`/`Task<Result>`/`ValueTask<Result>`, executed after `HasProblems` and before the unit of work/retry, short-circuiting on the first failure.
 - Unit of Work and repositories via `WithUnitOfWork<TContext>` / `WithDbContext` / `WithWorkContext`.
 - Entity loading and editing with `WithFindEntities<TContext>` and `EditEntity(typeof(Entity))`.
 - Decorators pipeline with `WithDecorators` and `IDecorator<TCommand, TResult>`.

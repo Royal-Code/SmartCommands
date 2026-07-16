@@ -253,8 +253,22 @@ internal sealed class MapInformation : IEquatable<MapInformation>
 
         handlerInvoke.AddArgument("command");
 
+        // externos do comando e dos validators (DF13), na mesma ordem/deduplicação da assinatura do handler
+        var forwardedExternalNames = new HashSet<string>(StringComparer.Ordinal);
         foreach (var p in commandInfo.Parameters.Where(p => p.Type.IsHandlerParameter))
-            handlerInvoke.AddArgument(p.Name);
+        {
+            if (forwardedExternalNames.Add(p.Name))
+                handlerInvoke.AddArgument(p.Name);
+        }
+
+        foreach (var validator in commandInfo.Validators)
+        {
+            foreach (var p in validator.Parameters.Where(p => p.Type.IsHandlerParameter))
+            {
+                if (forwardedExternalNames.Add(p.Name))
+                    handlerInvoke.AddArgument(p.Name);
+            }
+        }
 
         if (commandInfo.HandlerMustBeAsync)
             handlerInvoke.AddArgument("ct");

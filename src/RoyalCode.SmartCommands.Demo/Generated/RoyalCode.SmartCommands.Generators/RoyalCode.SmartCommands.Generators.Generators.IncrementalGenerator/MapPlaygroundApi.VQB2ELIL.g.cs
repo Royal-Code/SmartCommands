@@ -17,25 +17,26 @@ public static partial class MapPlaygroundApi
     {
         var group = builder.MapGroup("playground");
 
-        group.MapPost("/{movieId}/views", RegistrarVisualizacaoHandle)
+        group.MapPost("/{movieId}/views", RegistrarVisualizacaoHandleAsync)
             .WithName("registrar-visualizacao");
 
         return group;
     }
 
-    private static OkMatch<VisualizacaoRegistrada> RegistrarVisualizacaoHandle(
+    private static async Task<OkMatch<VisualizacaoRegistrada>> RegistrarVisualizacaoHandleAsync(
         IRegistrarVisualizacaoHandler handler, 
         RegistrarVisualizacao? command, 
         [FromRoute(Name = "movieId")]  int movieId, 
         [FromQuery(Name = "origem")]  string? origem, 
         [FromHeader(Name = "x-demo-user")]  string? usuario, 
         MomentoDaRequisicao momento, 
-        IRelogioDemo relogio)
+        IRelogioDemo relogio, 
+        CancellationToken ct)
     {
         if (command is null)
             return Problems.InvalidParameter("The request body is required.");
 
-        var result = handler.Handle(command, movieId, origem, usuario, momento, relogio);
+        var result = await handler.HandleAsync(command, movieId, origem, usuario, momento, relogio, ct);
         return result;
     }
 }

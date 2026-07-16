@@ -4,7 +4,7 @@
 
 ## Progresso
 
-`█████░░░░░░░` **42%** - 5 de 12 fases concluídas
+`██████░░░░░░` **50%** - 6 de 12 fases concluídas
 
 | Fase | Estado |
 |---|---|
@@ -13,7 +13,7 @@
 | Fase 3 - Diagnósticos semânticos e catálogo | Concluida |
 | Fase 4 - Leitura semântica e emissão determinística | Concluida |
 | Fase 5 - Binding de `WithParameter` e resolução de `EditEntity` | Concluida |
-| Fase 6 - Validações adicionais do comando | Pendente |
+| Fase 6 - Validações adicionais do comando | Concluida |
 | Fase 7 - Confiabilidade do adapter Entity Framework | Pendente |
 | Fase 8 - Runtime de decorators, WorkContext e retry | Pendente |
 | Fase 9 - Completude dos mapeamentos Minimal API existentes | Pendente |
@@ -226,6 +226,7 @@ textual por ocorrência com `rg -o` + `Measure-Object -Line`; os números não r
 - **DF17 — `MapCreatedRoute` usa placeholders nomeados:** remover o contrato posicional `"{0}"`; casar placeholders como `"{id}"`, sem diferenciar maiúsculas, com propriedades declaradas por `nameof`, diagnosticando em compilação quantidade, nome, duplicação e propriedade incompatível. Fonte: Q6=A e definição do mantenedor.
 - **DF18 — Tipo estrutural separado do uso:** `TypeSnapshot` contém apenas identidade, nulabilidade e forma semântica equatável. Papéis contextuais (`Entity`, `Context`, `HandlerParameter`, `CollectionOfEntities`) pertencem a `TypeUsageSnapshot`, usado pelos snapshots de parâmetro/serviço. Políticas como Task/ValueTask, Result, CancellationToken e wrapping são derivadas no SmartCommands, não armazenadas como decisões no snapshot estrutural. Fonte: definição do mantenedor a partir da revisão arquitetural.
 - **DF19 — `EquatableArray<T>` normaliza ausência:** `default(EquatableArray<T>)` e coleção vazia representam a mesma sequência sem itens, com igualdade e hash idênticos; ausência com significado de domínio deve ser modelada explicitamente fora da coleção. Fonte: definição do mantenedor a partir da revisão arquitetural.
+- **DF20 — Hint names legíveis, curtos e determinísticos:** todo arquivo emitido pelo generator usa o formato `{nomeLegívelLimitado}.{hash}.g.cs`, mantendo o nome do tipo/artefato na frente para facilitar localização. `nomeLegívelLimitado` é sanitizado e limitado a 32 caracteres; `hash` possui exatamente 8 caracteres Base32 (`A-Z2-7`) e codifica os primeiros 40 bits do SHA-256 da identidade completa do artefato, incluindo namespace e papel gerado. O sufixo é sempre emitido, não representa erro nem workaround transitório: ele evita colisões entre tipos homônimos e mantém os caminhos materializados abaixo dos limites comuns do Windows/Git. Não usar o metadata name completo no nome físico, não mover o hash para prefixo e não reduzir a identidade abaixo de 40 bits sem nova decisão. Fonte: definição do mantenedor após validação do limite de caminhos e da usabilidade dos arquivos gerados.
 
 ---
 
@@ -250,7 +251,7 @@ textual por ocorrência com `rg -o` + `Measure-Object -Line`; os números não r
 - `CommandValidationAttribute`: marcador de método de instância com `Order` opcional, padrão `10`, conforme DF13; contrato detalhado na Fase 6, sem acesso implícito a entidade/UoW antes do carregamento.
 - `IUnitOfWorkAccessor<T>.CompleteAsync`: mantém `Task<Result>` nesta entrega; falhas inesperadas são limpas e relançadas conforme DF14.
 - Diagnósticos: RCCMD000-RCCMD025 mantêm IDs; novos IDs começam em RCCMD026; texto pode ser corrigido diretamente, e cada ID recebe documentação no repositório.
-- Hint names: usar nome de metadata totalmente qualificado, sanitizado e com sufixo estável quando necessário; colisões são detectadas antes de `AddSource`.
+- Hint names: seguir o formato legível, limitado e determinístico definido em DF20; colisões são detectadas antes de `AddSource`.
 
 ### Modelo, dados e persistência
 
@@ -782,7 +783,7 @@ filtro); `Demo.Tests` **68/68**; base Utils **97/97**.
 - [x] Detectar `Task`, `Task<T>`, `ValueTask` e `ValueTask<T>` semanticamente no transform e materializar `ReturnModel`; não usar modificador `async` como contrato de retorno nem reter símbolos. (Retorno criado do símbolo (`SemanticTypes.CreateDescriptor`); o último uso de `AsyncKeyword` como contrato — filtro do Search — agora decide pelo tipo de retorno.)
 - [x] Detectar `Result`/`Result<T>`, entidades, collections, context e `CancellationToken` por símbolo no transform; congelar os fatos estruturais em `TypeSnapshot` e os papéis contextuais em `TypeUsageSnapshot`, sem comparação por nome simples. (`StartsWith("Result")` eliminado — `ProduceNewEntity` usa `UnwrapValueReturnType` semântico e `CompleteUnitOfWorkCommand` recebe `IsResult`/`ValueType` do `ReturnModel`; `ICriteria`/`HttpContext`/`CancellationToken` do filtro Search viram fatos booleanos congelados no modelo.)
 - [x] Criar parser único de route pattern para nomes, constraint, catch-all, optional e default; não usar `GetFirstRouteParameterName`/`Substring` espalhados. (`RoutePatternParser` com escapes `{{`/`}}` e constraints com argumentos; `GetFirstRouteParameterName` removido; testes dedicados.)
-- [x] Gerar hint names e nomes de tipos por metadata name completo, incluindo namespace/nesting sanitizados. (A identidade completa alimenta SHA-256; o hint físico usa `<nome-legível-limitado>.<hash-base32-40-bit>.g.cs`, evitando paths longos quando `EmitCompilerGeneratedFiles` materializa a saída e mantendo o nome legível na frente. Interfaces, handlers, WasValidated, Response, DI e grupos de map permanecem determinísticos e classes homônimas em namespaces diferentes geram fontes distintas — testado; nesting não se aplica pois classe aninhada é RCCMD000.)
+- [x] Gerar hint names e nomes de tipos por metadata name completo, incluindo namespace/nesting sanitizados. (Conforme DF20, a identidade completa alimenta SHA-256; o hint físico usa `<nome-legível-limitado>.<hash-base32-40-bit>.g.cs`, evitando paths longos quando `EmitCompilerGeneratedFiles` materializa a saída e mantendo o nome legível na frente. Interfaces, handlers, WasValidated, Response, DI e grupos de map permanecem determinísticos e classes homônimas em namespaces diferentes geram fontes distintas — testado; nesting não se aplica pois classe aninhada é RCCMD000.)
 - [x] Adicionar cabeçalho gerado também a POCOs de resposta e manter `#nullable enable` em toda fonte. (`ResponsePocoGenerator` emite o cabeçalho padrão; testado por asserção de prefixo.)
 - [x] Corrigir nomes internos `GenerateReponseClass`, `assigment`, `Invoka`, `exitam`, `commando` e `requered` conforme DF7. (Todos renomeados/corrigidos, sem efeito no código gerado.)
 - [x] Compilar cada fonte gerada dentro do teste, além de comparar snapshots relevantes. (`SemanticGenerationTests` compila a saída completa (`GetDiagnostics` sem erros) para alias, `global::`, `Task.FromResult`, `ValueTask`, array explícito, constante referenciada, homônimos e Response POCO.)
@@ -972,16 +973,16 @@ Verificações finais (pós-revisão, executadas): solução Release **0 erros**
 
 **Tarefas:**
 
-- [ ] Criar `CommandValidationAttribute` com XML docs, `[Conditional("COMPILE_TIME_ONLY")]` quando aplicável e propriedade `Order` opcional com valor padrão `10`.
-- [ ] Descobrir validators semanticamente e ordenar por `Order`; para valores iguais, desempatar pela assinatura totalmente qualificada apenas para determinismo, sem prometer essa ordem como contrato observável ao usuário.
-- [ ] Aceitar somente `Result`, `Task<Result>` e `ValueTask<Result>` e diagnosticar `void`, `async void`, `Result<T>`, tipos arbitrários, generic/ref/out/params e método inacessível.
-- [ ] Resolver `CancellationToken`, dependências DI e parâmetros `[WithParameter]` usando o mesmo modelo do comando.
-- [ ] Rejeitar entity/context/UoW em validação pré-carregamento; documentar uma fase pós-load como backlog separado.
-- [ ] Mesclar dependências dos validators sem campos/ctor duplicados e diagnosticar mesmo nome com tipos diferentes ou nome reservado.
-- [ ] Emitir `HasProblems` primeiro, depois validators, antes de Begin/retry; retornar imediatamente o primeiro `Result` com problemas.
-- [ ] Agregar `[ProduceProblems]` dos validators à metadata HTTP e remover duplicatas por categoria.
-- [ ] Testar múltiplos validators, sync/async, ordem, short-circuit, DI, parâmetro externo, cancelamento, decorators e retry.
-- [ ] Atualizar `.docs/commands.md`, README e Demo com pelo menos um caso de validação assíncrona dependente de serviço.
+- [x] Criar `CommandValidationAttribute` com XML docs, `[Conditional("COMPILE_TIME_ONLY")]` quando aplicável e propriedade `Order` opcional com valor padrão `10`. (Criado com docs completas — contrato, ordem, restrições de parâmetros — e exemplo.)
+- [x] Descobrir validators semanticamente e ordenar por `Order`; para valores iguais, desempatar pela assinatura totalmente qualificada apenas para determinismo, sem prometer essa ordem como contrato observável ao usuário. (`DiscoverValidators` no transform, por identidade de metadata name; `Order` via `NamedArguments`; desempate por `Nome(tipos...)` ordinal; testado com Order explícito × padrão e empate alfabético.)
+- [x] Aceitar somente `Result`, `Task<Result>` e `ValueTask<Result>` e diagnosticar `void`, `async void`, `Result<T>`, tipos arbitrários, generic/ref/out/params e método inacessível. (RCCMD038 com mensagem detalhada por causa; theory com 9 declarações inválidas + `[Command]`+`[CommandValidation]` no mesmo método; classificação do retorno por metadata name.)
+- [x] Resolver `CancellationToken`, dependências DI e parâmetros `[WithParameter]` usando o mesmo modelo do comando. (Token semântico — permitido só em validator assíncrono (RCCMD008); `[WithParameter]` entra na assinatura do handler, no delegate (com bindings DF3 copiados) e no invoke, deduplicado por nome; DI vira campo/ctor.)
+- [x] Rejeitar entity/context/UoW em validação pré-carregamento; documentar uma fase pós-load como backlog separado. (RCCMD039 para entidade/coleção, contexto configurado, `IWorkContext`, `DbContext` e acessores; backlog pós-load documentado em `.docs/commands.md`.)
+- [x] Mesclar dependências dos validators sem campos/ctor duplicados e diagnosticar mesmo nome com tipos diferentes ou nome reservado. (Merge por nome no construtor do handler — testado com dependência compartilhada; RCCMD040 para mesmo nome com tipos distintos; RCCMD029 cobre nomes reservados dos validators, incluindo os novos locais `validationResult{n}`/`validationProblems{n}` e o `validationProblems` do `WithValidateModel`.)
+- [x] Emitir `HasProblems` primeiro, depois validators, antes de Begin/retry; retornar imediatamente o primeiro `Result` com problemas. (Emissão fora do laço de retry e antes do mediator de decorators — ambos testados por ordem no texto gerado; short-circuit `if (validationResultN.HasProblems(out var validationProblemsN)) return ...`.)
+- [x] Agregar `[ProduceProblems]` dos validators à metadata HTTP e remover duplicatas por categoria. (Agregado ao `[ProduceProblems]` do endpoint com `Distinct` preservando ordem; testado.)
+- [x] Testar múltiplos validators, sync/async, ordem, short-circuit, DI, parâmetro externo, cancelamento, decorators e retry. (`CommandValidationTests` — 23 testes de geração/diagnóstico; cenário `Scenarios/Vs` com espelho manual do handler + teste de paridade com a saída real do generator + runtime com sonda: ordem, short-circuit nos dois validators, cancelamento observado.)
+- [x] Atualizar `.docs/commands.md`, README e Demo com pelo menos um caso de validação assíncrona dependente de serviço. (`commands.md`: conceito, seção 6.6 com exemplo e regras DF13, pipeline atualizado; Demo: `RegistrarVisualizacao.ValidarPlataformaAsync` com serviço `IPlataformasPermitidas` + teste HTTP de erro 400; README com a feature adicionada.)
 
 **Critérios de aceite:** `[CommandValidation]` sem `Order` equivale a `Order = 10`; ordem exata `HasProblems -> validators -> UoW/retry`; validators com mesmo `Order` possuem desempate determinístico, mas nenhuma precedência pública entre si; validator com falha impede Begin/find/decorator/command/Complete; validator roda uma vez mesmo quando command sofre retry; não existe `async void`; cancelamento é observado; metadata lista problemas declarados.
 
@@ -989,7 +990,62 @@ Verificações finais (pós-revisão, executadas): solução Release **0 erros**
 
 ### Resultado da Fase 6
 
-*a preencher*
+**Concluída em 2026-07-16.**
+
+**Contrato público:** `CommandValidationAttribute` (métodos de instância, `Order` opcional padrão `10`,
+`[Conditional("COMPILE_TIME_ONLY")]`), com XML docs e exemplo.
+
+**Transform (DF13):** `DiscoverValidators` em `CommandHandlerGenerator` — descoberta por identidade semântica;
+validação da declaração (instância, não genérico, acessível, sem `ref`/`out`/`in`/`params`, retorno
+`Result`/`Task<Result>`/`ValueTask<Result>`) com **RCCMD038** detalhado; parâmetros com o mesmo modelo do
+comando: token (RCCMD008 em validator síncrono), `[WithParameter]` com captura de bindings (DF3) e DI;
+entidades/contextos/acessores rejeitados com **RCCMD039**; mesmo nome com tipos diferentes entre comando e
+validators é **RCCMD040**; nomes reservados (incl. novos locais `validationResult{n}`/`validationProblems{n}` e
+o `validationProblems` do `WithValidateModel`) via RCCMD029. Ordenação por `Order` + desempate determinístico
+por assinatura. Validators assíncronos tornam o handler assíncrono; a presença de validators força retorno
+`Result` no handler.
+
+**Pipeline/modelo:** `CommandValidationModel` (symbol-free, com `ParameterModel.Bindings`) em
+`CommandCoreModel.Validators`; ponte restaura as informations e o dicionário de bindings.
+
+**Emissão:** invokes após `HasProblems`, antes de Begin/decorators/retry (fora do laço — validators executam
+uma única vez em conflito de concorrência); short-circuit no primeiro `Result` com problemas; dependências DI
+mescladas por nome no construtor; `[WithParameter]` dos validators na interface, na implementação, no delegate
+(com bindings) e no invoke do endpoint; `[ProduceProblems]` agregado sem duplicatas.
+
+**Testes:** `CommandValidationTests` (23) — ordem, async/ValueTask, DI merge, externo no delegate, retry,
+decorators, agregação de problems e diagnósticos negativos (RCCMD038 theory ×10, RCCMD039, RCCMD040, RCCMD008,
+RCCMD029); `Scenarios/Vs` (5) — espelho manual do handler com teste de paridade contra a saída real do
+generator + runtime: ordem, short-circuit em cada validator, cancelamento observado.
+
+**Demo/Docs:** validação assíncrona dependente de serviço no `RegistrarVisualizacao`
+(`IPlataformasPermitidas`) + teste HTTP de 400; `.docs/commands.md` (conceito, seção 6.6, pipeline),
+`.docs/diagnostics.md` (RCCMD038-040) e README atualizados.
+
+**Critérios de aceite — situação:** `Order` padrão 10 ✔ (testado); ordem `HasProblems → validators → UoW/retry`
+✔ (testada por posição no texto gerado); empate sem precedência pública, desempate apenas determinístico ✔;
+validator com falha impede Begin/find/decorator/command/Complete ✔ (runtime Vs); validator roda uma vez mesmo
+com retry ✔ (fora do laço, testado); sem `async void` ✔ (RCCMD038); cancelamento observado ✔ (runtime);
+metadata lista os problemas declarados ✔ (agregação testada).
+
+**Revisão em 2026-07-16:** a revisão por subagente foi tentada 4× e interrompida por sobrecarga do servidor da
+API (erro 529, infraestrutura externa — sem relação com o código); a revisão foi então conduzida inline sobre a
+mesma pauta de riscos, com estes resultados:
+- **Verificados com testes novos (3):** validator em declaração parcial de outro arquivo (o semantic model da
+  árvore do parâmetro é usado — a regressão da Fase 4 não se repete); `[WithParameter]` compartilhado entre
+  comando e validator deduplicado na interface/delegate/invoke; binding explícito do parâmetro do validator
+  copiado ao delegate e ausente da interface (DF3).
+- **Verificados por inspeção:** ordem do invoke do endpoint idêntica à da assinatura do handler (mesma
+  deduplicação); `IsEntity` exige herança de `Entity`/`IEntity` (sem falso positivo de RCCMD039 para serviços);
+  locais `validationResultN`/`validationProblemsN` reservados; round-trip dos bindings dos validators
+  (`ParameterBindings` reconstruído de `Parameters` + `Validators`); modelos symbol-free (retention verde);
+  formatação da emissão fixada pelo teste de paridade do cenário Vs.
+- **Limitação registrada e documentada:** validators herdados de classes base não são descobertos
+  (`GetMembers` retorna apenas membros declarados) — documentado em `.docs/commands.md`.
+- A revisão por subagente pode ser reexecutada quando a infraestrutura normalizar, se desejado.
+
+Verificações finais (pós-revisão): solução Release **0 erros / NU5104 aceitos**; `SmartCommands.Tests`
+**226/226** (195 anteriores + 31 da fase); `Demo.Tests` **71/71** (70 anteriores + 1 novo).
 
 ---
 
@@ -1173,7 +1229,7 @@ Verificações finais (pós-revisão, executadas): solução Release **0 erros**
 
 | Objetivo | Fase(s) | Decisão(es) | Critério(s) de aceite | Teste(s) |
 |---|---|---|---|---|
-| Generator incremental/determinístico | 1-4 | DF8, DF9, DF12, DF15, DF18, DF19 | cache seletivo; modelo por valor; nenhuma fonte inválida; nenhum `ISymbol` no pipeline; tipo separado do uso | tracked steps, equality, compilação da saída |
+| Generator incremental/determinístico | 1-4 | DF8, DF9, DF12, DF15, DF18-DF20 | cache seletivo; modelo por valor; nenhuma fonte inválida; nenhum `ISymbol` no pipeline; tipo separado do uso; hint names legíveis, curtos e únicos | tracked steps, equality, compilação da saída |
 | Diagnósticos completos | 3-5, 9 | DF4, DF5, DF8, DF9, DF15 | RCCMD localizado; sem `CS8785`; catálogo completo e DTO symbol-free | Diagnostics/Generation negativos |
 | Binding e EditEntity corretos | 5 | DF2-DF5 | inferência/atributos preservados; ambiguidade bloqueada | generator + WebApplicationFactory |
 | Validações adicionais | 6 | DF2, DF5, DF13 | ordem/short-circuit/async/CT/DI definidos; `Order` padrão 10; empate sem precedência pública | snapshots + fakes + HTTP |

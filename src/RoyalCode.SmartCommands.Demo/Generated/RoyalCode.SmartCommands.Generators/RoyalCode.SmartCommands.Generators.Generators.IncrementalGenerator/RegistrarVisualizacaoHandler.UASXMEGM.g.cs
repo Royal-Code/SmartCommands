@@ -8,8 +8,19 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Movies.Internals;
 
 public class RegistrarVisualizacaoHandler : IRegistrarVisualizacaoHandler
 {
-    public Result<VisualizacaoRegistrada> Handle(RegistrarVisualizacao command, int movieId, string? origem, string? usuario, MomentoDaRequisicao momento, IRelogioDemo relogio)
+    private readonly IPlataformasPermitidas plataformas;
+
+    public RegistrarVisualizacaoHandler(IPlataformasPermitidas plataformas)
     {
+        this.plataformas = plataformas;
+    }
+
+    public async Task<Result<VisualizacaoRegistrada>> HandleAsync(RegistrarVisualizacao command, int movieId, string? origem, string? usuario, MomentoDaRequisicao momento, IRelogioDemo relogio, CancellationToken ct)
+    {
+        var validationResult1 = await command.ValidarPlataformaAsync(plataformas, ct);
+        if (validationResult1.HasProblems(out var validationProblems1))
+            return validationProblems1;
+
         return command.Executar(movieId, origem, usuario, momento, relogio);
     }
 }

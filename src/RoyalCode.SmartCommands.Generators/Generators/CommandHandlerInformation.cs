@@ -50,6 +50,9 @@ internal sealed class CommandHandlerInformation : TransformationGeneratorBase, I
     /// </summary>
     public Dictionary<string, RoyalCode.Extensions.SourceGenerator.Collections.EquatableArray<ParameterBindingModel>>? ParameterBindings { get; internal set; }
 
+    /// <summary>Validações adicionais do comando (DF13), já ordenadas por <c>Order</c> + desempate determinístico.</summary>
+    public List<CommandValidationInformation> Validators { get; internal set; } = [];
+
     public TypeDescriptor? ContextAccessorType { get; internal set; }
     public ContextAccessorModes ContextAccessorMode { get; internal set; }
     public TypeDescriptor? ProduceNewEntityType { get; internal set; }

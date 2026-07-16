@@ -20,6 +20,24 @@ public sealed class RelogioDemo : IRelogioDemo
 }
 
 /// <summary>
+/// Serviço assíncrono usado pela validação adicional (<c>[CommandValidation]</c>, DF13) do comando
+/// <see cref="RegistrarVisualizacao"/>: verifica se a plataforma informada é aceita.
+/// </summary>
+public interface IPlataformasPermitidas
+{
+    Task<bool> PermitidaAsync(string? plataforma, CancellationToken ct);
+}
+
+/// <inheritdoc />
+public sealed class PlataformasPermitidas : IPlataformasPermitidas
+{
+    private static readonly string[] Permitidas = ["tv", "web", "mobile"];
+
+    public Task<bool> PermitidaAsync(string? plataforma, CancellationToken ct) =>
+        Task.FromResult(plataforma is null || Permitidas.Contains(plataforma, StringComparer.OrdinalIgnoreCase));
+}
+
+/// <summary>
 /// Tipo com <c>BindAsync</c> customizado (special type do Minimal API): demonstra que um parâmetro
 /// <c>[WithParameter]</c> sem atributo usa o binding customizado do próprio tipo (DF2).
 /// Lê a query <c>momento</c> quando presente; caso contrário usa o horário atual.

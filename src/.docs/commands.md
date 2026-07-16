@@ -53,6 +53,7 @@ Benefícios principais:
 - Classe de Comando: classe que contém um método anotado com `CommandAttribute`. Opcionalmente parcial para habilitar geração de membros auxiliares.
 - Método de Comando: implementa a lógica de domínio/aplicação; pode ser síncrono ou assíncrono. Pode retornar `void`, `Task`, `Result`, `Result<T>` ou `T`.
 - Validação: método `HasProblems(out Problems?)` opcional na classe, integrado via atributo `WithValidateModel` (no método de comando) e gerando `WasValidated` quando aplicável.
+- Validações adicionais: métodos de instância anotados com `CommandValidation` (com `Order` opcional, padrão `10`) que retornam `Result`, `Task<Result>` ou `ValueTask<Result>`; executam após `HasProblems` e antes da unidade de trabalho/retry, encerrando o handler no primeiro `Result` com problemas.
 - Unit of Work / Repositórios: habilitado via `WithUnitOfWork<TContext>` (ou `WithDbContext`/`WithWorkContext`), expondo a infraestrutura por `IUnitOfWorkAccessor<T>` e `IRepositoriesAccessor<T>`.
 - Find Entities: vincula parâmetros de entidade/coleção às propriedades de ID da classe para carregamento automático antes do comando (`WithFindEntities<TContext>` ou implicitamente via UoW/Repo Accessor).
 - Edit Entity: edita uma entidade existente informada pelo primeiro parâmetro do método e o ID passado ao handler (`EditEntity(entityType)`), com validação do tipo e binding.
@@ -238,10 +239,52 @@ public static class MyModuleConfigureWorkContext
 }
 ```
 
+### 6.6 Validações adicionais (`CommandValidation`)
+```csharp
+public class CreateSubscription
+{
+    public string? Email { get; set; }
+    public string? Plan { get; set; }
+
+    // roda primeiro (Order menor); síncrona
+    [CommandValidation(Order = 5)]
+    internal Result ValidatePlan(IPlanCatalog plans)
+        => plans.Exists(Plan)
+            ? Result.Ok()
+            : Problems.InvalidParameter($"Plano '{Plan}' não existe.", nameof(Plan));
+
+    // Order padrão 10; assíncrona (sempre aguardada), com serviço de DI e CancellationToken
+    [CommandValidation]
+    internal async Task<Result> ValidateEmailAsync(IEmailVerifier verifier, CancellationToken ct)
+        => await verifier.IsValidAsync(Email, ct)
+            ? Result.Ok()
+            : Problems.InvalidParameter("E-mail inválido.", nameof(Email));
+
+    [Command, WithUnitOfWork<MyDbContext>]
+    public Subscription Execute() { /* ... */ }
+}
+```
+
+Regras (DF13):
+- Métodos de instância acessíveis (public/internal), não genéricos, sem `ref`/`out`/`in`/`params`.
+- Retorno: `Result`, `Task<Result>` ou `ValueTask<Result>` — qualquer outro tipo é RCCMD038.
+- Parâmetros usam o mesmo modelo do comando: serviços de DI (mesclados no construtor do handler, sem
+  duplicatas), `[WithParameter]` (entra na assinatura do handler e no delegate HTTP, com bindings copiados)
+  e `CancellationToken` (somente em validators assíncronos). Entidades, contextos e acessores não estão
+  disponíveis nesta etapa (a validação roda antes de qualquer carregamento) — RCCMD039.
+- Executam após `HasProblems`, antes de UoW/decorators/retry, **uma única vez** mesmo quando o comando é
+  reexecutado por conflito de concorrência; o primeiro `Result` com problemas encerra o handler.
+- `[ProduceProblems]` declarados nos validators são agregados à metadata HTTP do endpoint, sem duplicatas.
+- Validators com o mesmo `Order` não têm precedência observável entre si (o desempate interno serve apenas
+  ao determinismo da saída gerada).
+- Limitação: apenas validators declarados na própria classe do comando são descobertos; métodos herdados de
+  classes base não participam (declare os validators na classe do comando).
+
 ## 7. Comportamento do Handler Gerado (pipeline)
 
 Ordem típica no método `{CommandClass}Handler.Handle(Async)`:
 1) `WithValidateModel` → chama `command.HasProblems(...)` e retorna `Problems` se houver.
+1.1) `CommandValidation` → invoca cada validator (ordenado por `Order`) e retorna os `Problems` do primeiro `Result` com falha.
 2) `WithUnitOfWork`/`WithDbContext`/`WithWorkContext` → cria/acessa accessor e executa `BeginUnitOfWork`.
 3) `EditEntity`/Find de entidades e coleções → resolve parâmetros vinculados a propriedades `Id`/`Ids` na classe.
 4) `WithDecorators` → constrói mediador e invoca pipeline.

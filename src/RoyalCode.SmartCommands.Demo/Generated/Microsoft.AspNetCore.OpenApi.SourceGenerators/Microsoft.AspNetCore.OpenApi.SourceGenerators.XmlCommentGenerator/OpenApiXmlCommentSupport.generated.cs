@@ -76,6 +76,32 @@ method that registers the services of every generated command handler in the ass
 to generate the handler interface and implementation for the command class.
     Combine with attributes such as WithUnitOfWorkAttribute&lt;T&gt;, WithFindEntitiesAttribute&lt;T&gt;,
 WithDecoratorsAttribute, and WithValidateModelAttribute to customize the generated handler.", null, null, null, null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.CommandValidationAttribute", new XmlComment(@"    Marks an instance method of the command class as an additional validation (DF13). The generated handler
+invokes the validators after HasProblems (when WithValidateModelAttribute is used)
+and before opening the unit of work or entering the concurrency retry loop — each validator runs once,
+even when the command is retried.
+    A validator must return Result, Task&lt;Result&gt; or ValueTask&lt;Result&gt;;
+asynchronous validators are always awaited. The first failed Result short-circuits the handler.
+Parameters are resolved with the same model as the command method: CancellationToken (only on
+asynchronous validators), services from dependency injection, and external values via
+WithParameterAttribute. Entities, unit-of-work contexts and accessors are not available
+at this stage (the validation runs before any loading).
+    Validators execute ordered by int CommandValidationAttribute.Order (default 10). Validators with the same order
+have no user-observable precedence between them; the generator only guarantees a deterministic output.
+    Example:
+          ```public class CriarProduto
+{
+    public string? Sku { get; set; }
+
+    [CommandValidation]
+    internal async Task{Result} ValidarSkuAsync(ISkuService skus, CancellationToken ct)
+        =&gt; await skus.ValidarAsync(Sku, ct);
+
+    [Command, WithUnitOfWork{AppDbContext}]
+    internal Produto Executar() =&gt; new Produto { Sku = Sku! };
+}```", null, null, null, null, false, null, null, null));
+            cache.Add(@"P:RoyalCode.SmartCommands.CommandValidationAttribute.Order", new XmlComment(@"The execution order of the validator, default `10`. Lower values run first; validators with the
+same order have no user-observable precedence between them.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.EditEntityAttribute`2", new XmlComment(@"    Marks the command method as editing an existing entity. The generated handler loads the entity of type
 TEntity by its identifier of type TId before invoking the
 command method, returning a NotFound problem when the entity does not exist.

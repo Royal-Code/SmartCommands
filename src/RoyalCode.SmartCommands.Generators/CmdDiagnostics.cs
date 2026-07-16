@@ -311,6 +311,30 @@ internal static class CmdDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor InvalidCommandValidation = new(
+        id: "RCCMD038",
+        title: "Invalid command validation method",
+        messageFormat: "Invalid use of CommandValidationAttribute on '{0}': {1}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidCommandValidationParameter = new(
+        id: "RCCMD039",
+        title: "Parameter not allowed in a command validation method",
+        messageFormat: "The parameter '{0}' of the validation method '{1}' is not allowed: entities, unit-of-work contexts and accessors are not available before loading",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor ConflictingParameterTypes = new(
+        id: "RCCMD040",
+        title: "The same parameter name is declared with different types",
+        messageFormat: "The parameter '{0}' is declared with different types across the command and its validators; parameters with the same name share a single handler dependency and must have the same type",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> Descriptors =
         new[]
         {
@@ -352,6 +376,9 @@ internal static class CmdDiagnostics
             RouteParameterNotInTemplate,
             ImplicitBodyNotAllowed,
             MultipleBodySources,
+            InvalidCommandValidation,
+            InvalidCommandValidationParameter,
+            ConflictingParameterTypes,
         }
         .ToDictionary(descriptor => descriptor.Id, StringComparer.Ordinal);
 

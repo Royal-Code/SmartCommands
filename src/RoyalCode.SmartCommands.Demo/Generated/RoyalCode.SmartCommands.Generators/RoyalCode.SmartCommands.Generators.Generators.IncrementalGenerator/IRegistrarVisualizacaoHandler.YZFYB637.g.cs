@@ -7,5 +7,5 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Movies;
 
 public interface IRegistrarVisualizacaoHandler
 {
-    public Result<VisualizacaoRegistrada> Handle(RegistrarVisualizacao command, int movieId, string? origem, string? usuario, MomentoDaRequisicao momento, IRelogioDemo relogio);
+    public Task<Result<VisualizacaoRegistrada>> HandleAsync(RegistrarVisualizacao command, int movieId, string? origem, string? usuario, MomentoDaRequisicao momento, IRelogioDemo relogio, CancellationToken ct);
 }

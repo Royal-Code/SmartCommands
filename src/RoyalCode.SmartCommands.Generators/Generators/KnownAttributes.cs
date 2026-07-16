@@ -58,6 +58,7 @@ internal static class KnownAttributes
     private const string ProblemsNamespace = "RoyalCode.SmartProblems";
 
     internal static readonly AttributeSpec Command = new(CommandsNamespace, "Command");
+    internal static readonly AttributeSpec CommandValidation = new(CommandsNamespace, "CommandValidation");
     internal static readonly AttributeSpec WithValidateModel = new(CommandsNamespace, "WithValidateModel");
     internal static readonly AttributeSpec WithDecorators = new(CommandsNamespace, "WithDecorators");
     internal static readonly AttributeSpec WithUnitOfWork = new(CommandsNamespace, "WithUnitOfWork", 1);

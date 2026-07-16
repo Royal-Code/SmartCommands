@@ -51,6 +51,20 @@ public class DemoBindingTests
 	}
 
 	[Fact]
+	public async Task RegistrarVisualizacao_Validation_Rejects_Unknown_Platform()
+	{
+		// Fase 6 (DF13): a validação adicional assíncrona (serviço IPlataformasPermitidas) roda antes da
+		// execução do comando e interrompe o handler com um problema
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var response = await client.PostAsJsonAsync("/playground/9/views", new { Plataforma = "vhs" });
+
+		await response.AssertProblemAsync(HttpStatusCode.BadRequest, "vhs", "não é aceita");
+	}
+
+	[Fact]
 	public async Task RegistrarVisualizacao_Optional_Sources_Are_Null_When_Absent()
 	{
 		using var app = new DemoApiFactory();
