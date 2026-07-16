@@ -1,5 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
-
+using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 using RoyalCode.SmartCommands.Generators.Models;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
@@ -14,7 +14,7 @@ internal sealed class CommandHandlerInformation : TransformationGeneratorBase, I
         canGenerate = true;
     }
 
-    public CommandHandlerInformation(Diagnostic diagnostic)
+    public CommandHandlerInformation(DiagnosticInfo diagnostic)
     {
         canGenerate = false;
         AddError(diagnostic);
@@ -73,13 +73,9 @@ internal sealed class CommandHandlerInformation : TransformationGeneratorBase, I
 
     protected override void Generate(SourceProductionContext spc, bool hasErrors)
     {
+        // os erros já foram reportados pela base (Generate(spc)); aqui apenas bloqueia a emissão.
         if (!canGenerate || hasErrors)
-        {
-            if (Errors is not null)
-                foreach (var diagnostic in Errors)
-                    spc.ReportDiagnostic(diagnostic);
             return;
-        }
 
         // cria interface do handler
         var interfaceGenerator = CommandHandlerGenerator.GenerateInterface(this);
@@ -103,7 +99,7 @@ internal sealed class CommandHandlerInformation : TransformationGeneratorBase, I
         partialModelGenerator?.Generate(spc);
     }
 
-    public void SetErrors(List<Diagnostic>? diagnostics)
+    public void SetErrors(List<DiagnosticInfo>? diagnostics)
     {
         if (diagnostics is not null && diagnostics.Count > 0)
             Errors = diagnostics;

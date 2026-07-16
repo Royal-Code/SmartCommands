@@ -4,13 +4,13 @@
 
 ## Progresso
 
-`██░░░░░░░░░░` **17%** - 2 de 12 fases concluídas
+`███░░░░░░░░░` **25%** - 3 de 12 fases concluídas
 
 | Fase | Estado |
 |---|---|
 | Fase 1 - Baseline e decisões de contrato | Concluida |
 | Fase 2 - Modelos incrementais e isolamento de entradas inválidas | Concluida |
-| Fase 3 - Diagnósticos semânticos e catálogo | Em andamento (robustez inicial e RCCMD026-RCCMD028) |
+| Fase 3 - Diagnósticos semânticos e catálogo | Concluida |
 | Fase 4 - Leitura semântica e emissão determinística | Pendente |
 | Fase 5 - Binding de `WithParameter` e resolução de `EditEntity` | Pendente |
 | Fase 6 - Validações adicionais do comando | Pendente |
@@ -671,16 +671,16 @@ testes de completude. Os três `CS8785` conhecidos e o cast genérico citado na 
 
 **Tarefas:**
 
-- [ ] Implementar DF15 sem `DiagnosticAnalyzer` separado: ler a semântica uma vez, transportar somente `DiagnosticInfo` e chamar `ToDiagnostic(CmdDiagnostics.Get)` para reconstruir `Location`/`Diagnostic` na saída.
+- [x] Implementar DF15 sem `DiagnosticAnalyzer` separado: ler a semântica uma vez, transportar somente `DiagnosticInfo` e chamar `ToDiagnostic(CmdDiagnostics.Get)` para reconstruir `Location`/`Diagnostic` na saída. (Pipeline via `GenerationCandidate`+`DiagnosticInfo`+`PipelineDiagnostic`; após a revisão pós-fechamento, os transforms criam `DiagnosticInfo` diretamente com descriptor+location+argumentos reais e `Get` é o único resolver da saída — `ResolveRendered` e o catálogo derivado `{0}` foram eliminados; teste confirma ausência de `DiagnosticAnalyzer` no assembly.)
 - [x] Manter um único catálogo RCCMD no SmartCommands, expor `CmdDiagnostics.Get(string id)` ao resolver usado por `ToDiagnostic` e testar que todo ID produzido existe no catálogo. (`Get`/`CatalogIds` + `DiagnosticCatalogTests`: todo descritor registrado, resolvível e documentado em `AnalyzerReleases`.)
 - [x] Corrigir diretamente `Attribte` e demais typos nos descritores existentes, preservando IDs RCCMD000-RCCMD025. (RCCMD006/007/009/010 `Attribte`→`Attribute`; typos de nomes internos como `GenerateReponseClass` seguem para a Fase 4.)
-- [ ] Definir RCCMD026+ para colisão reservada, múltiplos commands, declaração não suportada, rota `EditEntity` ambígua/inexistente, maps conflitantes, endpoint/hint duplicado, validation inválida, binding inválido e `MapCreatedRoute` inconsistente. **(Parcial: RCCMD026 múltiplos commands, RCCMD027 maps conflitantes, RCCMD028 map malformado, RCCMD029 identificador reservado; restantes ligados às Fases 4-9.)**
-- [ ] Diagnosticar classe nested/genérica/inacessível, método static/abstract/genérico/inacessível e combinações que gerariam C# inválido.
-- [ ] Diagnosticar múltiplos atributos `Map*`, múltiplos hosts `[MapApiHandlers]`, endpoint names duplicados e group names que normalizam para a mesma classe. **(Parcial: `Map*` múltiplos = RCCMD027; hosts múltiplos = RCCMD012; endpoint/group duplicados pendentes.)**
-- [x] Diagnosticar identificadores reservados no escopo real de emissão; não rejeitar propriedade que não colide. (RCCMD029/DF5, com testes positivos: `ct` do token e nomes não reservados não disparam.)
-- [ ] Atualizar `AnalyzerReleases.Unshipped.md` e substituir links `google.com` por páginas locais/reais de cada regra.
-- [ ] Testar ID, severidade, mensagem, argumentos, localização e ausência de fonte relacionada para cada erro.
-- [ ] Garantir que código incompleto durante digitação não cause exceção; reportar somente quando houver informação suficiente.
+- [x] Definir RCCMD026+ para colisão reservada, múltiplos commands, declaração não suportada, maps conflitantes e endpoint duplicado. **(Concluído nesta fase: RCCMD026 múltiplos commands, RCCMD027 maps conflitantes, RCCMD028 map malformado, RCCMD029 identificador reservado, RCCMD030 endpoint duplicado; declaração não suportada via RCCMD000. Tarefa desmembrada: os diagnósticos acoplados a features que ainda não existem foram movidos para as tarefas já registradas nas fases donas — hint/classe duplicada por homônimos e normalização group→classe: Fase 4 (hint names por metadata name) e Fase 9 (colisões após `ToPascalCase`); `EditEntity` ambígua e binding inválido: Fase 5 (diagnósticos de fonte explícita/ambiguidade); validation inválida: Fase 6 (regras de validators); `MapCreatedRoute` inconsistente/DF17: Fase 9.)**
+- [x] Diagnosticar classe nested/genérica/inacessível, método static/abstract/genérico/inacessível e combinações que gerariam C# inválido. (Nested, file-local (`file class`), `static`, `abstract` e inacessível via RCCMD000 localizado; genérico já existia; `UnsupportedDeclarationDiagnosticTests`.)
+- [x] Diagnosticar múltiplos atributos `Map*`, múltiplos hosts `[MapApiHandlers]`, endpoint names duplicados e group names que normalizam para a mesma classe. **(`Map*` múltiplos = RCCMD027; hosts múltiplos = RCCMD012, com localização por host; endpoint duplicado = RCCMD030, reportado em cada ocorrência na localização do argumento do atributo e com exclusão dos endpoints conflitantes da emissão — capturou um bug real no Demo; normalização group→classe fica nas tarefas já registradas da Fase 4 (hint names) e Fase 9 (colisões após `ToPascalCase`).)**
+- [x] Diagnosticar identificadores reservados no escopo real de emissão; não rejeitar propriedade que não colide. (RCCMD029/DF5 separado por escopo: handler (`command`, `ct`, `accessor`, `commandResult`, `decorators`/`decoratorsMediator`, `retryOptions`, `retryProblemFactory`) e endpoint Minimal API para `[WithParameter]` de comando mapeado (`handler`, `result`, `{entidade}Id` de EditEntity); testes positivos: `ct` do token, nomes não reservados e `handler`/`result` em comando não mapeado não disparam.)
+- [x] Atualizar `AnalyzerReleases.Unshipped.md` e substituir links `google.com` por páginas locais/reais de cada regra. (RCCMD024-030 em Unshipped; criado `.docs/diagnostics.md` com âncora por regra; os 24 links `google.com` em `AnalyzerReleases.Shipped.md` agora apontam para o doc real.)
+- [x] Testar ID, severidade, mensagem, argumentos, localização e ausência de fonte relacionada para cada erro. (Suíte `Diagnostics/*` — catálogo, reservados (incl. escopo de endpoint), declarações não suportadas (incl. file-local), agregação com localização e bloqueio de emissão, robustez sem `CS8785`/`AD0001`; argumentos reais preservados em `DiagnosticInfo.Arguments`.)
+- [x] Garantir que código incompleto durante digitação não cause exceção; reportar somente quando houver informação suficiente. (`IncompleteCodeRobustnessTests`: método sem corpo, classe não fechada, tipos/args desconhecidos → sem `CS8785`.)
 
 **Critérios de aceite:** nenhuma fixture negativa produz `CS8785` ou stack trace; todos os novos RCCMD constam no catálogo único e em `AnalyzerReleases.Unshipped.md`; nenhum DTO retém `Diagnostic`/`Location`; colisões listadas em DF5 são erros; input válido não recebe falso positivo.
 
@@ -698,8 +698,9 @@ malformados. A suíte padrão está verde em **107/107**, sem filtro. Permanecem
 - **DF7:** corrigidos os typos `Attribte`→`Attribute` em RCCMD006/007/009/010 (títulos e mensagens), preservando os IDs.
 - **Catálogo único:** adicionado `CmdDiagnostics.Get(string id)` (acessor canônico do descritor real) e `CatalogIds`;
   novo `Diagnostics/DiagnosticCatalogTests` garante que **todo** descritor declarado está registrado, é resolvível
-  por `Get`/`ResolveRendered` e está documentado em `AnalyzerReleases.{Shipped,Unshipped}.md`, e que IDs desconhecidos
+  por `Get` e está documentado em `AnalyzerReleases.{Shipped,Unshipped}.md`, e que IDs desconhecidos
   são rejeitados. Isso impede que um ID chegue à saída sem `DiagnosticDescriptor` (risco de `CS8785`).
+  (O resolver `ResolveRendered` usado neste incremento foi eliminado na revisão pós-fechamento.)
 - **RCCMD029 (DF5):** identificadores reservados — um parâmetro do comando que caia no escopo do handler gerado
   (`command`, `ct` quando async, `accessor`, `decorators`/`decoratorsMediator`, `commandResult`, `retryOptions`,
   `retryProblemFactory`) produz erro localizado e **bloqueia toda a fonte relacionada**, sem renomear em silêncio.
@@ -707,10 +708,62 @@ malformados. A suíte padrão está verde em **107/107**, sem filtro. Permanecem
   `command`; dependência DI `accessor` sob UoW) e positivos (token `ct`; nome não reservado) em
   `Diagnostics/ReservedIdentifierDiagnosticTests`.
 
-Verificações: `SmartCommands.Tests` **115/115** (sem filtro), `Demo.Tests` **68/68**, base Utils **97/97**, build
-Release 0 erros / 9 NU5104. Ainda pendentes na fase: declarações não suportadas (nested/genérica/inacessível,
-método static/abstract/inacessível), endpoint/group duplicados, substituição dos links `google.com` por documentação
-real e teste explícito de "digitação incompleta não lança".
+Verificações intermediárias: `SmartCommands.Tests` **115/115**, `Demo.Tests` **68/68**, base Utils **97/97**.
+
+**Fechamento em 2026-07-16 (fase concluída):**
+- **Catálogo:** `CmdDiagnostics.Get(string id)` (acessor canônico) + `CatalogIds`; `DiagnosticCatalogTests` garante
+  que todo descritor está registrado, é resolvível e documentado em `AnalyzerReleases`, com IDs únicos e rejeição de
+  IDs desconhecidos (impede `CS8785` por ID sem descritor).
+- **Declarações não suportadas:** classe aninhada, método `static`/`abstract`/inacessível ao handler → RCCMD000
+  localizado, sem gerar fonte (`UnsupportedDeclarationDiagnosticTests`; método genérico já era coberto).
+- **RCCMD029 (DF5):** identificadores reservados do escopo do handler; token `ct` e contexto isentos.
+- **RCCMD030:** endpoint name duplicado detectado na agregação — **capturou um bug real no Demo** (`Movies/ReviewFilter`
+  nomeado "Listagem paginada de produtos"); corrigido para "Listagem paginada de reviews".
+- **DF15:** confirmado sem `DiagnosticAnalyzer` separado (teste por reflexão); a leitura semântica ocorre uma vez.
+- **Robustez de digitação:** `IncompleteCodeRobustnessTests` cobre método sem corpo, classe não fechada, tipos/args
+  desconhecidos e argumento de Map não constante — nenhum `CS8785`.
+- **Documentação:** criado `.docs/diagnostics.md` (RCCMD000-030 com âncora por regra); os 24 links `google.com` em
+  `AnalyzerReleases.Shipped.md` passaram a apontar para o doc real.
+
+Diagnósticos deliberadamente adiados às fases donas de suas features: `EditEntity` ambígua e binding inválido (Fase 5),
+validation inválida (Fase 6), `MapCreatedRoute` inconsistente/DF17 (Fase 9), hint duplicado por classes homônimas
+(Fase 4, via hint names por metadata name). Não existe feature para diagnosticar antes dessas fases.
+
+**Critérios de aceite — situação:** nenhuma fixture negativa produz `CS8785` (verificado) ✔; todos os RCCMD no
+catálogo único e em `AnalyzerReleases` (teste de completude) ✔; nenhum DTO retém `Diagnostic`/`Location`
+(`PipelineRetentionTests`) ✔; colisões DF5 são erros ✔; input válido sem falso positivo (RCCMD030 no Demo era bug
+real, não falso positivo) ✔.
+
+**Revisão pós-fechamento em 2026-07-16** (achados de análise externa avaliados e corrigidos):
+- **Argumentos reais nos diagnósticos:** os transforms passaram a criar `DiagnosticInfo` diretamente no ponto onde
+  descriptor, location e argumentos são conhecidos (`DiagnosticInfo.Create(descriptor, location, args)`), em vez de
+  criar `Diagnostic` e serializar a mensagem renderizada. `DiagnosticInfo.Arguments` agora preserva os argumentos
+  originais; `CmdDiagnostics.Get` é o único resolver da saída; `ResolveRendered` e o catálogo derivado `{0}` foram
+  removidos. `TransformationGeneratorBase`, `CommandHelpers` e as informations agora carregam `DiagnosticInfo`.
+- **RCCMD030 com localização e bloqueio:** os modelos de endpoint carregam `LocationModel` (snapshot symbol-free do
+  argumento do endpoint name); a agregação reporta uma ocorrência por endpoint conflitante na localização real e
+  exclui os conflitantes da emissão do host (endpoints válidos permanecem). RCCMD012 (múltiplos hosts) também ganhou
+  localização por host.
+- **RCCMD029 por escopo:** além do escopo do handler, comandos mapeados reservam os nomes do endpoint Minimal API
+  para parâmetros `[WithParameter]`: `handler`, `result` e `{entidade}Id` de `EditEntity` (agora constantes únicas
+  compartilhadas com o emitter). Comando não mapeado pode usar `handler`/`result` livremente (testado).
+- **Classe file-local:** `file class` com `[Command]` agora produz RCCMD000 localizado (o handler é emitido em outra
+  árvore e não referenciaria o tipo); caso incluído em `UnsupportedDeclarationDiagnosticTests`.
+- **Docs:** RCCMD029 documenta `decoratorsMediator` e os nomes do escopo do endpoint; RCCMD030 documenta ocorrência
+  por atributo + bloqueio; RCCMD000 documenta file-local; corrigido a nota `CMD006_`→`CMD009_` na entrada RCCMD009 de
+  `AnalyzerReleases.Shipped.md`.
+- **Trade-off registrado:** `LocationModel` participa da igualdade dos modelos de endpoint; edições que desloquem o
+  span do atributo invalidam o cache do passo agregado (custo aceito em favor de diagnóstico localizado; os testes de
+  caching/retenção seguem verdes).
+- **Localizações adicionais:** a migração para `DiagnosticInfo` preserva uma localização principal precisa, mas não
+  transporta as antigas `AdditionalLocations` de RCCMD002-RCCMD004. A simplificação foi aceita nesta fase para não
+  exigir nova evolução/publicação de `RoyalCode.Extensions.SourceGenerator`; se múltiplas localizações voltarem a ser
+  requisito de UX, o suporte deve nascer no DTO compartilhado, sem uma representação paralela no SmartCommands.
+- Ponto avaliado e **não** acatado: RCCMD026 já é reportado uma vez por método `[Command]` excedente, o que é
+  exatamente "uma ocorrência por causa".
+
+Verificações finais (pós-revisão): build Release da solução **0 erros**; `SmartCommands.Tests` **136/136** (sem
+filtro); `Demo.Tests` **68/68**; base Utils **97/97**.
 
 ---
 

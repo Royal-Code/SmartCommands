@@ -1,10 +1,11 @@
 using Microsoft.CodeAnalysis;
+using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
 internal sealed class MapApiHandlersInformation: TransformationGeneratorBase<IMapEndpointGenerator>, IEquatable<MapApiHandlersInformation>
 {
-    public MapApiHandlersInformation(TypeDescriptor classType, bool withOpenApi, List<Diagnostic>? diagnostics)
+    public MapApiHandlersInformation(TypeDescriptor classType, bool withOpenApi, List<DiagnosticInfo>? diagnostics)
     {
         ClassType = classType;
         WithOpenApi = withOpenApi;
@@ -16,6 +17,12 @@ internal sealed class MapApiHandlersInformation: TransformationGeneratorBase<IMa
     public TypeDescriptor ClassType { get; set; }
 
     public bool WithOpenApi { get; set; }
+
+    /// <summary>
+    /// Localização do identificador da classe host. Uso exclusivo do transform (vira snapshot no modelo do
+    /// pipeline); não participa da igualdade porque a informação é transitória.
+    /// </summary>
+    public Location? HostLocation { get; set; }
 
     public bool Equals(MapApiHandlersInformation? other)
     {

@@ -149,13 +149,34 @@ internal class IncrementalGenerator : IIncrementalGenerator
 
             if (orderedHosts.Length > 1)
             {
-                foreach (var _ in orderedHosts)
-                    spc.ReportDiagnostic(Diagnostic.Create(CmdDiagnostics.MultiplesMapApiHandlers, null));
+                foreach (var host in orderedHosts)
+                    spc.ReportDiagnostic(Diagnostic.Create(
+                        CmdDiagnostics.MultiplesMapApiHandlers,
+                        host.HostLocation.ToLocation()));
             }
+
+            // nomes de endpoint devem ser únicos entre todos os endpoints mapeados (WithName global).
+            // Cada ocorrência é reportada na localização do argumento do endpoint name, e os endpoints
+            // conflitantes são excluídos da emissão do host (a geração relacionada é bloqueada).
+            var duplicateNames = new HashSet<string>(
+                endpointModels
+                    .GroupBy(endpoint => endpoint.EndpointName, StringComparer.Ordinal)
+                    .Where(group => group.Count() > 1)
+                    .Select(group => group.Key),
+                StringComparer.Ordinal);
+
+            // endpointModels já está ordenado por SortKey; a ordem dos diagnósticos é determinística.
+            foreach (var endpoint in endpointModels.Where(endpoint => duplicateNames.Contains(endpoint.EndpointName)))
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    CmdDiagnostics.DuplicateEndpointName,
+                    endpoint.NameLocation.ToLocation(),
+                    endpoint.EndpointName.Trim('"')));
 
             orderedHosts[0].ToInformation().Generate(
                 spc,
-                endpointModels.Select(endpoint => endpoint.ToGenerator()));
+                endpointModels
+                    .Where(endpoint => !duplicateNames.Contains(endpoint.EndpointName))
+                    .Select(endpoint => endpoint.ToGenerator()));
         });
     }
 

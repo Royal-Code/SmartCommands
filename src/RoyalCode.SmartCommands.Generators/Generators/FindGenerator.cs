@@ -1,5 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 using RoyalCode.Extensions.SourceGenerator.Generation;
 using RoyalCode.SmartCommands.Generators.Models;
 
@@ -46,7 +47,7 @@ internal static class FindGenerator
         // lê o atributo MapFindAttribute
         if (!classDeclaration.TryGetAttribute(MapFindAttributeName, out AttributeSyntax? mapFindAttribute))
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidMapFindUsage,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapFindUsage,
                 location: classDeclaration.Identifier.GetLocation(),
                 "The MapFindAttribute is not present in the class");
 
@@ -56,7 +57,7 @@ internal static class FindGenerator
         // lê o atributo EntityReferenceAttribute
         if (!classDeclaration.TryGetAttribute(EntityReferenceAttributeName, out AttributeSyntax? entityReferenceAttribute))
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidMapFindUsage,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapFindUsage,
                 location: classDeclaration.Identifier.GetLocation(),
                 "The EntityReferenceAttribute is not present in the class");
 
@@ -65,7 +66,7 @@ internal static class FindGenerator
 
         if (mapFindAttribute!.ArgumentList?.Arguments is not { Count: 2 } mapArguments)
         {
-            var diagnostic = Diagnostic.Create(
+            var diagnostic = DiagnosticInfo.Create(
                 CmdDiagnostics.InvalidMapFindUsage,
                 mapFindAttribute.GetLocation(),
                 "MapFindAttribute requires a route pattern and an endpoint name");
@@ -95,7 +96,7 @@ internal static class FindGenerator
         }
         else
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidMapFindUsage,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapFindUsage,
                 location: classDeclaration.Identifier.GetLocation(),
                 "The MapGroupAttribute is not present in the class");
         }
@@ -124,7 +125,7 @@ internal static class FindGenerator
                 TypeArgumentList.Arguments.Count: 2,
             } syntax)
         {
-            var diagnostic = Diagnostic.Create(
+            var diagnostic = DiagnosticInfo.Create(
                 CmdDiagnostics.InvalidMapFindUsage,
                 entityReferenceAttribute.GetLocation(),
                 "EntityReferenceAttribute requires entity and id type arguments");
@@ -147,6 +148,9 @@ internal static class FindGenerator
             description,
             summary,
             authorizationPolicies,
-            groupName);
+            groupName)
+        {
+            EndpointNameLocation = mapArguments[1].GetLocation(),
+        };
     }
 }

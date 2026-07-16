@@ -241,8 +241,16 @@ internal static class CmdDiagnostics
 
     public static readonly DiagnosticDescriptor ReservedIdentifier = new(
         id: "RCCMD029",
-        title: "A command parameter uses a name reserved by the generated handler",
-        messageFormat: "The parameter '{0}' collides with an identifier emitted by the generated handler in the same scope; rename it",
+        title: "A command parameter uses a name reserved by generated code",
+        messageFormat: "The parameter '{0}' collides with an identifier emitted by generated code in the same scope; rename it",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor DuplicateEndpointName = new(
+        id: "RCCMD030",
+        title: "Duplicate endpoint name",
+        messageFormat: "The endpoint name '{0}' is used by more than one mapped endpoint; endpoint names must be unique",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -280,28 +288,9 @@ internal static class CmdDiagnostics
             ConflictingMapAttributes,
             InvalidMapArguments,
             ReservedIdentifier,
+            DuplicateEndpointName,
         }
         .ToDictionary(descriptor => descriptor.Id, StringComparer.Ordinal);
-
-    private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> RenderedDescriptors =
-        Descriptors.Values.ToDictionary(
-            descriptor => descriptor.Id,
-            descriptor => new DiagnosticDescriptor(
-                descriptor.Id,
-                descriptor.Title,
-                "{0}",
-                descriptor.Category,
-                descriptor.DefaultSeverity,
-                descriptor.IsEnabledByDefault,
-                descriptor.Description,
-                descriptor.HelpLinkUri,
-                descriptor.CustomTags.ToArray()),
-            StringComparer.Ordinal);
-
-    internal static DiagnosticDescriptor ResolveRendered(string id) =>
-        RenderedDescriptors.TryGetValue(id, out var descriptor)
-            ? descriptor
-            : throw new ArgumentOutOfRangeException(nameof(id), id, "Unknown SmartCommands diagnostic id.");
 
     /// <summary>
     /// The canonical catalog accessor: maps a diagnostic id back to its registered

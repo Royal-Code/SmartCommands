@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 using RoyalCode.Extensions.SourceGenerator.Generation;
 using RoyalCode.SmartCommands.Generators.Models;
 
@@ -36,12 +37,12 @@ internal static class MapApiHandlersGenerator
         cancellationToken.ThrowIfCancellationRequested();
         var classSyntax = (ClassDeclarationSyntax)context.TargetNode;
 
-        var errors = new List<Diagnostic>();
+        var errors = new List<DiagnosticInfo>();
 
         // a classe deve ser partial
         if (!classSyntax.Modifiers.Any(SyntaxKind.PartialKeyword))
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidMapApiHandlers,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapApiHandlers,
                 location: classSyntax.Identifier.GetLocation(),
                 "The class with MapHandlersAttribute must be partial");
 
@@ -51,7 +52,7 @@ internal static class MapApiHandlersGenerator
         // a classe deve ser static
         if (!classSyntax.Modifiers.Any(SyntaxKind.StaticKeyword))
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidMapApiHandlers,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapApiHandlers,
                 location: classSyntax.Identifier.GetLocation(),
                 "The class with MapHandlersAttribute must be static");
 
@@ -61,9 +62,16 @@ internal static class MapApiHandlersGenerator
         // verifica se a classe tem o atributo WithOpenApi
 
         var withOpenApi = classSyntax.TryGetAttribute(WithOpenApiAttributeName, out AttributeSyntax? _);
+        var hostAttribute = context.Attributes
+            .Select(attribute => attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken))
+            .OfType<AttributeSyntax>()
+            .FirstOrDefault();
 
         var handlerType = TypeDescriptor.Create((ITypeSymbol)context.TargetSymbol);
-        return new MapApiHandlersInformation(handlerType, withOpenApi, errors);
+        return new MapApiHandlersInformation(handlerType, withOpenApi, errors)
+        {
+            HostLocation = hostAttribute?.GetLocation() ?? classSyntax.Identifier.GetLocation(),
+        };
     }
 
     public static void Generate(

@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 using RoyalCode.Extensions.SourceGenerator.Generation;
 using RoyalCode.SmartCommands.Generators.Models;
 
@@ -49,7 +50,7 @@ internal static class SearchGenerator
         // lê o atributo MapSearch
         if (!classDeclaration.TryGetAttribute(MapSearchAttributeName, out AttributeSyntax? mapSearchAttribute))
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidMapSearchUsage,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapSearchUsage,
                 location: classDeclaration.Identifier.GetLocation(),
                 "The MapSearchAttribute is not present in the class");
 
@@ -59,7 +60,7 @@ internal static class SearchGenerator
         // lê o atributo SearchReferenceAttribute
         if (!classDeclaration.TryGetAttribute(SearchReferenceAttributeAttributeName, out AttributeSyntax? searchReferenceAttribute))
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidMapSearchUsage,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapSearchUsage,
                 location: classDeclaration.Identifier.GetLocation(),
                 "The SearchReferenceAttribute is not present in the class");
 
@@ -68,7 +69,7 @@ internal static class SearchGenerator
 
         if (mapSearchAttribute!.ArgumentList?.Arguments is not { Count: 2 } mapArguments)
         {
-            var diagnostic = Diagnostic.Create(
+            var diagnostic = DiagnosticInfo.Create(
                 CmdDiagnostics.InvalidMapSearchUsage,
                 mapSearchAttribute.GetLocation(),
                 "MapSearchAttribute requires a route pattern and an endpoint name");
@@ -98,7 +99,7 @@ internal static class SearchGenerator
         }
         else
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidMapSearchUsage,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidMapSearchUsage,
                 location: classDeclaration.Identifier.GetLocation(),
                 "The MapGroupAttribute is not present in the class");
         }
@@ -125,7 +126,7 @@ internal static class SearchGenerator
         if (searchReferenceAttribute!.Name is not GenericNameSyntax syntax ||
             syntax.TypeArgumentList.Arguments.Count is < 1 or > 2)
         {
-            var diagnostic = Diagnostic.Create(
+            var diagnostic = DiagnosticInfo.Create(
                 CmdDiagnostics.InvalidMapSearchUsage,
                 searchReferenceAttribute.GetLocation(),
                 "SearchReferenceAttribute requires one or two type arguments");
@@ -148,7 +149,7 @@ internal static class SearchGenerator
             context.SemanticModel,
             cancellationToken,
             out SearchFilterInformation? searchFilterInformation,
-            out List<Diagnostic>? errors))
+            out List<DiagnosticInfo>? errors))
         {
             return new SearchInformation(errors!);
         }
@@ -163,7 +164,10 @@ internal static class SearchGenerator
             summary,
             authorizationPolicies,
             groupName!,
-            searchFilterInformation);
+            searchFilterInformation)
+        {
+            EndpointNameLocation = mapArguments[1].GetLocation(),
+        };
     }
 
 
@@ -172,7 +176,7 @@ internal static class SearchGenerator
         SemanticModel semanticModel,
         CancellationToken cancellationToken,
         out SearchFilterInformation? searchFilterInformation,
-        out List<Diagnostic>? diagnostics)
+        out List<DiagnosticInfo>? diagnostics)
     {
         diagnostics = null;
         searchFilterInformation = null;
@@ -192,7 +196,7 @@ internal static class SearchGenerator
         {
             diagnostics = methods.Select(m =>
             {
-                return Diagnostic.Create(CmdDiagnostics.InvalidWithFilterUsage,
+                return DiagnosticInfo.Create(CmdDiagnostics.InvalidWithFilterUsage,
                     location: m.m.Identifier.GetLocation(),
                     "Only one method with WithFilterAttribute is allowed in the search filter class");
             }).ToList();

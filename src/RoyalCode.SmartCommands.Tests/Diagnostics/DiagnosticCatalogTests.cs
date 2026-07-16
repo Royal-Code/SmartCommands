@@ -3,7 +3,9 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
+using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 using RoyalCode.SmartCommands.Generators;
+using RoyalCode.SmartCommands.Generators.Models;
 using Xunit;
 
 namespace RoyalCode.SmartCommands.Tests.Diagnostics;
@@ -28,7 +30,6 @@ public class DiagnosticCatalogTests
         {
             Assert.Contains(descriptor.Id, CmdDiagnostics.CatalogIds);
             Assert.Same(descriptor, CmdDiagnostics.Get(descriptor.Id));
-            Assert.Equal(descriptor.Id, CmdDiagnostics.ResolveRendered(descriptor.Id).Id);
         }
     }
 
@@ -48,10 +49,28 @@ public class DiagnosticCatalogTests
     }
 
     [Fact]
-    public void Get_and_ResolveRendered_reject_unknown_ids()
+    public void Get_rejects_unknown_ids()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => CmdDiagnostics.Get("RCCMD999"));
-        Assert.Throws<ArgumentOutOfRangeException>(() => CmdDiagnostics.ResolveRendered("RCCMD999"));
+    }
+
+    [Fact]
+    public void Pipeline_preserves_real_message_arguments_before_reconstructing_the_diagnostic()
+    {
+        var diagnostic = DiagnosticInfo.Create(
+            CmdDiagnostics.ReservedIdentifier,
+            Location.None,
+            "handler");
+
+        var snapshot = PipelineDiagnostic.Snapshot([diagnostic]);
+
+        var retained = Assert.Single(snapshot);
+        Assert.Equal("RCCMD029", retained.Id);
+        Assert.Equal("handler", Assert.Single(retained.Arguments));
+        Assert.Contains(
+            "handler",
+            retained.ToDiagnostic(CmdDiagnostics.Get).GetMessage(),
+            StringComparison.Ordinal);
     }
 
     private static HashSet<string> ReadAnalyzerReleaseIds()

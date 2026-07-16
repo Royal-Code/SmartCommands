@@ -1,10 +1,33 @@
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Text;
 using RoyalCode.Extensions.SourceGenerator.Collections;
 using RoyalCode.Extensions.SourceGenerator.Descriptors.Snapshots;
 using RoyalCode.SmartCommands.Generators.Generators;
 using static RoyalCode.SmartCommands.Generators.Generators.CommandHandlerInformation;
 
 namespace RoyalCode.SmartCommands.Generators.Models;
+
+/// <summary>
+/// Localização symbol-free e value-equatable, segura para retenção no pipeline incremental. Usada para
+/// reportar diagnósticos de agregação (ex.: RCCMD030) no ponto exato do código do usuário sem reter
+/// <see cref="Location"/> (que referencia a SyntaxTree).
+/// </summary>
+internal sealed record LocationModel(string? FilePath, TextSpan SourceSpan, LinePositionSpan LineSpan, bool HasLocation)
+{
+    internal static readonly LocationModel None = new(null, default, default, false);
+
+    internal static LocationModel Create(Location? location)
+    {
+        if (location is null || location == Location.None || !location.IsInSource)
+            return None;
+
+        var lineSpan = location.GetLineSpan();
+        return new LocationModel(lineSpan.Path, location.SourceSpan, lineSpan.Span, true);
+    }
+
+    internal Location ToLocation() =>
+        HasLocation ? Location.Create(FilePath ?? string.Empty, SourceSpan, LineSpan) : Location.None;
+}
 
 internal sealed record ReturnModel(
     TypeSnapshot DeclaredType,
@@ -196,7 +219,8 @@ internal sealed record CommandEndpointModel(
     TypeSnapshot? IdResultValueType,
     MapResponseValuesModel? ResponseValues,
     bool RequiresAuthorization,
-    EquatableArray<string> AuthorizationPolicies) : IMapEndpointModel
+    EquatableArray<string> AuthorizationPolicies,
+    LocationModel NameLocation) : IMapEndpointModel
 {
     public string? Group => GroupName;
 
@@ -227,7 +251,8 @@ internal sealed record CommandEndpointModel(
             : new MapResponseValuesModel(new EquatableArray<PropertySnapshot>(
                 information.ResponseValues.PropertiesNames.Select(PropertySnapshot.Create))),
         information.AuthorizationPolicies is not null,
-        new EquatableArray<string>(information.AuthorizationPolicies));
+        new EquatableArray<string>(information.AuthorizationPolicies),
+        LocationModel.Create(information.EndpointNameLocation));
 
     internal MapInformation ToInformation()
     {
@@ -259,6 +284,10 @@ internal interface IMapEndpointModel : IEquatable<IMapEndpointModel>
 {
     string? Group { get; }
 
+    string EndpointName { get; }
+
+    LocationModel NameLocation { get; }
+
     string SortKey { get; }
 
     IMapEndpointGenerator ToGenerator();
@@ -274,7 +303,8 @@ internal sealed record FindModel(
     string? Summary,
     bool RequiresAuthorization,
     EquatableArray<string> AuthorizationPolicies,
-    string? GroupName) : IMapEndpointModel
+    string? GroupName,
+    LocationModel NameLocation) : IMapEndpointModel
 {
     public string? Group => GroupName;
 
@@ -293,7 +323,8 @@ internal sealed record FindModel(
         information.Summary,
         information.AuthorizationPolicies is not null,
         new EquatableArray<string>(information.AuthorizationPolicies),
-        information.GroupName);
+        information.GroupName,
+        LocationModel.Create(information.EndpointNameLocation));
 
     public IMapEndpointGenerator ToGenerator() => new FindInformation(
         PipelineModelConversions.ToDescriptor(EntityType),
@@ -325,7 +356,8 @@ internal sealed record SearchModel(
     bool RequiresAuthorization,
     EquatableArray<string> AuthorizationPolicies,
     string GroupName,
-    SearchFilterModel? Filter) : IMapEndpointModel
+    SearchFilterModel? Filter,
+    LocationModel NameLocation) : IMapEndpointModel
 {
     public string? Group => GroupName;
 
@@ -353,7 +385,8 @@ internal sealed record SearchModel(
                 new EquatableArray<SearchFilterParameterModel>(information.Filter.Parameters.Select(parameter =>
                     new SearchFilterParameterModel(
                         parameter.HasWithParameterAttribute,
-                        ParameterModel.Create(parameter.ParameterDescriptor))))));
+                        ParameterModel.Create(parameter.ParameterDescriptor))))),
+        LocationModel.Create(information.EndpointNameLocation));
 
     public IMapEndpointGenerator ToGenerator() => new SearchInformation(
         PipelineModelConversions.ToDescriptor(EntityType),
@@ -384,10 +417,12 @@ internal sealed record AddServicesModel(TypeSnapshot ClassType, string Title)
         new(PipelineModelConversions.ToDescriptor(ClassType), Title, []);
 }
 
-internal sealed record MapHostModel(TypeSnapshot ClassType, bool WithOpenApi)
+internal sealed record MapHostModel(TypeSnapshot ClassType, bool WithOpenApi, LocationModel HostLocation)
 {
     internal static MapHostModel Create(MapApiHandlersInformation information) =>
-        new(TypeSnapshot.Create(information.ClassType), information.WithOpenApi);
+        new(TypeSnapshot.Create(information.ClassType),
+            information.WithOpenApi,
+            LocationModel.Create(information.HostLocation));
 
     internal MapApiHandlersInformation ToInformation() =>
         new(PipelineModelConversions.ToDescriptor(ClassType), WithOpenApi, null);

@@ -4,7 +4,7 @@ using RoyalCode.SmartSearch;
 namespace RoyalCode.SmartCommands.Demo.Commands.Movies;
 
 [MapGroup("movies")]
-[MapSearch("/{movieId}/reviews", "Listagem paginada de produtos")]
+[MapSearch("/{movieId}/reviews", "Listagem paginada de reviews")]
 [SearchReference<Review, ReviewDetails>]
 public class ReviewFilter
 {

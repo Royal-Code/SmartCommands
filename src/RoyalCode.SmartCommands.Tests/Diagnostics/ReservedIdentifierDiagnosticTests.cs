@@ -15,6 +15,7 @@ public class ReservedIdentifierDiagnosticTests
         """
         using RoyalCode.SmartCommands;
         using RoyalCode.SmartProblems;
+        using Microsoft.AspNetCore.Routing;
         using System.Threading;
         using System.Threading.Tasks;
 
@@ -92,6 +93,79 @@ public class ReservedIdentifierDiagnosticTests
         Assert.DoesNotContain(diagnostics, d => d.Id == "RCCMD029");
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
         Assert.Contains(output.SyntaxTrees.Skip(1), tree => tree.ToString().Contains("IDoAsyncHandler"));
+    }
+
+    [Theory]
+    [InlineData("handler")]
+    [InlineData("result")]
+    public void WithParameter_collides_with_endpoint_scope_when_command_is_mapped(string parameterName)
+    {
+        var code = Usings +
+            $$"""
+            [MapPost("/", "do-mapped")]
+            public class DoMapped
+            {
+                [Command]
+                public Result Execute([WithParameter] string {{parameterName}}) => Result.Ok();
+            }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        var reserved = diagnostics.Where(d => d.Id == "RCCMD029").ToArray();
+        Assert.Single(reserved);
+        Assert.Equal(DiagnosticSeverity.Error, reserved[0].Severity);
+        Assert.NotEqual(Location.None, reserved[0].Location);
+        Assert.Contains(parameterName, reserved[0].GetMessage(), System.StringComparison.Ordinal);
+        Assert.DoesNotContain(diagnostics, d => d.Id == "CS8785");
+        Assert.DoesNotContain(output.SyntaxTrees.Skip(1), tree => tree.ToString().Contains("DoMappedHandler"));
+    }
+
+    [Theory]
+    [InlineData("handler")]
+    [InlineData("result")]
+    public void Endpoint_scope_names_are_not_reserved_without_mapping(string parameterName)
+    {
+        var code = Usings +
+            $$"""
+            public class DoLocal
+            {
+                [Command]
+                public Result Execute([WithParameter] string {{parameterName}}) => Result.Ok();
+            }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == "RCCMD029");
+        Assert.Contains(output.SyntaxTrees.Skip(1), tree => tree.ToString().Contains("IDoLocalHandler"));
+    }
+
+    [Fact]
+    public void WithParameter_collides_with_edit_entity_id_parameter_of_the_endpoint()
+    {
+        const string code = Usings +
+            """
+            public class Db : Microsoft.EntityFrameworkCore.DbContext { }
+            public class Person { public int Id { get; set; } }
+
+            [MapPut("/{personId}", "edit-person")]
+            public class EditPerson
+            {
+                public int PersonId { get; set; }
+
+                [Command, WithUnitOfWork<Db>, EditEntity<Person, int>]
+                public Result Execute(Person person, [WithParameter] string personId) => Result.Ok();
+            }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        var reserved = diagnostics.Where(d => d.Id == "RCCMD029").ToArray();
+        Assert.Single(reserved);
+        Assert.Contains("personId", reserved[0].GetMessage(), System.StringComparison.Ordinal);
+        Assert.DoesNotContain(diagnostics, d => d.Id == "CS8785");
+        Assert.DoesNotContain(output.SyntaxTrees.Skip(1), tree => tree.ToString().Contains("EditPersonHandler"));
     }
 
     [Fact]

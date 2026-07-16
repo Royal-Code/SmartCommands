@@ -34,6 +34,12 @@ internal sealed class MapInformation : IEquatable<MapInformation>
 
     public string[]? AuthorizationPolicies { get; set; }
 
+    /// <summary>
+    /// Localização do argumento do endpoint name no atributo Map*. Uso exclusivo do transform (vira snapshot
+    /// no modelo do pipeline); não participa da igualdade porque a informação é transitória.
+    /// </summary>
+    public Location? EndpointNameLocation { get; set; }
+
     public bool Equals(MapInformation? other)
     {
         return other is not null &&
@@ -163,7 +169,7 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         ReturnModel returnModel,
         string handlerMethodName)
     {
-        const string resultVarName = "result";
+        const string resultVarName = CommandHandlerGenerator.EndpointResultVarName;
 
         // tipo retornado pelo handler
         var handlerReturnType = DiscoveryReturnType(commandInfo, returnModel, mapInfo);
@@ -188,7 +194,8 @@ internal sealed class MapInformation : IEquatable<MapInformation>
 
         // o primeiro parâmetro é a interface do handler
         var handlerType = new TypeDescriptor(commandInfo.HandlerInterfaceName, [commandInfo.Namespace]);
-        method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(handlerType, "handler")));
+        method.Parameters.Add(new ParameterGenerator(new ParameterDescriptor(
+            handlerType, CommandHandlerGenerator.EndpointHandlerParameterName)));
 
         // depois são os parâmetros do método do handler
         var editEntityRouteParameterName = commandInfo.EditType is not null
@@ -223,8 +230,9 @@ internal sealed class MapInformation : IEquatable<MapInformation>
 
         // chama o handler, sempre passando 'command' (parâmetro do body ou instância local),
         // na ordem esperada: [id da entidade editada], command, [WithParameters], [ct].
-        var handlerInvoke =
-            new MethodInvokeGenerator("handler", commandInfo.HandlerMustBeAsync ? "HandleAsync" : "Handle");
+        var handlerInvoke = new MethodInvokeGenerator(
+            CommandHandlerGenerator.EndpointHandlerParameterName,
+            commandInfo.HandlerMustBeAsync ? "HandleAsync" : "Handle");
 
         if (commandInfo.EditType is not null)
             handlerInvoke.AddArgument($"{commandInfo.EditType.Parameter!.Name}Id");

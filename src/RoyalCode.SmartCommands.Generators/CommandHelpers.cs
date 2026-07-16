@@ -1,23 +1,24 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 
 namespace RoyalCode.SmartCommands.Generators;
 
 internal static class CommandHelpers
 {
-    public static bool ValidateReturnType(this MethodDeclarationSyntax method, out Diagnostic? diagnostic)
+    public static bool ValidateReturnType(this MethodDeclarationSyntax method, out DiagnosticInfo? diagnostic)
     {
         // obtém o tipo retornado pelo método
         var returnType = method.ReturnType;
 
         // Valida se o método retorna algum valor, ou seja, não é Task nem void.
-        if (returnType is GenericNameSyntax genericName && 
-                genericName.Identifier.Text == "Task" && 
+        if (returnType is GenericNameSyntax genericName &&
+                genericName.Identifier.Text == "Task" &&
                 genericName.TypeArgumentList.Arguments.Count is 0
-            || returnType is SimpleNameSyntax simpleName && 
+            || returnType is SimpleNameSyntax simpleName &&
                 simpleName.Identifier.Text == "void")
         {
-            diagnostic = Diagnostic.Create(
+            diagnostic = DiagnosticInfo.Create(
                 CmdDiagnostics.InvalidReturnType,
                 method.Identifier.GetLocation());
             return false;
@@ -31,7 +32,7 @@ internal static class CommandHelpers
         this ClassDeclarationSyntax cls,
         AttributeSyntax attributeNode,
         out MethodDeclarationSyntax? hasProblemsMethod,
-        out Diagnostic? diagnostic)
+        out DiagnosticInfo? diagnostic)
     {
         // Tenta obter o método HasProblems
         hasProblemsMethod = cls.Members
@@ -40,11 +41,9 @@ internal static class CommandHelpers
 
         if (hasProblemsMethod is null)
         {
-            diagnostic = Diagnostic.Create(
-                descriptor: CmdDiagnostics.HasProblemsMethodNotFound,
-                location: attributeNode.Name.GetLocation(),
-                additionalLocations: [cls.Identifier.GetLocation()]
-                );
+            diagnostic = DiagnosticInfo.Create(
+                CmdDiagnostics.HasProblemsMethodNotFound,
+                attributeNode.Name.GetLocation());
             return false;
         }
 
@@ -52,11 +51,9 @@ internal static class CommandHelpers
         if (hasProblemsMethod.ReturnType is not PredefinedTypeSyntax predefinedType
             || predefinedType.Keyword.Text != "bool")
         {
-            diagnostic = Diagnostic.Create(
-                descriptor: CmdDiagnostics.HasProblemsMethodDoesNotReturnBool,
-                location: hasProblemsMethod.Identifier.GetLocation(),
-                additionalLocations: [attributeNode.Name.GetLocation()]
-                );
+            diagnostic = DiagnosticInfo.Create(
+                CmdDiagnostics.HasProblemsMethodDoesNotReturnBool,
+                hasProblemsMethod.Identifier.GetLocation());
             return false;
         }
 
@@ -64,11 +61,9 @@ internal static class CommandHelpers
         var parameters = hasProblemsMethod.ParameterList.Parameters;
         if (parameters.Count != 1)
         {
-            diagnostic = Diagnostic.Create(
-                descriptor: CmdDiagnostics.HasProblemsMethodDoesNotHaveOutParameterProblems,
-                location: hasProblemsMethod.Identifier.GetLocation(),
-                additionalLocations: [attributeNode.Name.GetLocation()]
-                );
+            diagnostic = DiagnosticInfo.Create(
+                CmdDiagnostics.HasProblemsMethodDoesNotHaveOutParameterProblems,
+                hasProblemsMethod.Identifier.GetLocation());
             return false;
         }
 
@@ -77,11 +72,9 @@ internal static class CommandHelpers
         if (parameter.Modifiers.Count != 1
             || parameter.Modifiers[0].Text != "out")
         {
-            diagnostic = Diagnostic.Create(
-                descriptor: CmdDiagnostics.HasProblemsMethodDoesNotHaveOutParameterProblems,
-                location: hasProblemsMethod.Identifier.GetLocation(),
-                additionalLocations: [attributeNode.Name.GetLocation()]
-                );
+            diagnostic = DiagnosticInfo.Create(
+                CmdDiagnostics.HasProblemsMethodDoesNotHaveOutParameterProblems,
+                hasProblemsMethod.Identifier.GetLocation());
             return false;
         }
 
@@ -92,15 +85,13 @@ internal static class CommandHelpers
             return true;
         }
 
-        diagnostic = Diagnostic.Create(
-            descriptor: CmdDiagnostics.HasProblemsMethodDoesNotHaveOutParameterProblems,
-            location: hasProblemsMethod.Identifier.GetLocation(),
-            additionalLocations: [attributeNode.Name.GetLocation()]
-            );
+        diagnostic = DiagnosticInfo.Create(
+            CmdDiagnostics.HasProblemsMethodDoesNotHaveOutParameterProblems,
+            hasProblemsMethod.Identifier.GetLocation());
         return false;
     }
 
-    public static bool ValidateMapIdResultValue(this TypeSyntax resultType, SemanticModel semanticModel, out Diagnostic? diagnostic)
+    public static bool ValidateMapIdResultValue(this TypeSyntax resultType, SemanticModel semanticModel, out DiagnosticInfo? diagnostic)
     {
         // se for task, pega o tipo genérico
         if (resultType is GenericNameSyntax { Identifier.Text: "Task" } genericName)
@@ -118,7 +109,7 @@ internal static class CommandHelpers
         var typeSymbol = semanticModel.GetTypeInfo(resultType).Type;
         if (typeSymbol is null)
         {
-            diagnostic = Diagnostic.Create(
+            diagnostic = DiagnosticInfo.Create(
                 CmdDiagnostics.InvalidCommandType,
                 resultType.GetLocation(),
                 "the returned type was not found");
@@ -137,12 +128,10 @@ internal static class CommandHelpers
             typeSymbol = typeSymbol.BaseType;
         }
 
-        diagnostic = Diagnostic.Create(
+        diagnostic = DiagnosticInfo.Create(
             CmdDiagnostics.InvalidCommandType,
             resultType.GetLocation(),
             "Type must have a property called Id");
         return false;
-
-
     }
 }

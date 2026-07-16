@@ -1,11 +1,12 @@
 ﻿
 using Microsoft.CodeAnalysis;
+using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
 internal sealed class AddHandlersServicesInformation : TransformationGeneratorBase<AddServiceDescriptor>, IEquatable<AddHandlersServicesInformation>
 {
-    public AddHandlersServicesInformation(TypeDescriptor classType, string title, List<Diagnostic> errors)
+    public AddHandlersServicesInformation(TypeDescriptor classType, string title, List<DiagnosticInfo> errors)
     {
         ClassType = classType;
         Title = title;

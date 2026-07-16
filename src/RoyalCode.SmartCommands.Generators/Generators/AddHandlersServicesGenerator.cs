@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 using RoyalCode.Extensions.SourceGenerator.Generation;
 using RoyalCode.SmartCommands.Generators.Models;
 using static RoyalCode.SmartCommands.Generators.Generators.CommandHandlerInformation;
@@ -36,11 +37,11 @@ internal static class AddHandlersServicesGenerator
         cancellationToken.ThrowIfCancellationRequested();
         var classSyntax = (ClassDeclarationSyntax)context.TargetNode;
 
-        var errors = new List<Diagnostic>();
+        var errors = new List<DiagnosticInfo>();
 
         if (!classSyntax.Modifiers.Any(SyntaxKind.PartialKeyword))
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidCommandType,
                     location: classSyntax.Identifier.GetLocation(),
                     "The class with AddHandlersServicesAttribute must be partial");
 
@@ -49,7 +50,7 @@ internal static class AddHandlersServicesGenerator
 
         if (!classSyntax.Modifiers.Any(SyntaxKind.StaticKeyword))
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidCommandType,
                 location: classSyntax.Identifier.GetLocation(),
                 "The class with AddHandlersServicesAttribute must be static");
 
@@ -59,7 +60,7 @@ internal static class AddHandlersServicesGenerator
         if (!classSyntax.TryGetAttribute("AddHandlersServices", out AttributeSyntax? attr)
             || attr?.ArgumentList?.Arguments.Count is not 1)
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidCommandType,
                     location: classSyntax.Identifier.GetLocation(),
                     "Problem finding attribute for class with AddHandlersServicesAttribute");
 
@@ -78,7 +79,7 @@ internal static class AddHandlersServicesGenerator
         }
         else
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidCommandType,
                     location: classSyntax.Identifier.GetLocation(),
                     "The title for AddHandlersServicesAttribute must be a literal string");
 

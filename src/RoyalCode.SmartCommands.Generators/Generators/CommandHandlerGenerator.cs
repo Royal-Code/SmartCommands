@@ -5,6 +5,7 @@ using RoyalCode.SmartCommands.Generators.Commands;
 using RoyalCode.SmartCommands.Generators.Models;
 using RoyalCode.Extensions.SourceGenerator.Generation;
 using RoyalCode.Extensions.SourceGenerator.Descriptors.Snapshots;
+using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 using System.Reflection;
 using static RoyalCode.SmartCommands.Generators.Generators.CommandHandlerInformation;
 
@@ -50,6 +51,8 @@ internal static class CommandHandlerGenerator
     private const string AccessorVarName = "accessor";
     private const string RetryOptionsVarName = "retryOptions";
     private const string RetryProblemFactoryVarName = "retryProblemFactory";
+    internal const string EndpointHandlerParameterName = "handler";
+    internal const string EndpointResultVarName = "result";
     private const string UowAccessorType = "IUnitOfWorkAccessor<{0}>";
     private const string RepoAccessorType = "IRepositoriesAccessor<{0}>";
 
@@ -81,7 +84,7 @@ internal static class CommandHandlerGenerator
         // obtém a classe que contém o método
         if (method.Parent is not ClassDeclarationSyntax classDeclaration)
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidCommandType,
                 location: method.Identifier.GetLocation(),
                 "The method does not have a class declaration");
 
@@ -89,7 +92,7 @@ internal static class CommandHandlerGenerator
         }
 
         // lista de erros
-        var errors = new List<Diagnostic>();
+        var errors = new List<DiagnosticInfo>();
 
         var commandType = context.TargetSymbol.ContainingType;
         var commandMethodCount = commandType.GetMembers()
@@ -98,7 +101,7 @@ internal static class CommandHandlerGenerator
                 attribute.AttributeClass?.ToDisplayString() == CommandAttributeName));
         if (commandMethodCount > 1)
         {
-            errors.Add(Diagnostic.Create(
+            errors.Add(DiagnosticInfo.Create(
                 CmdDiagnostics.MultipleCommandMethods,
                 method.Identifier.GetLocation(),
                 commandType.Name));
@@ -107,7 +110,7 @@ internal static class CommandHandlerGenerator
         var mapAttributeCount = commandType.GetAttributes().Count(attribute => IsMapAttribute(attribute.AttributeClass));
         if (mapAttributeCount > 1)
         {
-            errors.Add(Diagnostic.Create(
+            errors.Add(DiagnosticInfo.Create(
                 CmdDiagnostics.ConflictingMapAttributes,
                 classDeclaration.Identifier.GetLocation(),
                 commandType.Name));
@@ -116,11 +119,57 @@ internal static class CommandHandlerGenerator
         // nem o método nem a classe pode ter argumentos genéricos
         if (method.TypeParameterList is not null || classDeclaration.TypeParameterList is not null)
         {
-            var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+            var diagnostic = DiagnosticInfo.Create(CmdDiagnostics.InvalidCommandType,
                 location: method.Identifier.GetLocation(),
                 "Neither the method nor the class can have generic arguments");
 
             errors.Add(diagnostic);
+        }
+
+        // a classe do comando não pode ser aninhada: o handler gerado referencia o tipo por nome simples
+        // no namespace e um tipo aninhado não seria resolvível a partir daí.
+        if (commandType.ContainingType is not null)
+        {
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.InvalidCommandType,
+                location: classDeclaration.Identifier.GetLocation(),
+                "The command type must be a top-level type, not a nested type"));
+        }
+
+        // a classe do comando não pode ser file-local: o handler é emitido em outra árvore sintática
+        // e não conseguiria referenciar o tipo.
+        if (commandType.IsFileLocal)
+        {
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.InvalidCommandType,
+                location: classDeclaration.Identifier.GetLocation(),
+                "The command type must not be a file-local type (declared with the 'file' modifier)"));
+        }
+
+        // o método do comando deve ser de instância, não abstrato e acessível ao handler gerado (mesmo assembly),
+        // pois o handler o invoca como 'command.Metodo(...)' a partir de outra classe.
+        var methodSymbol = (IMethodSymbol)context.TargetSymbol;
+        if (methodSymbol.IsStatic)
+        {
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.InvalidCommandType,
+                location: method.Identifier.GetLocation(),
+                "The command method must be an instance method"));
+        }
+        if (methodSymbol.IsAbstract)
+        {
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.InvalidCommandType,
+                location: method.Identifier.GetLocation(),
+                "The command method must not be abstract"));
+        }
+        if (methodSymbol.DeclaredAccessibility is not (
+                Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal))
+        {
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.InvalidCommandType,
+                location: method.Identifier.GetLocation(),
+                "The command method must be accessible to the generated handler (public or internal)"));
         }
 
         // lista dos parâmetros de ProblemCategory que o comando pode produzir
@@ -196,7 +245,7 @@ internal static class CommandHandlerGenerator
             }
             else
             {
-                errors.Add(Diagnostic.Create(
+                errors.Add(DiagnosticInfo.Create(
                     CmdDiagnostics.InvalidCommandType,
                     withUowAttr?.GetLocation() ?? method.Identifier.GetLocation(),
                     "WithUnitOfWorkAttribute requires one context type argument"));
@@ -211,7 +260,7 @@ internal static class CommandHandlerGenerator
             if (withUowAttr is not null)
             {
                 // se já tem WithUnitOfWork, não pode ter WithDbContext
-                error = Diagnostic.Create(
+                error = DiagnosticInfo.Create(
                     CmdDiagnostics.WithDbContextCannotBeUsedWithWithUnitOfWork,
                     location: method.Identifier.GetLocation());
                 errors.Add(error);
@@ -230,7 +279,7 @@ internal static class CommandHandlerGenerator
             if (withUowAttr is not null)
             {
                 // se já tem WithUnitOfWork, não pode ter WithWorkContext
-                error = Diagnostic.Create(
+                error = DiagnosticInfo.Create(
                     CmdDiagnostics.WithWorkContextCannotBeUsedWithWithUnitOfWork,
                     location: method.Identifier.GetLocation());
 
@@ -239,7 +288,7 @@ internal static class CommandHandlerGenerator
             else if (withDbContextAttr is not null)
             {
                 // se já tem WithDbContext, não pode ter WithWorkContext
-                error = Diagnostic.Create(
+                error = DiagnosticInfo.Create(
                     CmdDiagnostics.WithWorkContextCannotBeUsedWithWithDbContext,
                     location: method.Identifier.GetLocation());
 
@@ -261,7 +310,7 @@ internal static class CommandHandlerGenerator
             if (!hasWorkContext)
             {
                 // retry exige o auto-save do WorkContext (laço envolve Begin → finds → Execute → Complete)
-                error = Diagnostic.Create(
+                error = DiagnosticInfo.Create(
                     CmdDiagnostics.RetryOnConcurrencyRequiresWorkContext,
                     location: method.Identifier.GetLocation());
                 errors.Add(error);
@@ -287,7 +336,7 @@ internal static class CommandHandlerGenerator
                         // valor explícito no atributo sobrescreve as options; <= 0 é inválido
                         if (maxAttempts <= 0)
                         {
-                            error = Diagnostic.Create(
+                            error = DiagnosticInfo.Create(
                                 CmdDiagnostics.RetryOnConcurrencyInvalidMaxAttempts,
                                 location: method.Identifier.GetLocation());
                             errors.Add(error);
@@ -308,7 +357,7 @@ internal static class CommandHandlerGenerator
                     {
                         if (string.IsNullOrWhiteSpace(operation))
                         {
-                            error = Diagnostic.Create(
+                            error = DiagnosticInfo.Create(
                                 CmdDiagnostics.InvalidCommandType,
                                 location: method.Identifier.GetLocation(),
                                 "The retry operation must not be empty");
@@ -336,7 +385,7 @@ internal static class CommandHandlerGenerator
                 }
                 else
                 {
-                    errors.Add(Diagnostic.Create(
+                    errors.Add(DiagnosticInfo.Create(
                         CmdDiagnostics.InvalidCommandType,
                         withFindEntitiesAttr?.GetLocation() ?? method.Identifier.GetLocation(),
                         "WithFindEntitiesAttribute requires one context type argument"));
@@ -350,7 +399,7 @@ internal static class CommandHandlerGenerator
         if (hasProduceNewEntity && !hasUow)
         {
             // quando retorna entidade, deve haver uow
-            error = Diagnostic.Create(
+            error = DiagnosticInfo.Create(
                 CmdDiagnostics.ProduceNewEntityRequiresWithUnitOfWork,
                 location: method.Identifier.GetLocation());
 
@@ -365,7 +414,7 @@ internal static class CommandHandlerGenerator
             // editar entidade requer uow
             if (!hasUow)
             {
-                error = Diagnostic.Create(
+                error = DiagnosticInfo.Create(
                     CmdDiagnostics.EditEntityRequiresWithUnitOfWork,
                     location: method.Identifier.GetLocation());
 
@@ -375,7 +424,7 @@ internal static class CommandHandlerGenerator
             // se já tem produce new entity, não pode ter edit entity
             if (hasProduceNewEntity)
             {
-                error = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+                error = DiagnosticInfo.Create(CmdDiagnostics.InvalidCommandType,
                     location: method.Identifier.GetLocation(),
                     "The method cannot have both ProduceNewEntity and EditEntity attributes");
 
@@ -390,7 +439,7 @@ internal static class CommandHandlerGenerator
             }
             else
             {
-                errors.Add(Diagnostic.Create(
+                errors.Add(DiagnosticInfo.Create(
                     CmdDiagnostics.InvalidCommandType,
                     editEntityAttr?.GetLocation() ?? method.Identifier.GetLocation(),
                     "EditEntityAttribute requires entity and id type arguments"));
@@ -418,7 +467,7 @@ internal static class CommandHandlerGenerator
             var newEntityTypeInfo = context.SemanticModel.GetTypeInfo(newEntityTypeSyntax);
             if (newEntityTypeInfo.Type is not INamedTypeSymbol newEntityNameSymbol)
             {
-                error = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
+                error = DiagnosticInfo.Create(CmdDiagnostics.InvalidCommandType,
                     location: method.Identifier.GetLocation(),
                     "It was not possible to determine the return type of the new entity");
 
@@ -432,7 +481,7 @@ internal static class CommandHandlerGenerator
                     // O Result deve ser genérico, se não for, retorna um erro.
                     if (!newEntityNameSymbol.IsGenericType)
                     {
-                        error = Diagnostic.Create(
+                        error = DiagnosticInfo.Create(
                             CmdDiagnostics.ProduceNewEntityMustReturnResultWithValue,
                             location: method.ReturnType.GetLocation());
 
@@ -466,7 +515,7 @@ internal static class CommandHandlerGenerator
             // valida CancellationToken, só pode haver caso o método seja assíncrono
             if (paramDescriptor.Type.IsCancellationToken && !isAsync)
             {
-                error = Diagnostic.Create(
+                error = DiagnosticInfo.Create(
                     CmdDiagnostics.CancellationTokenParameterMustBeAsync,
                     location: p.Identifier.GetLocation());
 
@@ -479,7 +528,7 @@ internal static class CommandHandlerGenerator
 
                 if (!Equals(paramDescriptor.Type, editType.EntityType))
                 {
-                    error = Diagnostic.Create(
+                    error = DiagnosticInfo.Create(
                     CmdDiagnostics.EditEntityRequiresFirstParameter,
                     location: p.Identifier.GetLocation());
 
@@ -502,7 +551,7 @@ internal static class CommandHandlerGenerator
                     var idProperty = classDeclaration.GetIdProperty(p.Identifier.Text, context.SemanticModel);
                     if (idProperty is null)
                     {
-                        error = Diagnostic.Create(
+                        error = DiagnosticInfo.Create(
                             CmdDiagnostics.EntityTypeParameterDoesNotHaveIdProperty,
                             location: p.Identifier.GetLocation(),
                             p.Identifier.Text);
@@ -523,7 +572,7 @@ internal static class CommandHandlerGenerator
                     var idsProperty = classDeclaration.GetIdsProperty(p.Identifier.Text, context.SemanticModel);
                     if (idsProperty is null)
                     {
-                        error = Diagnostic.Create(
+                        error = DiagnosticInfo.Create(
                             CmdDiagnostics.EntityTypeParameterDoesNotHaveIdProperty,
                             location: p.Identifier.GetLocation(),
                             p.Identifier.Text);
@@ -551,7 +600,7 @@ internal static class CommandHandlerGenerator
                     paramDescriptor.Type.IsCollectionOfEntities ||
                     paramDescriptor.Type.IsContext)
                 {
-                    error = Diagnostic.Create(
+                    error = DiagnosticInfo.Create(
                         CmdDiagnostics.ParameterCannotBeMarkedWithParameter,
                         location: p.Identifier.GetLocation());
 
@@ -569,7 +618,7 @@ internal static class CommandHandlerGenerator
         // após processar os parâmetros e existir EditEntityType, valida se o nome do parâmetro foi preenchido
         if (editType is not null && editType.Parameter is null)
         {
-            error = Diagnostic.Create(
+            error = DiagnosticInfo.Create(
                 CmdDiagnostics.EditEntityRequiresFirstParameter,
                 location: method.Identifier.GetLocation());
 
@@ -600,6 +649,13 @@ internal static class CommandHandlerGenerator
         // verifica a necessidade do método do handler ser assíncrono
         var handlerMustBeAsync = isAsync || hasWithDecorators || hasUow || hasFindEntities;
 
+        // lê atributo Map... da classe do comando
+        var mapInformation = ReadMap(
+            classDeclaration,
+            newEntityTypeSyntax ?? method.ReturnType.GetValueReturnType(),
+            context.SemanticModel,
+            errors);
+
         // DF5: os nomes que o handler gerado emite no mesmo escopo são reservados; um parâmetro do comando que
         // caia nesse escopo (WithParameter, dependência de DI ou entidade carregada) não pode colidir com eles.
         // Token e contexto não introduzem um identificador de usuário (viram 'ct'/'this.accessor.Context').
@@ -611,27 +667,33 @@ internal static class CommandHandlerGenerator
             hasRetryOnConcurrency,
             retryMaxAttempts,
             retryOperation);
+
+        // Quando o comando é mapeado, os parâmetros [WithParameter] são replicados na assinatura do método do
+        // endpoint Minimal API, que também declara 'handler', a variável 'result' e, para EditEntity, o
+        // parâmetro '{entidade}Id'; esses nomes são reservados apenas nesse escopo.
+        var endpointReservedNames = mapInformation is not null
+            ? CollectEndpointReservedNames(editType)
+            : null;
+
         for (int reservedIndex = 0; reservedIndex < parameters.Count; reservedIndex++)
         {
             var reservedParameter = parameters[reservedIndex];
             if (reservedParameter.Type.IsCancellationToken || reservedParameter.Type.IsContext)
                 continue;
 
-            if (reservedNames.Contains(reservedParameter.Name))
+            var collides = reservedNames.Contains(reservedParameter.Name)
+                || (endpointReservedNames is not null
+                    && reservedParameter.Type.IsHandlerParameter
+                    && endpointReservedNames.Contains(reservedParameter.Name));
+
+            if (collides)
             {
-                errors.Add(Diagnostic.Create(
+                errors.Add(DiagnosticInfo.Create(
                     CmdDiagnostics.ReservedIdentifier,
                     location: commandMethodParameters[reservedIndex].Identifier.GetLocation(),
                     reservedParameter.Name));
             }
         }
-
-        // lê atributo Map... da classe do comando
-        var mapInformation = ReadMap(
-            classDeclaration, 
-            newEntityTypeSyntax ?? method.ReturnType.GetValueReturnType(), 
-            context.SemanticModel,
-            errors);
 
         // se map não for nulo, e tiver o MapIdResultValue, deve ser validado se o tipo retornado tem o campo Id
         if (mapInformation is not null &&
@@ -720,6 +782,22 @@ internal static class CommandHandlerGenerator
         return reserved;
     }
 
+    private static HashSet<string> CollectEndpointReservedNames(EditTypeDescriptor? editType)
+    {
+        // nomes emitidos no escopo do método do endpoint Minimal API, onde os parâmetros [WithParameter]
+        // são replicados ('command' e 'ct' já são reservados pelo escopo do handler).
+        var reserved = new HashSet<string>(StringComparer.Ordinal)
+        {
+            EndpointHandlerParameterName,
+            EndpointResultVarName,
+        };
+
+        if (editType?.Parameter is not null)
+            reserved.Add($"{editType.Parameter.Name}Id");
+
+        return reserved;
+    }
+
     private static bool HasRequestBodyShape(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel)
     {
         if (semanticModel.GetDeclaredSymbol(classDeclaration) is not INamedTypeSymbol commandSymbol)
@@ -780,7 +858,7 @@ internal static class CommandHandlerGenerator
         ClassDeclarationSyntax classDeclaration,
         TypeSyntax valueReturnType,
         SemanticModel semanticModel,
-        List<Diagnostic> errors)
+        List<DiagnosticInfo> errors)
     {
         string? httpMethod = null;
         string? description = null;
@@ -818,7 +896,7 @@ internal static class CommandHandlerGenerator
         var mapArguments = attr.ArgumentList?.Arguments;
         if (mapArguments is not { Count: 2 })
         {
-            errors.Add(Diagnostic.Create(
+            errors.Add(DiagnosticInfo.Create(
                 CmdDiagnostics.InvalidMapArguments,
                 attr.GetLocation(),
                 attr.Name.ToString()));
@@ -893,7 +971,7 @@ internal static class CommandHandlerGenerator
             else
             {
                 // se não achar a propriedade, deveria gerar um diagnostico.
-                errors.Add(Diagnostic.Create(
+                errors.Add(DiagnosticInfo.Create(
                     CmdDiagnostics.IdNotFoundInReturnedCommand,
                     valueReturnType.GetLocation()));
             }
@@ -916,7 +994,7 @@ internal static class CommandHandlerGenerator
                 {
                     // deve gerar algum diagnostic error
                     // se não achar a propriedade, deveria gerar um diagnostico.
-                    errors.Add(Diagnostic.Create(
+                    errors.Add(DiagnosticInfo.Create(
                         CmdDiagnostics.ReturnedCommandTypeNotFound,
                         valueReturnType.GetLocation()));
                 }
@@ -932,7 +1010,7 @@ internal static class CommandHandlerGenerator
                             if (property is null)
                             {
                                 // se não achar a propriedade, deve gerar um erro de diagnostico
-                                errors.Add(Diagnostic.Create(
+                                errors.Add(DiagnosticInfo.Create(
                                     CmdDiagnostics.PropertyNotFoundInReturnedCommand,
                                     valueReturnType.GetLocation(),
                                     name));
@@ -957,6 +1035,7 @@ internal static class CommandHandlerGenerator
             HttpMethod = httpMethod,
             RoutePattern = endpointRoutePattern,
             EndpointName = endpointName,
+            EndpointNameLocation = mapArguments.Value[1].GetLocation(),
             Description = description,
             Summary = summary,
             GroupName = groupName,

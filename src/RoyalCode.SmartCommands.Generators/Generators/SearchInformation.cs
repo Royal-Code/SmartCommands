@@ -1,18 +1,20 @@
 ﻿using Microsoft.CodeAnalysis;
+using RoyalCode.Extensions.SourceGenerator.Diagnostics;
+
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
 internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGenerator
 {
-    private readonly List<Diagnostic>? errors;
+    private readonly List<DiagnosticInfo>? errors;
 
-    internal IReadOnlyList<Diagnostic> Diagnostics => errors ?? (IReadOnlyList<Diagnostic>)Array.Empty<Diagnostic>();
+    internal IReadOnlyList<DiagnosticInfo> Diagnostics => errors ?? (IReadOnlyList<DiagnosticInfo>)Array.Empty<DiagnosticInfo>();
 
-    public SearchInformation(Diagnostic diagnostic)
+    public SearchInformation(DiagnosticInfo diagnostic)
     {
         errors = [diagnostic];
     }
 
-    public SearchInformation(List<Diagnostic> diagnostics)
+    public SearchInformation(List<DiagnosticInfo> diagnostics)
     {
         errors = diagnostics;
     }
@@ -62,6 +64,12 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
 
     public SearchFilterInformation? Filter { get; set; }
 
+    /// <summary>
+    /// Localização do argumento do endpoint name no atributo. Uso exclusivo do transform (vira snapshot no
+    /// modelo do pipeline); não participa da igualdade porque a informação é transitória.
+    /// </summary>
+    public Location? EndpointNameLocation { get; set; }
+
     public bool Equals(SearchInformation other)
     {
         if (other is null)
@@ -106,7 +114,7 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
     {
         if (errors is not null && errors.Count > 0)
         {
-            errors.ForEach(spc.ReportDiagnostic);
+            errors.ForEach(error => spc.ReportDiagnostic(error.ToDiagnostic(CmdDiagnostics.Get)));
             return;
         }
 

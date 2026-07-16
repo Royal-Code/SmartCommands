@@ -28,7 +28,7 @@ public static partial class MapMoviesApi
             .WithName("Get review details");
 
         group.MapGet("/{movieId}/reviews", SearchReviewByReviewFilterAsync)
-            .WithName("Listagem paginada de produtos");
+            .WithName("Listagem paginada de reviews");
 
         return group;
     }
