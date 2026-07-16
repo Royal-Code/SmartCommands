@@ -25,8 +25,35 @@ public static partial class MapProdutosApi
     {
         var group = builder.MapGroup("produtos");
 
+        group.MapPatch("/{id}/desativar", DesativarProdutoHandleAsync)
+            .WithName("Desativar Produto");
+
+        group.MapPut("/{id}", EditarProdutoHandleAsync)
+            .WithName("Editar Produto");
+
+        group.MapGet("{id:guid}", FindProdutoHandleAsync)
+            .WithName("Get product details")
+            .WithDescription("Get product details by ID");
+
+        group.MapGet("{id:guid}/estoque", FindProdutoEstoqueHandleAsync)
+            .WithName("Get product stock details");
+
+        group.MapGet("/filtro/{id:int}", SearchProdutoByExemploProdutoFiltroAsync)
+            .WithName("Listagem paginada de produtos exemplos");
+
+        group.MapGet("", SearchProdutoByProdutoFiltroAsync)
+            .WithName("Listagem paginada de produtos");
+
+        group.MapPatch("/{id}/reativar", ReativarProdutoHandleAsync)
+            .WithName("Reativar Produto");
+
         group.MapPost("/{id:guid}/estoque/entradas", AdicionarEntradaEstoqueHandleAsync)
             .WithName("adicionar-entrada-estoque");
+
+        group.MapPost("/", CriarProduto2HandleAsync)
+            .WithName("criar-produto")
+            .WithDescription("Cria um novo produto no catalogo.")
+            .WithSummary("Criar Produto");
 
         group.MapPost("/{id:guid}/estoque/liberacoes", LiberarReservaEstoqueHandleAsync)
             .WithName("liberar-reserva-estoque");
@@ -37,34 +64,98 @@ public static partial class MapProdutosApi
         group.MapPost("/{id:guid}/estoque/reservas", ReservarEstoqueHandleAsync)
             .WithName("reservar-estoque");
 
-        group.MapPost("/", CriarProduto2HandleAsync)
-            .WithName("criar-produto")
-            .WithDescription("Cria um novo produto no catalogo.")
-            .WithSummary("Criar Produto");
-
-        group.MapPatch("/{id}/desativar", DesativarProdutoHandleAsync)
-            .WithName("Desativar Produto");
-
-        group.MapPut("/{id}", EditarProdutoHandleAsync)
-            .WithName("Editar Produto");
-
-        group.MapPatch("/{id}/reativar", ReativarProdutoHandleAsync)
-            .WithName("Reativar Produto");
-
-        group.MapGet("{id:guid}/estoque", FindProdutoEstoqueHandleAsync)
-            .WithName("Get product stock details");
-
-        group.MapGet("{id:guid}", FindProdutoHandleAsync)
-            .WithName("Get product details")
-            .WithDescription("Get product details by ID");
-
-        group.MapGet("", SearchProdutoByProdutoFiltroAsync)
-            .WithName("Listagem paginada de produtos");
-
-        group.MapGet("/filtro/{id:int}", SearchProdutoByExemploProdutoFiltroAsync)
-            .WithName("Listagem paginada de produtos exemplos");
-
         return group;
+    }
+
+    private static async Task<OkMatch> DesativarProdutoHandleAsync(
+        IDesativarProdutoHandler handler, 
+        [FromRoute(Name = "id")]  Guid produtoId, 
+        CancellationToken ct)
+    {
+        var command = new DesativarProduto();
+
+        var result = await handler.HandleAsync(produtoId, command, ct);
+        return result;
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    private static async Task<OkMatch> EditarProdutoHandleAsync(
+        IEditarProdutoHandler handler, 
+        [FromRoute(Name = "id")]  Guid produtoId, 
+        EditarProduto? command, 
+        CancellationToken ct)
+    {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
+        var result = await handler.HandleAsync(produtoId, command, ct);
+        return result;
+    }
+
+    [ProduceProblems(ProblemCategory.NotFound)]
+    private static async Task<OkMatch<ProdutoDetalhes>> FindProdutoHandleAsync(
+        Id<Produto, Guid> id, 
+        IRepositoryAccessor<Produto> accessor, 
+        CancellationToken ct)
+    {
+        var findResult = await accessor.FindEntityAsync<ProdutoDetalhes, Guid>(id, ct);
+        if (findResult.NotFound(out var notfoundProblem))
+            return notfoundProblem;
+
+        return findResult.Entity;
+    }
+
+    [ProduceProblems(ProblemCategory.NotFound)]
+    private static async Task<OkMatch<ProdutoEstoqueDetalhes>> FindProdutoEstoqueHandleAsync(
+        Id<ProdutoEstoque, Guid> id, 
+        IRepositoryAccessor<ProdutoEstoque> accessor, 
+        CancellationToken ct)
+    {
+        var findResult = await accessor.FindEntityAsync<ProdutoEstoqueDetalhes, Guid>(id, ct);
+        if (findResult.NotFound(out var notfoundProblem))
+            return notfoundProblem;
+
+        return findResult.Entity;
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
+    private static Task<MatchSearch<ProdutoDetalhes>> SearchProdutoByExemploProdutoFiltroAsync(
+        [AsParameters]  ExemploProdutoFiltro filter, 
+        [AsParameters]  SearchOptions options, 
+        [FromQuery]  Sorting[]? orderby, 
+        [FromServices]  ICriteria<Produto> criteria, 
+        [FromServices]  ILogger<ICriteria<Produto>> logger, 
+        HttpContext context, 
+        [FromServices]  SomeService some, 
+        [FromRoute]  int id, 
+        CancellationToken ct)
+    {
+        Action<ICriteria<Produto>>? configure = (criteria) => filter.ConfigureSearch(criteria, context, some, id);
+        return Performer.SearchAsync<Produto, ProdutoDetalhes, ExemploProdutoFiltro>(filter, options, orderby, criteria, configure, logger, ct);
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
+    private static Task<MatchSearch<ProdutoDetalhes>> SearchProdutoByProdutoFiltroAsync(
+        [AsParameters]  ProdutoFiltro filter, 
+        [AsParameters]  SearchOptions options, 
+        [FromQuery]  Sorting[]? orderby, 
+        [FromServices]  ICriteria<Produto> criteria, 
+        [FromServices]  ILogger<ICriteria<Produto>> logger, 
+        CancellationToken ct)
+    {
+        Action<ICriteria<Produto>>? configure = (criteria) => filter.AplicarVisibilidade(criteria);
+        return Performer.SearchAsync<Produto, ProdutoDetalhes, ProdutoFiltro>(filter, options, orderby, criteria, configure, logger, ct);
+    }
+
+    private static async Task<OkMatch> ReativarProdutoHandleAsync(
+        IReativarProdutoHandler handler, 
+        [FromRoute(Name = "id")]  Guid produtoId, 
+        CancellationToken ct)
+    {
+        var command = new ReativarProduto();
+
+        var result = await handler.HandleAsync(produtoId, command, ct);
+        return result;
     }
 
     [ProduceProblems(ProblemCategory.InvalidParameter)]
@@ -79,6 +170,19 @@ public static partial class MapProdutosApi
 
         var result = await handler.HandleAsync(produtoId, command, ct);
         return result;
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    private static async Task<CreatedMatch<CriarProduto2Response>> CriarProduto2HandleAsync(
+        ICriarProduto2Handler handler, 
+        CriarProduto2? command, 
+        CancellationToken ct)
+    {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
+        var result = await handler.HandleAsync(command, ct);
+        return result.CreatedMatch(v => $"produtos/{v.Id}", v => new CriarProduto2Response(v.Id, v.Nome, v.Sku));
     }
 
     [ProduceProblems(ProblemCategory.InvalidParameter)]
@@ -121,109 +225,5 @@ public static partial class MapProdutosApi
 
         var result = await handler.HandleAsync(produtoId, command, ct);
         return result;
-    }
-
-    [ProduceProblems(ProblemCategory.InvalidParameter)]
-    private static async Task<CreatedMatch<CriarProduto2Response>> CriarProduto2HandleAsync(
-        ICriarProduto2Handler handler, 
-        CriarProduto2? command, 
-        CancellationToken ct)
-    {
-        if (command is null)
-            return Problems.InvalidParameter("The request body is required.");
-
-        var result = await handler.HandleAsync(command, ct);
-        return result.CreatedMatch(v => $"produtos/{v.Id}", v => new CriarProduto2Response(v.Id, v.Nome, v.Sku));
-    }
-
-    private static async Task<OkMatch> DesativarProdutoHandleAsync(
-        IDesativarProdutoHandler handler, 
-        [FromRoute(Name = "id")]  Guid produtoId, 
-        CancellationToken ct)
-    {
-        var command = new DesativarProduto();
-
-        var result = await handler.HandleAsync(produtoId, command, ct);
-        return result;
-    }
-
-    [ProduceProblems(ProblemCategory.InvalidParameter)]
-    private static async Task<OkMatch> EditarProdutoHandleAsync(
-        IEditarProdutoHandler handler, 
-        [FromRoute(Name = "id")]  Guid produtoId, 
-        EditarProduto? command, 
-        CancellationToken ct)
-    {
-        if (command is null)
-            return Problems.InvalidParameter("The request body is required.");
-
-        var result = await handler.HandleAsync(produtoId, command, ct);
-        return result;
-    }
-
-    private static async Task<OkMatch> ReativarProdutoHandleAsync(
-        IReativarProdutoHandler handler, 
-        [FromRoute(Name = "id")]  Guid produtoId, 
-        CancellationToken ct)
-    {
-        var command = new ReativarProduto();
-
-        var result = await handler.HandleAsync(produtoId, command, ct);
-        return result;
-    }
-
-    [ProduceProblems(ProblemCategory.NotFound)]
-    private static async Task<OkMatch<ProdutoEstoqueDetalhes>> FindProdutoEstoqueHandleAsync(
-        Id<ProdutoEstoque, Guid> id, 
-        IRepositoryAccessor<ProdutoEstoque> accessor, 
-        CancellationToken ct)
-    {
-        var findResult = await accessor.FindEntityAsync<ProdutoEstoqueDetalhes, Guid>(id, ct);
-        if (findResult.NotFound(out var notfoundProblem))
-            return notfoundProblem;
-
-        return findResult.Entity;
-    }
-
-    [ProduceProblems(ProblemCategory.NotFound)]
-    private static async Task<OkMatch<ProdutoDetalhes>> FindProdutoHandleAsync(
-        Id<Produto, Guid> id, 
-        IRepositoryAccessor<Produto> accessor, 
-        CancellationToken ct)
-    {
-        var findResult = await accessor.FindEntityAsync<ProdutoDetalhes, Guid>(id, ct);
-        if (findResult.NotFound(out var notfoundProblem))
-            return notfoundProblem;
-
-        return findResult.Entity;
-    }
-
-    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
-    private static Task<MatchSearch<ProdutoDetalhes>> SearchProdutoByProdutoFiltroAsync(
-        [AsParameters]  ProdutoFiltro filter, 
-        [AsParameters]  SearchOptions options, 
-        [FromQuery]  Sorting[]? orderby, 
-        [FromServices]  ICriteria<Produto> criteria, 
-        [FromServices]  ILogger<ICriteria<Produto>> logger, 
-        CancellationToken ct)
-    {
-        Action<ICriteria<Produto>>? configure = (criteria) => filter.AplicarVisibilidade(criteria);
-        return Performer.SearchAsync<Produto, ProdutoDetalhes, ProdutoFiltro>(filter, options, orderby, criteria, configure, logger, ct);
-    }
-
-    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.InternalServerError)]
-    private static Task<MatchSearch<ProdutoDetalhes>> SearchProdutoByExemploProdutoFiltroAsync(
-        [AsParameters]  ExemploProdutoFiltro filter, 
-        [AsParameters]  SearchOptions options, 
-        [FromQuery]  Sorting[]? orderby, 
-        [FromServices]  ICriteria<Produto> criteria, 
-        [FromServices]  ILogger<ICriteria<Produto>> logger, 
-        HttpContext context, 
-        [FromServices]  SomeService some, 
-        [FromRoute]  int id, 
-        CancellationToken ct)
-    {
-        Action<ICriteria<Produto>>? configure = (criteria) => filter.ConfigureSearch(criteria, context, some, id);
-        return Performer.SearchAsync<Produto, ProdutoDetalhes, ExemploProdutoFiltro>(filter, options, orderby, criteria, configure, logger, ct);
     }
 }

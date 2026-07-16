@@ -1,6 +1,8 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.Extensions.SourceGenerator.Generation;
+using RoyalCode.SmartCommands.Generators.Models;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
@@ -19,11 +21,27 @@ internal static class SearchGenerator
     private const string WithFilterAttributeName = "WithFilter";
     private const string WithParameterAttributeName = "WithParameter";
 
-    public static bool Predicate(SyntaxNode node, CancellationToken _) => node is ClassDeclarationSyntax;
+    public static bool Predicate(SyntaxNode node, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return node is ClassDeclarationSyntax;
+    }
 
-    public static SearchInformation Transform(
+    public static GenerationCandidate<SearchModel> Transform(
         GeneratorAttributeSyntaxContext context,
-        CancellationToken _)
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var information = TransformWorking(context, cancellationToken);
+        var diagnostics = PipelineDiagnostic.Snapshot(information.Diagnostics);
+        return diagnostics.IsEmpty
+            ? GenerationCandidate<SearchModel>.Valid(SearchModel.Create(information))
+            : GenerationCandidate<SearchModel>.Invalid(diagnostics);
+    }
+
+    private static SearchInformation TransformWorking(
+        GeneratorAttributeSyntaxContext context,
+        CancellationToken cancellationToken)
     {
         // classe que contém o atributo
         var classDeclaration = (ClassDeclarationSyntax)context.TargetNode;
@@ -48,9 +66,17 @@ internal static class SearchGenerator
             return new SearchInformation(diagnostic);
         }
 
-        // deve ler os parâmetros do atributo
-        var endpointRoutePattern = mapSearchAttribute!.ArgumentList?.Arguments[0].Expression.ToString();
-        var endpointName = mapSearchAttribute.ArgumentList?.Arguments[1].Expression.ToString();
+        if (mapSearchAttribute!.ArgumentList?.Arguments is not { Count: 2 } mapArguments)
+        {
+            var diagnostic = Diagnostic.Create(
+                CmdDiagnostics.InvalidMapSearchUsage,
+                mapSearchAttribute.GetLocation(),
+                "MapSearchAttribute requires a route pattern and an endpoint name");
+            return new SearchInformation(diagnostic);
+        }
+
+        var endpointRoutePattern = mapArguments[0].Expression.ToString();
+        var endpointName = mapArguments[1].Expression.ToString();
 
         string? description = null;
         string? summary = null;
@@ -96,8 +122,16 @@ internal static class SearchGenerator
             }
         }
 
-        // extrai o tipo da entidade buscada
-        var syntax = (GenericNameSyntax)searchReferenceAttribute!.Name;
+        if (searchReferenceAttribute!.Name is not GenericNameSyntax syntax ||
+            syntax.TypeArgumentList.Arguments.Count is < 1 or > 2)
+        {
+            var diagnostic = Diagnostic.Create(
+                CmdDiagnostics.InvalidMapSearchUsage,
+                searchReferenceAttribute.GetLocation(),
+                "SearchReferenceAttribute requires one or two type arguments");
+            return new SearchInformation(diagnostic);
+        }
+
         var entitySyntaxType = syntax.TypeArgumentList.Arguments[0];
 
         TypeSyntax? selectSyntaxType = null;
@@ -106,12 +140,13 @@ internal static class SearchGenerator
 
         var entityType = TypeDescriptor.Create(entitySyntaxType, context.SemanticModel);
         var selectType = selectSyntaxType is null ? null : TypeDescriptor.Create(selectSyntaxType, context.SemanticModel);
-        var filterType = new TypeDescriptor(classDeclaration.Identifier.Text, [classDeclaration.GetNamespace()]);
+        var filterType = TypeDescriptor.Create((ITypeSymbol)context.TargetSymbol);
 
         // obtém os métodos da classe, em busca de métodos anotados com WithFilter
         if (!TryCreateFilter(
             classDeclaration,
             context.SemanticModel,
+            cancellationToken,
             out SearchFilterInformation? searchFilterInformation,
             out List<Diagnostic>? errors))
         {
@@ -135,6 +170,7 @@ internal static class SearchGenerator
     public static bool TryCreateFilter(
         ClassDeclarationSyntax classDeclarationSyntax,
         SemanticModel semanticModel,
+        CancellationToken cancellationToken,
         out SearchFilterInformation? searchFilterInformation,
         out List<Diagnostic>? diagnostics)
     {
@@ -149,6 +185,8 @@ internal static class SearchGenerator
             })
             .Where(m => m.attr is not null)
             .ToList();
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (methods.Count > 1)
         {

@@ -8,15 +8,13 @@ namespace RoyalCode.SmartCommands.Tests.Characterization;
 
 /// <summary>
 /// <para>
-///     Testes de caracterização (Fase 1) para as falhas de igualdade e de coleção nula verificadas
-///     nos modelos do pipeline do generator. Cada teste afirma o comportamento-alvo (correto) e, por
-///     isso, FALHA no baseline exatamente pelo bug que documenta. As Fases 2/4 devem torná-los verdes.
+///     Testes de regressão para as falhas de igualdade e de coleção nula verificadas na Fase 1 e
+///     corrigidas na Fase 2. Eles preservam o contrato de igualdade/hash exigido pelo pipeline incremental.
 /// </para>
 /// <para>
 ///     Referências no plano: "Falha concreta de igualdade" e "Falhas concretas nos demais modelos".
 /// </para>
 /// </summary>
-[Trait("Category", "Characterization")]
 public class ModelEqualityCharacterizationTests
 {
     // Bug: MapApiHandlersInformation.Equals(MapApiHandlersInformation) ignora WithOpenApi.

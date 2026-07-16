@@ -6,6 +6,8 @@ internal abstract class TransformationGeneratorBase : ITransformationGenerator
 {
     protected List<Diagnostic>? Errors { get; set; }
 
+    internal IReadOnlyList<Diagnostic> Diagnostics => Errors ?? (IReadOnlyList<Diagnostic>)Array.Empty<Diagnostic>();
+
     public void Generate(SourceProductionContext spc)
     {
         bool hasErrors = Errors is not null && Errors.Count > 0;
@@ -38,6 +40,8 @@ internal abstract class TransformationGeneratorBase : ITransformationGenerator
 internal abstract class TransformationGeneratorBase<TModel> : ITransformationGenerator<TModel>
 {
     protected List<Diagnostic>? Errors { get; set; }
+
+    internal IReadOnlyList<Diagnostic> Diagnostics => Errors ?? (IReadOnlyList<Diagnostic>)Array.Empty<Diagnostic>();
 
     public void Generate(SourceProductionContext spc, IEnumerable<TModel> models)
     {

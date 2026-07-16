@@ -6,6 +6,8 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
 {
     private readonly List<Diagnostic>? errors;
 
+    internal IReadOnlyList<Diagnostic> Diagnostics => errors ?? (IReadOnlyList<Diagnostic>)Array.Empty<Diagnostic>();
+
     public FindInformation(Diagnostic diagnostic)
     {
         errors = [diagnostic];
@@ -62,15 +64,19 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
 
         return ReferenceEquals(this, other) ||
                 EntityType.Equals(other.EntityType) &&
+                IdType.Equals(other.IdType) &&
                 ModelType.Equals(other.ModelType) &&
                 EndpointRoutePattern == other.EndpointRoutePattern &&
                 EndpointName == other.EndpointName &&
                 Description == other.Description &&
                 Summary == other.Summary &&
                 GroupName == other.GroupName &&
-                AuthorizationPolicies?.SequenceEqual(other.AuthorizationPolicies ?? []) == true &&
+                SequenceEqual(AuthorizationPolicies, other.AuthorizationPolicies) &&
                 EqualErrors(other);
     }
+
+    private static bool SequenceEqual(string[]? left, string[]? right) =>
+        left is null ? right is null : right is not null && left.SequenceEqual(right);
 
     private bool EqualErrors(FindInformation other)
     {
@@ -92,14 +98,17 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
     {
         int hashCode = -737078483;
         hashCode = hashCode * -1521134295 + EntityType.GetHashCode();
+        hashCode = hashCode * -1521134295 + IdType.GetHashCode();
         hashCode = hashCode * -1521134295 + ModelType.GetHashCode();
         hashCode = hashCode * -1521134295 + EndpointRoutePattern.GetHashCode();
         hashCode = hashCode * -1521134295 + EndpointName.GetHashCode();
         hashCode = hashCode * -1521134295 + (Description?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (Summary?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (GroupName?.GetHashCode() ?? 0);
-        hashCode = hashCode * -1521134295 + (errors?.GetHashCode() ?? 0);
-        hashCode = hashCode * -1521134295 + (AuthorizationPolicies?.GetHashCode() ?? 0);
+        if (errors is not null)
+            foreach (var error in errors) hashCode = hashCode * -1521134295 + error.GetHashCode();
+        if (AuthorizationPolicies is not null)
+            foreach (var policy in AuthorizationPolicies) hashCode = hashCode * -1521134295 + policy.GetHashCode();
         return hashCode;
     }
 

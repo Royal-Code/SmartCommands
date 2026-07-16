@@ -56,15 +56,15 @@ internal static class CmdDiagnostics
 
     public static readonly DiagnosticDescriptor ProduceNewEntityRequiresWithUnitOfWork = new(
         id: "RCCMD006",
-        title: "The ProduceNewEntityAttribte requires WithUnitOfWorkAttribute",
-        messageFormat: "The ProduceNewEntityAttribte requires WithUnitOfWorkAttribute",
+        title: "The ProduceNewEntityAttribute requires WithUnitOfWorkAttribute",
+        messageFormat: "The ProduceNewEntityAttribute requires WithUnitOfWorkAttribute",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor ProduceNewEntityMustReturnResultWithValue = new(
         id: "RCCMD007",
-        title: "The ProduceNewEntityAttribte must return a Result with value",
+        title: "The ProduceNewEntityAttribute must return a Result with value",
         messageFormat: "When the command has the ProduceNewEntityAttribute and return a Result it must have a value",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
@@ -80,16 +80,16 @@ internal static class CmdDiagnostics
 
     public static readonly DiagnosticDescriptor EditEntityRequiresWithUnitOfWork = new(
         id: "RCCMD009",
-        title: "The EditEntityAttribte requires WithUnitOfWorkAttribute",
-        messageFormat: "The EditEntityAttribte requires WithUnitOfWorkAttribute",
+        title: "The EditEntityAttribute requires WithUnitOfWorkAttribute",
+        messageFormat: "The EditEntityAttribute requires WithUnitOfWorkAttribute",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor EditEntityRequiresFirstParameter = new(
         id: "RCCMD010",
-        title: "When EditEntityAttribte is used, the first parameter must be of the same type as the entity entered in the attribute",
-        messageFormat: "When EditEntityAttribte is used, the first parameter must be of the same type as the entity entered in the attribute",
+        title: "When EditEntityAttribute is used, the first parameter must be of the same type as the entity entered in the attribute",
+        messageFormat: "When EditEntityAttribute is used, the first parameter must be of the same type as the entity entered in the attribute",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -214,4 +214,105 @@ internal static class CmdDiagnostics
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor MultipleCommandMethods = new(
+        id: "RCCMD026",
+        title: "A command type must declare only one command method",
+        messageFormat: "The command type '{0}' declares more than one method with CommandAttribute",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor ConflictingMapAttributes = new(
+        id: "RCCMD027",
+        title: "A command type must declare only one map attribute",
+        messageFormat: "The command type '{0}' declares conflicting Map attributes",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidMapArguments = new(
+        id: "RCCMD028",
+        title: "Invalid map attribute arguments",
+        messageFormat: "The {0} attribute requires a route pattern and an endpoint name",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor ReservedIdentifier = new(
+        id: "RCCMD029",
+        title: "A command parameter uses a name reserved by the generated handler",
+        messageFormat: "The parameter '{0}' collides with an identifier emitted by the generated handler in the same scope; rename it",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> Descriptors =
+        new[]
+        {
+            InvalidCommandType,
+            InvalidReturnType,
+            HasProblemsMethodNotFound,
+            HasProblemsMethodDoesNotReturnBool,
+            HasProblemsMethodDoesNotHaveOutParameterProblems,
+            EntityTypeParameterDoesNotHaveIdProperty,
+            ProduceNewEntityRequiresWithUnitOfWork,
+            ProduceNewEntityMustReturnResultWithValue,
+            CancellationTokenParameterMustBeAsync,
+            EditEntityRequiresWithUnitOfWork,
+            EditEntityRequiresFirstParameter,
+            ParameterCannotBeMarkedWithParameter,
+            MultiplesMapApiHandlers,
+            InvalidMapApiHandlers,
+            IdNotFoundInReturnedCommand,
+            ReturnedCommandTypeNotFound,
+            PropertyNotFoundInReturnedCommand,
+            InvalidFindType,
+            WithDbContextCannotBeUsedWithWithUnitOfWork,
+            WithWorkContextCannotBeUsedWithWithUnitOfWork,
+            WithWorkContextCannotBeUsedWithWithDbContext,
+            InvalidMapFindUsage,
+            InvalidMapSearchUsage,
+            InvalidWithFilterUsage,
+            RetryOnConcurrencyRequiresWorkContext,
+            RetryOnConcurrencyInvalidMaxAttempts,
+            MultipleCommandMethods,
+            ConflictingMapAttributes,
+            InvalidMapArguments,
+            ReservedIdentifier,
+        }
+        .ToDictionary(descriptor => descriptor.Id, StringComparer.Ordinal);
+
+    private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> RenderedDescriptors =
+        Descriptors.Values.ToDictionary(
+            descriptor => descriptor.Id,
+            descriptor => new DiagnosticDescriptor(
+                descriptor.Id,
+                descriptor.Title,
+                "{0}",
+                descriptor.Category,
+                descriptor.DefaultSeverity,
+                descriptor.IsEnabledByDefault,
+                descriptor.Description,
+                descriptor.HelpLinkUri,
+                descriptor.CustomTags.ToArray()),
+            StringComparer.Ordinal);
+
+    internal static DiagnosticDescriptor ResolveRendered(string id) =>
+        RenderedDescriptors.TryGetValue(id, out var descriptor)
+            ? descriptor
+            : throw new ArgumentOutOfRangeException(nameof(id), id, "Unknown SmartCommands diagnostic id.");
+
+    /// <summary>
+    /// The canonical catalog accessor: maps a diagnostic id back to its registered
+    /// <see cref="DiagnosticDescriptor"/>. Throws for an id that is not in the single catalog, so an id can
+    /// never reach the output without a descriptor (which would surface as a generator failure).
+    /// </summary>
+    internal static DiagnosticDescriptor Get(string id) =>
+        Descriptors.TryGetValue(id, out var descriptor)
+            ? descriptor
+            : throw new ArgumentOutOfRangeException(nameof(id), id, "Unknown SmartCommands diagnostic id.");
+
+    /// <summary>All diagnostic ids registered in the single catalog.</summary>
+    internal static IReadOnlyCollection<string> CatalogIds => (IReadOnlyCollection<string>)Descriptors.Keys;
 }

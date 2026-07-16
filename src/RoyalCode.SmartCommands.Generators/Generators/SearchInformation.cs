@@ -5,6 +5,8 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
 {
     private readonly List<Diagnostic>? errors;
 
+    internal IReadOnlyList<Diagnostic> Diagnostics => errors ?? (IReadOnlyList<Diagnostic>)Array.Empty<Diagnostic>();
+
     public SearchInformation(Diagnostic diagnostic)
     {
         errors = [diagnostic];

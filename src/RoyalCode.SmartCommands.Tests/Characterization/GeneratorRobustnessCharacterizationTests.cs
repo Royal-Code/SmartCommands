@@ -6,12 +6,10 @@ namespace RoyalCode.SmartCommands.Tests.Characterization;
 
 /// <summary>
 /// <para>
-///     Testes de caracterização (Fase 1) para robustez do generator diante de entradas
-///     ambíguas ou malformadas. Afirmam o comportamento-alvo (DF8, DF9 e "maps conflitantes"),
-///     logo FALHAM no baseline pelo bug documentado. As Fases 2/3 devem torná-los verdes.
+///     Testes de regressão para robustez do generator diante de entradas ambíguas ou malformadas.
+///     Preservam DF8, DF9 e o contrato de que maps conflitantes bloqueiam toda fonte relacionada.
 /// </para>
 /// </summary>
-[Trait("Category", "Characterization")]
 public class GeneratorRobustnessCharacterizationTests
 {
     private const string Usings =
@@ -48,6 +46,8 @@ public class GeneratorRobustnessCharacterizationTests
         var rccmdErrors = GeneratorErrors(generatorDiagnostics);
         AssertNoGeneratedSourceContains(output, "DoTwoThingsHandler", "IDoTwoThingsHandler");
 
+        Assert.NotEmpty(rccmdErrors);
+        Assert.All(rccmdErrors, diagnostic => AssertDiagnostic(diagnostic, "RCCMD026", "DoTwoThings"));
         Assert.True(
             generatorCrash.Length == 0 && duplicateTypes.Length == 0 && rccmdErrors.Length > 0,
             $"Esperado diagnóstico RCCMD, nenhum crash do generator e nenhuma colisão de tipo. " +
@@ -81,6 +81,8 @@ public class GeneratorRobustnessCharacterizationTests
         var rccmdErrors = GeneratorErrors(generatorDiagnostics);
         AssertNoGeneratedSourceContains(output, "create-thing", "update-thing");
 
+        Assert.Single(rccmdErrors);
+        AssertDiagnostic(rccmdErrors[0], "RCCMD027", "AmbiguousMappedThing");
         Assert.True(
             rccmdErrors.Length > 0,
             $"Esperado um diagnóstico RCCMD para atributos Map* conflitantes, mas nenhum foi reportado. " +
@@ -111,16 +113,47 @@ public class GeneratorRobustnessCharacterizationTests
         var rccmdErrors = GeneratorErrors(generatorDiagnostics);
         AssertNoGeneratedSourceContains(output, "MalformedMappedThingHandler", "only-one-argument");
 
+        Assert.Single(rccmdErrors);
+        AssertDiagnostic(rccmdErrors[0], "RCCMD028", "MapPost");
         Assert.True(
             generatorCrash.Length == 0 && rccmdErrors.Length > 0,
             $"Entrada malformada deve produzir RCCMD e não causar exceção do generator (CS8785). " +
             $"Diagnósticos: {Describe(generatorDiagnostics)}");
     }
 
+    [Fact]
+    public void MalformedGenericCommandAttribute_ShouldNotCrashGenerator()
+    {
+        const string code = Usings +
+            """
+            public class MalformedUnitOfWork
+            {
+                [Command]
+                [WithUnitOfWork]
+                public Result Do() => Result.Ok();
+            }
+            """;
+
+        Util.Compile(code, out var output, out var generatorDiagnostics);
+
+        Assert.DoesNotContain(generatorDiagnostics, diagnostic => diagnostic.Id == "CS8785");
+        Assert.Contains(generatorDiagnostics, diagnostic => diagnostic.Id == "RCCMD000");
+        AssertNoGeneratedSourceContains(output, "MalformedUnitOfWorkHandler", "IMalformedUnitOfWorkHandler");
+    }
+
     private static Diagnostic[] GeneratorErrors(System.Collections.Generic.IEnumerable<Diagnostic> diagnostics) =>
         diagnostics
             .Where(d => d.Id.StartsWith("RCCMD") && d.Severity == DiagnosticSeverity.Error)
             .ToArray();
+
+    private static void AssertDiagnostic(Diagnostic diagnostic, string id, string messageFragment)
+    {
+        Assert.Equal(id, diagnostic.Id);
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.NotEqual(Location.None, diagnostic.Location);
+        Assert.True(diagnostic.Location.GetLineSpan().IsValid);
+        Assert.Contains(messageFragment, diagnostic.GetMessage(), System.StringComparison.Ordinal);
+    }
 
     private static void AssertNoGeneratedSourceContains(Compilation output, params string[] forbiddenValues)
     {

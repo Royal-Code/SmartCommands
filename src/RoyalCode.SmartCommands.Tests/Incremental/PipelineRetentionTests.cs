@@ -15,12 +15,10 @@ namespace RoyalCode.SmartCommands.Tests.Incremental;
 ///     builds e o cache torna-se não confiável.
 /// </para>
 /// <para>
-///     No baseline este teste FALHA de propósito: os modelos <c>*Information</c> ainda carregam
-///     <c>TypeDescriptor</c>/<c>ParameterDescriptor</c>, que retêm <see cref="ISymbol"/>. A migração para
-///     snapshots symbol-free (base 0.4.0) deve torná-lo verde. Ver o host de teste <c>Util.RunTracked</c>.
+///     Este é um gate de regressão: descritores com símbolos podem existir somente durante a transformação;
+///     as fronteiras nomeadas e retidas devem expor apenas snapshots imutáveis.
 /// </para>
 /// </summary>
-[Trait("Category", "Characterization")]
 public class PipelineRetentionTests
 {
     private const string Source =

@@ -1,6 +1,8 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.Extensions.SourceGenerator.Generation;
+using RoyalCode.SmartCommands.Generators.Models;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
@@ -9,12 +11,29 @@ internal static class MapApiHandlersGenerator
     public const string AddHandlersServicesAttributeName = "RoyalCode.SmartCommands.MapApiHandlersAttribute";
     public const string WithOpenApiAttributeName = "WithOpenApi";
 
-    public static bool Predicate(SyntaxNode node, CancellationToken token) => node is ClassDeclarationSyntax;
+    public static bool Predicate(SyntaxNode node, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        return node is ClassDeclarationSyntax;
+    }
 
-    public static MapApiHandlersInformation TransformMapHandlers(
+    public static GenerationCandidate<MapHostModel> TransformMapHandlers(
         GeneratorAttributeSyntaxContext context,
         CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
+        var information = TransformWorking(context, token);
+        var diagnostics = PipelineDiagnostic.Snapshot(information.Diagnostics);
+        return diagnostics.IsEmpty
+            ? GenerationCandidate<MapHostModel>.Valid(MapHostModel.Create(information))
+            : GenerationCandidate<MapHostModel>.Invalid(diagnostics);
+    }
+
+    private static MapApiHandlersInformation TransformWorking(
+        GeneratorAttributeSyntaxContext context,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         var classSyntax = (ClassDeclarationSyntax)context.TargetNode;
 
         var errors = new List<Diagnostic>();
@@ -43,7 +62,7 @@ internal static class MapApiHandlersGenerator
 
         var withOpenApi = classSyntax.TryGetAttribute(WithOpenApiAttributeName, out AttributeSyntax? _);
 
-        var handlerType = new TypeDescriptor(classSyntax.Identifier.Text, [classSyntax.GetNamespace()]);
+        var handlerType = TypeDescriptor.Create((ITypeSymbol)context.TargetSymbol);
         return new MapApiHandlersInformation(handlerType, withOpenApi, errors);
     }
 

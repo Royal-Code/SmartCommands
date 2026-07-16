@@ -19,7 +19,7 @@ internal sealed class MapCreatedInformation : IEquatable<MapCreatedInformation>
         if (ReferenceEquals(this, other))
             return true;
 
-        return RoutePattern == other.RoutePattern && PropertiesNames.Equals(other.PropertiesNames);
+        return RoutePattern == other.RoutePattern && PropertiesNames.SequenceEqual(other.PropertiesNames);
     }
 
     public override bool Equals(object? obj)
@@ -31,7 +31,8 @@ internal sealed class MapCreatedInformation : IEquatable<MapCreatedInformation>
     {
         int hashCode = 213970741;
         hashCode = hashCode * -1523974295 + RoutePattern.GetHashCode();
-        hashCode = hashCode * -1523974295 + PropertiesNames.GetHashCode();
+        foreach (var propertyName in PropertiesNames)
+            hashCode = hashCode * -1523974295 + propertyName.GetHashCode();
         return hashCode;
     }
 }

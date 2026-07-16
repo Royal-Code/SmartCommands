@@ -14,7 +14,7 @@ internal sealed class MapResponseValuesInformation : IEquatable<MapResponseValue
         if (other is null)
             return false;
         return ReferenceEquals(this, other) ||
-               PropertiesNames.Equals(other.PropertiesNames);
+               PropertiesNames.SequenceEqual(other.PropertiesNames);
     }
 
     public override bool Equals(object? obj)
@@ -24,6 +24,12 @@ internal sealed class MapResponseValuesInformation : IEquatable<MapResponseValue
 
     public override int GetHashCode()
     {
-        return PropertiesNames.GetHashCode();
+        unchecked
+        {
+            var hash = 17;
+            foreach (var property in PropertiesNames)
+                hash = hash * 31 + property.GetHashCode();
+            return hash;
+        }
     }
 }

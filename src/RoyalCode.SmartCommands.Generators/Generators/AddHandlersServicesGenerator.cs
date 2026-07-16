@@ -1,6 +1,8 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.Extensions.SourceGenerator.Generation;
+using RoyalCode.SmartCommands.Generators.Models;
 using static RoyalCode.SmartCommands.Generators.Generators.CommandHandlerInformation;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
@@ -9,12 +11,29 @@ internal static class AddHandlersServicesGenerator
 {
     public const string AddHandlersServicesAttributeName = "RoyalCode.SmartCommands.AddHandlersServicesAttribute";
 
-    public static bool Predicate(SyntaxNode node, CancellationToken token) => node is ClassDeclarationSyntax;
+    public static bool Predicate(SyntaxNode node, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        return node is ClassDeclarationSyntax;
+    }
 
-    public static AddHandlersServicesInformation TransformAddServices(
+    public static GenerationCandidate<AddServicesModel> TransformAddServices(
         GeneratorAttributeSyntaxContext context,
         CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
+        var information = TransformWorking(context, token);
+        var diagnostics = PipelineDiagnostic.Snapshot(information.Diagnostics);
+        return diagnostics.IsEmpty
+            ? GenerationCandidate<AddServicesModel>.Valid(AddServicesModel.Create(information))
+            : GenerationCandidate<AddServicesModel>.Invalid(diagnostics);
+    }
+
+    private static AddHandlersServicesInformation TransformWorking(
+        GeneratorAttributeSyntaxContext context,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         var classSyntax = (ClassDeclarationSyntax)context.TargetNode;
 
         var errors = new List<Diagnostic>();
@@ -47,9 +66,17 @@ internal static class AddHandlersServicesGenerator
             errors.Add(diagnostic);
         }
 
-        var titleExpression = attr?.ArgumentList?.Arguments[0].Expression;
+        var titleExpression = attr?.ArgumentList?.Arguments is { Count: 1 } arguments
+            ? arguments[0].Expression
+            : null;
 
-        if (!titleExpression.IsKind(SyntaxKind.StringLiteralExpression))
+        var title = string.Empty;
+        if (titleExpression is LiteralExpressionSyntax literal &&
+            literal.IsKind(SyntaxKind.StringLiteralExpression))
+        {
+            title = literal.Token.ValueText;
+        }
+        else
         {
             var diagnostic = Diagnostic.Create(CmdDiagnostics.InvalidCommandType,
                     location: classSyntax.Identifier.GetLocation(),
@@ -58,10 +85,7 @@ internal static class AddHandlersServicesGenerator
             errors.Add(diagnostic);
         }
 
-        var title = titleExpression?.ToString() ?? "";
-        title = title.Substring(1, title.Length - 2);
-
-        var handlerType = new TypeDescriptor(classSyntax.Identifier.Text, [classSyntax.GetNamespace()]);
+        var handlerType = TypeDescriptor.Create((ITypeSymbol)context.TargetSymbol);
         return new AddHandlersServicesInformation(handlerType, title, errors);
     }
 

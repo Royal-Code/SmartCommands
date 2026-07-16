@@ -24,43 +24,19 @@ public static partial class MapPedidosApi
     {
         var group = builder.MapGroup("pedidos");
 
-        group.MapPatch("/{id:guid}/cancelar", CancelarPedidoHandleAsync)
-            .WithName("cancelar-pedido");
-
-        group.MapPost("/", CriarPedidoHandleAsync)
-            .WithName("criar-pedido");
-
         group.MapGet("{id:guid}", FindPedidoHandleAsync)
             .WithName("Get order details");
 
         group.MapGet("", SearchPedidoByPedidoFiltroAsync)
             .WithName("Listagem paginada de pedidos");
 
+        group.MapPatch("/{id:guid}/cancelar", CancelarPedidoHandleAsync)
+            .WithName("cancelar-pedido");
+
+        group.MapPost("/", CriarPedidoHandleAsync)
+            .WithName("criar-pedido");
+
         return group;
-    }
-
-    private static async Task<OkMatch> CancelarPedidoHandleAsync(
-        ICancelarPedidoHandler handler, 
-        [FromRoute(Name = "id")]  Guid pedidoId, 
-        CancellationToken ct)
-    {
-        var command = new CancelarPedido();
-
-        var result = await handler.HandleAsync(pedidoId, command, ct);
-        return result;
-    }
-
-    [ProduceProblems(ProblemCategory.InvalidParameter)]
-    private static async Task<CreatedMatch<CriarPedidoResponse>> CriarPedidoHandleAsync(
-        ICriarPedidoHandler handler, 
-        CriarPedido? command, 
-        CancellationToken ct)
-    {
-        if (command is null)
-            return Problems.InvalidParameter("The request body is required.");
-
-        var result = await handler.HandleAsync(command, ct);
-        return result.CreatedMatch(v => $"pedidos/{v.Id}", v => new CriarPedidoResponse(v.Id, v.Status, v.Total));
     }
 
     [ProduceProblems(ProblemCategory.NotFound)]
@@ -87,5 +63,29 @@ public static partial class MapPedidosApi
     {
         Action<ICriteria<Pedido>>? configure = null;
         return Performer.SearchAsync<Pedido, PedidoResumo, PedidoFiltro>(filter, options, orderby, criteria, configure, logger, ct);
+    }
+
+    private static async Task<OkMatch> CancelarPedidoHandleAsync(
+        ICancelarPedidoHandler handler, 
+        [FromRoute(Name = "id")]  Guid pedidoId, 
+        CancellationToken ct)
+    {
+        var command = new CancelarPedido();
+
+        var result = await handler.HandleAsync(pedidoId, command, ct);
+        return result;
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    private static async Task<CreatedMatch<CriarPedidoResponse>> CriarPedidoHandleAsync(
+        ICriarPedidoHandler handler, 
+        CriarPedido? command, 
+        CancellationToken ct)
+    {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
+        var result = await handler.HandleAsync(command, ct);
+        return result.CreatedMatch(v => $"pedidos/{v.Id}", v => new CriarPedidoResponse(v.Id, v.Status, v.Total));
     }
 }

@@ -2,6 +2,9 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using RoyalCode.SmartCommands.Generators.Commands;
+using RoyalCode.SmartCommands.Generators.Models;
+using RoyalCode.Extensions.SourceGenerator.Generation;
+using RoyalCode.Extensions.SourceGenerator.Descriptors.Snapshots;
 using System.Reflection;
 using static RoyalCode.SmartCommands.Generators.Generators.CommandHandlerInformation;
 
@@ -39,6 +42,7 @@ internal static class CommandHandlerGenerator
 
     private const string EditEntityAttributeName = "EditEntity";
     private const string ModelVarName = "command";
+    private const string CancellationTokenParameterName = "ct";
     private const string DecoratorsVarName = "decorators";
     private const string DecoratorsMediatorVarName = "decoratorsMediator";
     private const string CommandResultVarName = "commandResult";
@@ -49,11 +53,27 @@ internal static class CommandHandlerGenerator
     private const string UowAccessorType = "IUnitOfWorkAccessor<{0}>";
     private const string RepoAccessorType = "IRepositoriesAccessor<{0}>";
 
-    public static bool Predicate(SyntaxNode node, CancellationToken _) => node is MethodDeclarationSyntax;
+    public static bool Predicate(SyntaxNode node, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return node is MethodDeclarationSyntax;
+    }
 
-    public static CommandHandlerInformation Transform(
+    public static GenerationCandidate<CommandModel> Transform(
         GeneratorAttributeSyntaxContext context,
-        CancellationToken __)
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var information = TransformWorking(context, cancellationToken);
+        var diagnostics = PipelineDiagnostic.Snapshot(information.Diagnostics);
+        return diagnostics.IsEmpty
+            ? GenerationCandidate<CommandModel>.Valid(CommandModel.Create(information))
+            : GenerationCandidate<CommandModel>.Invalid(diagnostics);
+    }
+
+    private static CommandHandlerInformation TransformWorking(
+        GeneratorAttributeSyntaxContext context,
+        CancellationToken cancellationToken)
     {
         // método do comando, ou seja, que contém o attribute Command
         var method = (MethodDeclarationSyntax)context.TargetNode;
@@ -70,6 +90,28 @@ internal static class CommandHandlerGenerator
 
         // lista de erros
         var errors = new List<Diagnostic>();
+
+        var commandType = context.TargetSymbol.ContainingType;
+        var commandMethodCount = commandType.GetMembers()
+            .OfType<IMethodSymbol>()
+            .Count(candidate => candidate.GetAttributes().Any(attribute =>
+                attribute.AttributeClass?.ToDisplayString() == CommandAttributeName));
+        if (commandMethodCount > 1)
+        {
+            errors.Add(Diagnostic.Create(
+                CmdDiagnostics.MultipleCommandMethods,
+                method.Identifier.GetLocation(),
+                commandType.Name));
+        }
+
+        var mapAttributeCount = commandType.GetAttributes().Count(attribute => IsMapAttribute(attribute.AttributeClass));
+        if (mapAttributeCount > 1)
+        {
+            errors.Add(Diagnostic.Create(
+                CmdDiagnostics.ConflictingMapAttributes,
+                classDeclaration.Identifier.GetLocation(),
+                commandType.Name));
+        }
 
         // nem o método nem a classe pode ter argumentos genéricos
         if (method.TypeParameterList is not null || classDeclaration.TypeParameterList is not null)
@@ -147,10 +189,19 @@ internal static class CommandHandlerGenerator
         var hasUow = method.TryGetAttribute(WithUnitOfWorkAttributeName, out AttributeSyntax? withUowAttr);
         if (hasUow)
         {
-            // se tem uow, extrai o tipo do contexto
-            var uowSyntaxType = ((GenericNameSyntax)withUowAttr!.Name).TypeArgumentList.Arguments[0];
-            accessorType = TypeDescriptor.Create(uowSyntaxType, context.SemanticModel);
-            contextAccessorMode = ContextAccessorModes.Specified;
+            if (TryGetGenericTypeArguments(withUowAttr, 1, out var typeArguments))
+            {
+                accessorType = TypeDescriptor.Create(typeArguments[0], context.SemanticModel);
+                contextAccessorMode = ContextAccessorModes.Specified;
+            }
+            else
+            {
+                errors.Add(Diagnostic.Create(
+                    CmdDiagnostics.InvalidCommandType,
+                    withUowAttr?.GetLocation() ?? method.Identifier.GetLocation(),
+                    "WithUnitOfWorkAttribute requires one context type argument"));
+                hasUow = false;
+            }
         }
         
         // verifica se tem o attribute WithDbContext
@@ -279,9 +330,18 @@ internal static class CommandHandlerGenerator
             hasFindEntities = method.TryGetAttribute(WithFindEntitiesAttributeName, out AttributeSyntax? withFindEntitiesAttr);
             if (hasFindEntities)
             {
-                // se tem with find entities, extrai o tipo do contexto
-                var uowSyntaxType = ((GenericNameSyntax)withFindEntitiesAttr!.Name).TypeArgumentList.Arguments[0];
-                accessorType = TypeDescriptor.Create(uowSyntaxType, context.SemanticModel);
+                if (TryGetGenericTypeArguments(withFindEntitiesAttr, 1, out var typeArguments))
+                {
+                    accessorType = TypeDescriptor.Create(typeArguments[0], context.SemanticModel);
+                }
+                else
+                {
+                    errors.Add(Diagnostic.Create(
+                        CmdDiagnostics.InvalidCommandType,
+                        withFindEntitiesAttr?.GetLocation() ?? method.Identifier.GetLocation(),
+                        "WithFindEntitiesAttribute requires one context type argument"));
+                    hasFindEntities = false;
+                }
             }
         }
 
@@ -322,15 +382,27 @@ internal static class CommandHandlerGenerator
                 errors.Add(error);
             }
 
-            editType = EditTypeDescriptor.Create(editEntityAttr!, context.SemanticModel);
+            if (TryGetGenericTypeArguments(editEntityAttr, 2, out var typeArguments))
+            {
+                editType = new EditTypeDescriptor(
+                    TypeDescriptor.Create(typeArguments[0], context.SemanticModel),
+                    TypeDescriptor.Create(typeArguments[1], context.SemanticModel));
+            }
+            else
+            {
+                errors.Add(Diagnostic.Create(
+                    CmdDiagnostics.InvalidCommandType,
+                    editEntityAttr?.GetLocation() ?? method.Identifier.GetLocation(),
+                    "EditEntityAttribute requires entity and id type arguments"));
+            }
         }
 
-        // verifica se o método é assíncrono (se retorna Task)
-        // By Design: Não irá checar namespaces
-        var isAsync = method.ReturnType is GenericNameSyntax { Identifier.Text: "Task" };
-
-        // obtém o retorno do método
-        var methodReturnType = TypeDescriptor.Create(method.ReturnType, context.SemanticModel);
+        // Classificação semântica e symbol-free do retorno. A emissão usa Task como formato normalizado também
+        // para métodos ValueTask, mas o modelo preserva o tipo declarado e seu payload.
+        var declaredMethodReturnType = TypeDescriptor.Create(method.ReturnType, context.SemanticModel);
+        var returnModel = ReturnModel.Create(TypeSnapshot.Create(declaredMethodReturnType));
+        var isAsync = returnModel.IsAwaitable;
+        var methodReturnType = PipelineModelConversions.ToLegacyMethodReturn(returnModel);
 
         // se produz uma nova entidade, então o retorno do método será a nova entidade
         TypeSyntax? newEntityTypeSyntax = null;
@@ -385,6 +457,7 @@ internal static class CommandHandlerGenerator
         var commandMethodParameters = method.ParameterList.Parameters;
         for (int paramIndex = 0; paramIndex < commandMethodParameters.Count; paramIndex++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var p = commandMethodParameters[paramIndex];
 
             // cria o descritor
@@ -526,7 +599,33 @@ internal static class CommandHandlerGenerator
 
         // verifica a necessidade do método do handler ser assíncrono
         var handlerMustBeAsync = isAsync || hasWithDecorators || hasUow || hasFindEntities;
-        
+
+        // DF5: os nomes que o handler gerado emite no mesmo escopo são reservados; um parâmetro do comando que
+        // caia nesse escopo (WithParameter, dependência de DI ou entidade carregada) não pode colidir com eles.
+        // Token e contexto não introduzem um identificador de usuário (viram 'ct'/'this.accessor.Context').
+        var reservedNames = CollectReservedNames(
+            handlerMustBeAsync,
+            hasAccessor: hasUow || hasFindEntities,
+            hasWithUnitOfWork: hasUow,
+            hasWithDecorators,
+            hasRetryOnConcurrency,
+            retryMaxAttempts,
+            retryOperation);
+        for (int reservedIndex = 0; reservedIndex < parameters.Count; reservedIndex++)
+        {
+            var reservedParameter = parameters[reservedIndex];
+            if (reservedParameter.Type.IsCancellationToken || reservedParameter.Type.IsContext)
+                continue;
+
+            if (reservedNames.Contains(reservedParameter.Name))
+            {
+                errors.Add(Diagnostic.Create(
+                    CmdDiagnostics.ReservedIdentifier,
+                    location: commandMethodParameters[reservedIndex].Identifier.GetLocation(),
+                    reservedParameter.Name));
+            }
+        }
+
         // lê atributo Map... da classe do comando
         var mapInformation = ReadMap(
             classDeclaration, 
@@ -557,12 +656,13 @@ internal static class CommandHandlerGenerator
         // armazena todas as informações coletadas
         var info = new CommandHandlerInformation
         {
-            ModelType = new(modelName, [classDeclaration.GetNamespace()]),
+            ModelType = TypeDescriptor.Create(context.TargetSymbol.ContainingType),
             HasWithValidateModel = hasWithValidateModel,
             HasWithDecorators = hasWithDecorators,
             MethodName = method.Identifier.Text,
             MethodReturnType = methodReturnType,
             HandlerReturnType = handlerReturnType,
+            ReturnModel = returnModel,
             MethodIsAsync = isAsync,
             HandlerMustBeAsync = handlerMustBeAsync,
             Parameters = parameters,
@@ -584,12 +684,40 @@ internal static class CommandHandlerGenerator
             HasBodyProperties = hasRequestBody
         };
 
-        if (mapInformation is not null)
-            mapInformation.CommandInfo = info;
-
         info.SetErrors(errors);
 
         return info;
+    }
+
+    private static HashSet<string> CollectReservedNames(
+        bool handlerMustBeAsync,
+        bool hasAccessor,
+        bool hasWithUnitOfWork,
+        bool hasWithDecorators,
+        bool hasRetryOnConcurrency,
+        int? retryMaxAttempts,
+        string? retryOperation)
+    {
+        // nomes que o handler gerado emite como parâmetro/campo/local no mesmo escopo do comando.
+        var reserved = new HashSet<string>(StringComparer.Ordinal) { ModelVarName };
+
+        if (handlerMustBeAsync)
+            reserved.Add(CancellationTokenParameterName);
+        if (hasAccessor)
+            reserved.Add(AccessorVarName);
+        if (hasWithUnitOfWork)
+            reserved.Add(CommandResultVarName);
+        if (hasWithDecorators)
+        {
+            reserved.Add(DecoratorsVarName);
+            reserved.Add(DecoratorsMediatorVarName);
+        }
+        if (hasRetryOnConcurrency && retryMaxAttempts is null)
+            reserved.Add(RetryOptionsVarName);
+        if (hasRetryOnConcurrency && retryOperation is not null)
+            reserved.Add(RetryProblemFactoryVarName);
+
+        return reserved;
     }
 
     private static bool HasRequestBodyShape(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel)
@@ -621,6 +749,30 @@ internal static class CommandHandlerGenerator
             type = type.BaseType;
         }
 
+        return false;
+    }
+
+    private static bool IsMapAttribute(INamedTypeSymbol? attributeType) =>
+        attributeType?.ToDisplayString() is
+            "RoyalCode.SmartCommands.MapPostAttribute" or
+            "RoyalCode.SmartCommands.MapPutAttribute" or
+            "RoyalCode.SmartCommands.MapPatchAttribute" or
+            "RoyalCode.SmartCommands.MapDeleteAttribute" or
+            "RoyalCode.SmartCommands.MapGetAttribute";
+
+    private static bool TryGetGenericTypeArguments(
+        AttributeSyntax? attribute,
+        int expectedCount,
+        out SeparatedSyntaxList<TypeSyntax> arguments)
+    {
+        if (attribute?.Name is GenericNameSyntax genericName &&
+            genericName.TypeArgumentList.Arguments.Count == expectedCount)
+        {
+            arguments = genericName.TypeArgumentList.Arguments;
+            return true;
+        }
+
+        arguments = default;
         return false;
     }
 
@@ -663,12 +815,18 @@ internal static class CommandHandlerGenerator
         if (attr is null || httpMethod is null)
             return null;
 
-        // deve ler os parâmetros do atributo
-        var endpointRoutePattern = attr.ArgumentList?.Arguments[0].Expression.ToString();
-        var endpointName = attr.ArgumentList?.Arguments[1].Expression.ToString();
-
-        if (endpointRoutePattern is null || endpointName is null)
+        var mapArguments = attr.ArgumentList?.Arguments;
+        if (mapArguments is not { Count: 2 })
+        {
+            errors.Add(Diagnostic.Create(
+                CmdDiagnostics.InvalidMapArguments,
+                attr.GetLocation(),
+                attr.Name.ToString()));
             return null;
+        }
+
+        var endpointRoutePattern = mapArguments.Value[0].Expression.ToString();
+        var endpointName = mapArguments.Value[1].Expression.ToString();
 
         // tenta obter a descrição
         if (classDeclaration.TryGetAttribute(WithDescriptionAttributeName, out AttributeSyntax? descAttr) && descAttr!.ArgumentList?.Arguments.Count is 1)
@@ -1110,7 +1268,11 @@ internal static class CommandHandlerGenerator
         }
 
         if (useReturn)
-            final = new ReturnCommand(final);
+        {
+            final = i.HandlerReturnType.IsVoid || i.HandlerReturnType.IsVoidTask
+                ? new Command(final) { NewLine = false }
+                : new ReturnCommand(final);
+        }
 
         bodyTarget.Add(final);
 

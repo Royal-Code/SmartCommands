@@ -1,14 +1,12 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
+using RoyalCode.Extensions.SourceGenerator.Collections;
+using RoyalCode.SmartCommands.Generators.Models;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
 [Generator]
 internal class IncrementalGenerator : IIncrementalGenerator
 {
-    /// <summary>
-    /// Tracking names for the incremental pipeline steps, used by the tests to assert caching and
-    /// symbol-free retention. Naming a step is required for it to appear in <c>TrackedSteps</c>.
-    /// </summary>
     internal static class TrackingNames
     {
         public const string Commands = "Commands";
@@ -24,10 +22,6 @@ internal class IncrementalGenerator : IIncrementalGenerator
         public const string CollectedMapApiHandlers = "CollectedMapApiHandlers";
         public const string MapApiHandlersWithMapInformation = "MapApiHandlersWithMapInformation";
 
-        /// <summary>
-        /// Model-bearing boundaries whose outputs may be retained by the incremental cache. Roslyn's internal
-        /// syntax-provider steps are deliberately excluded because their outputs naturally contain Roslyn objects.
-        /// </summary>
         public static IReadOnlyList<string> RetainedModelSteps { get; } = Array.AsReadOnly(new[]
         {
             Commands,
@@ -47,118 +41,136 @@ internal class IncrementalGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var pipelineCommands = context.SyntaxProvider.ForAttributeWithMetadataName(
-            fullyQualifiedMetadataName: CommandHandlerGenerator.CommandAttributeName,
-            predicate: CommandHandlerGenerator.Predicate,
-            transform: CommandHandlerGenerator.Transform)
-            .WithTrackingName(TrackingNames.Commands);
+        var commandCandidates = context.SyntaxProvider.ForAttributeWithMetadataName(
+            CommandHandlerGenerator.CommandAttributeName,
+            CommandHandlerGenerator.Predicate,
+            CommandHandlerGenerator.Transform);
+        context.RegisterSourceOutput(commandCandidates, static (spc, candidate) =>
+            PipelineDiagnostic.Report(spc, candidate.Diagnostics));
+        var commands = ValidModels(commandCandidates).WithTrackingName(TrackingNames.Commands);
 
-        var pipelineAddServices = context.SyntaxProvider.ForAttributeWithMetadataName(
-            fullyQualifiedMetadataName: AddHandlersServicesGenerator.AddHandlersServicesAttributeName,
-            predicate: AddHandlersServicesGenerator.Predicate,
-            transform: AddHandlersServicesGenerator.TransformAddServices)
-            .WithTrackingName(TrackingNames.AddServices);
+        var addServicesCandidates = context.SyntaxProvider.ForAttributeWithMetadataName(
+            AddHandlersServicesGenerator.AddHandlersServicesAttributeName,
+            AddHandlersServicesGenerator.Predicate,
+            AddHandlersServicesGenerator.TransformAddServices);
+        context.RegisterSourceOutput(addServicesCandidates, static (spc, candidate) =>
+            PipelineDiagnostic.Report(spc, candidate.Diagnostics));
+        var addServices = ValidModels(addServicesCandidates).WithTrackingName(TrackingNames.AddServices);
 
-        var pipelineMapApiHandlers = context.SyntaxProvider.ForAttributeWithMetadataName(
-            fullyQualifiedMetadataName: MapApiHandlersGenerator.AddHandlersServicesAttributeName,
-            predicate: MapApiHandlersGenerator.Predicate,
-            transform: MapApiHandlersGenerator.TransformMapHandlers)
-            .WithTrackingName(TrackingNames.MapApiHandlers);
+        var mapHostCandidates = context.SyntaxProvider.ForAttributeWithMetadataName(
+            MapApiHandlersGenerator.AddHandlersServicesAttributeName,
+            MapApiHandlersGenerator.Predicate,
+            MapApiHandlersGenerator.TransformMapHandlers);
+        context.RegisterSourceOutput(mapHostCandidates, static (spc, candidate) =>
+            PipelineDiagnostic.Report(spc, candidate.Diagnostics));
+        var mapHosts = ValidModels(mapHostCandidates).WithTrackingName(TrackingNames.MapApiHandlers);
 
-        var pipelineFindCommands = context.SyntaxProvider.ForAttributeWithMetadataName(
-            fullyQualifiedMetadataName: FindGenerator.FindAttributeName,
-            predicate: FindGenerator.Predicate,
-            transform: FindGenerator.Transform)
-            .WithTrackingName(TrackingNames.Finds);
+        var findCandidates = context.SyntaxProvider.ForAttributeWithMetadataName(
+            FindGenerator.FindAttributeName,
+            FindGenerator.Predicate,
+            FindGenerator.Transform);
+        context.RegisterSourceOutput(findCandidates, static (spc, candidate) =>
+            PipelineDiagnostic.Report(spc, candidate.Diagnostics));
+        var finds = ValidModels(findCandidates).WithTrackingName(TrackingNames.Finds);
 
-        var pipelineSearchCommands = context.SyntaxProvider.ForAttributeWithMetadataName(
-            fullyQualifiedMetadataName: SearchGenerator.SearchAttributeName,
-            predicate: SearchGenerator.Predicate,
-            transform: SearchGenerator.Transform)
-            .WithTrackingName(TrackingNames.Searches);
+        var searchCandidates = context.SyntaxProvider.ForAttributeWithMetadataName(
+            SearchGenerator.SearchAttributeName,
+            SearchGenerator.Predicate,
+            SearchGenerator.Transform);
+        context.RegisterSourceOutput(searchCandidates, static (spc, candidate) =>
+            PipelineDiagnostic.Report(spc, candidate.Diagnostics));
+        var searches = ValidModels(searchCandidates).WithTrackingName(TrackingNames.Searches);
 
-        var pipelineCollectCommands = pipelineCommands.Collect()
-            .WithTrackingName(TrackingNames.CollectedCommands);
-        var pipelineCollectFinds = pipelineFindCommands.Collect()
-            .WithTrackingName(TrackingNames.CollectedFinds);
-        var pipelineCollectSearches = pipelineSearchCommands.Collect()
-            .WithTrackingName(TrackingNames.CollectedSearches);
+        var collectedCommands = commands.Collect().WithTrackingName(TrackingNames.CollectedCommands);
+        var collectedFinds = finds.Collect().WithTrackingName(TrackingNames.CollectedFinds);
+        var collectedSearches = searches.Collect().WithTrackingName(TrackingNames.CollectedSearches);
 
-        // gerador dos comandos
-        context.RegisterSourceOutput(pipelineCommands, static (context, model) =>
-        {
-            model.Generate(context);
-        });
+        // Cada comando mantém sua própria saída; somente DI e endpoints são agregados.
+        context.RegisterSourceOutput(commands, static (spc, model) =>
+            model.Core.ToInformation().Generate(spc));
 
-        // gerador do AddHandlersServices
-        var pipelineAddServicesWithCommands = pipelineAddServices.Combine(pipelineCollectCommands)
+        var addServicesWithCommands = addServices.Combine(collectedCommands)
             .WithTrackingName(TrackingNames.AddServicesWithCommands);
-
-        context.RegisterSourceOutput(pipelineAddServicesWithCommands, static (context, source) =>
+        context.RegisterSourceOutput(addServicesWithCommands, static (spc, source) =>
         {
-            var (addServices, models) = source;
-
-            var services = models
-                .Select(m =>
+            var (registration, commandModels) = source;
+            var services = commandModels
+                .OrderBy(CommandIdentity, StringComparer.Ordinal)
+                .Select(command =>
                 {
-                    var interfaceType = new TypeDescriptor(m.HandlerInterfaceName, [m.Namespace]);
-                    var handlerType = new TypeDescriptor(m.HandlerImplementationName,
-                        [$"{m.Namespace}.Internals"]);
-                    
+                    var @namespace = command.Core.ModelType.Namespaces[0];
                     return new AddServiceDescriptor(
-                        new ServiceTypeDescriptor(interfaceType, handlerType),
-                        m.ContextAccessorMode);
+                        new ServiceTypeDescriptor(
+                            new TypeDescriptor(command.Core.HandlerInterfaceName, [@namespace]),
+                            new TypeDescriptor(command.Core.HandlerImplementationName, [$"{@namespace}.Internals"])),
+                        command.Core.ContextAccessorMode);
                 })
                 .ToList();
 
-            addServices.Generate(context, services);
+            registration.ToInformation().Generate(spc, services);
         });
 
-        // combinação dos comandos, finds e searches para gerar os MapInformation
-        var pipelineMapInformation = pipelineCollectCommands
-            .Combine(pipelineCollectFinds)
-            .Select((source, ct) =>
+        var mapEndpoints = collectedCommands
+            .Combine(collectedFinds)
+            .Select(static (source, cancellationToken) =>
             {
-                var (commands, finds) = source;
-
-                return commands
-                    .Where(m => m.MapInformation is not null)
-                    .Select(m => (IMapEndpointGenerator)m.MapInformation!)
-                    .Concat(finds);
+                cancellationToken.ThrowIfCancellationRequested();
+                var (commandModels, findModels) = source;
+                return commandModels
+                    .Where(command => command.Endpoint is not null)
+                    .Select(command => (IMapEndpointModel)command.Endpoint!)
+                    .Concat(findModels.Cast<IMapEndpointModel>());
             })
-            .Combine(pipelineCollectSearches)
-            .Select((source, ct) =>
+            .Combine(collectedSearches)
+            .Select(static (source, cancellationToken) =>
             {
-                var (mapEndpoints, searches) = source;
-                return mapEndpoints
-                    .Concat(searches)
-                    .ToList();
+                cancellationToken.ThrowIfCancellationRequested();
+                var (endpoints, searchModels) = source;
+                return new EquatableArray<IMapEndpointModel>(endpoints
+                    .Concat(searchModels.Cast<IMapEndpointModel>())
+                    .OrderBy(endpoint => endpoint.SortKey, StringComparer.Ordinal));
             })
             .WithTrackingName(TrackingNames.MapInformation);
 
-        // gerador dos MapApiHandlers
-        var pipelineCollectMapApiHandlers = pipelineMapApiHandlers.Collect()
-            .WithTrackingName(TrackingNames.CollectedMapApiHandlers);
-        var pipelineMapApiHandlersWithMapInformation = pipelineCollectMapApiHandlers.Combine(pipelineMapInformation)
+        var collectedMapHosts = mapHosts.Collect().WithTrackingName(TrackingNames.CollectedMapApiHandlers);
+        var mapHostsWithEndpoints = collectedMapHosts.Combine(mapEndpoints)
             .WithTrackingName(TrackingNames.MapApiHandlersWithMapInformation);
 
-        context.RegisterSourceOutput(pipelineMapApiHandlersWithMapInformation,
-            static (context, source) =>
+        context.RegisterSourceOutput(mapHostsWithEndpoints, static (spc, source) =>
+        {
+            var (hostModels, endpointModels) = source;
+            if (hostModels.Length == 0)
+                return;
+
+            var orderedHosts = hostModels
+                .OrderBy(host => PipelineModelConversions.MetadataIdentity(host.ClassType) ?? host.ClassType.Name,
+                    StringComparer.Ordinal)
+                .ToArray();
+
+            if (orderedHosts.Length > 1)
             {
-                var (mapApiHandlers, mapInformation) = source;
+                foreach (var _ in orderedHosts)
+                    spc.ReportDiagnostic(Diagnostic.Create(CmdDiagnostics.MultiplesMapApiHandlers, null));
+            }
 
-                if (mapApiHandlers.Length is 0)
-                    return;
-
-                if (mapApiHandlers.Length > 1)
-                {
-                    foreach (var mah in mapApiHandlers)
-                    {
-                        context.ReportDiagnostic(Diagnostic.Create(CmdDiagnostics.MultiplesMapApiHandlers, null));
-                    }
-                }
-
-                mapApiHandlers.First().Generate(context, mapInformation);
-            });
+            orderedHosts[0].ToInformation().Generate(
+                spc,
+                endpointModels.Select(endpoint => endpoint.ToGenerator()));
+        });
     }
+
+    private static IncrementalValuesProvider<TModel> ValidModels<TModel>(
+        IncrementalValuesProvider<RoyalCode.Extensions.SourceGenerator.Generation.GenerationCandidate<TModel>> candidates)
+        where TModel : class, IEquatable<TModel> =>
+        candidates
+            .Where(static candidate => candidate.IsValid)
+            .Select(static (candidate, cancellationToken) =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return candidate.Model!;
+            });
+
+    private static string CommandIdentity(CommandModel command) =>
+        PipelineModelConversions.MetadataIdentity(command.Core.ModelType)
+        ?? $"{string.Join(".", command.Core.ModelType.Namespaces)}.{command.Core.ModelType.Name}";
 }

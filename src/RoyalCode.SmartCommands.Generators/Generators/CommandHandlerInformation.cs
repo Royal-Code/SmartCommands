@@ -1,5 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 
+using RoyalCode.SmartCommands.Generators.Models;
+
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
 
@@ -30,6 +32,7 @@ internal sealed class CommandHandlerInformation : TransformationGeneratorBase, I
     public bool HandlerMustBeAsync { get; internal set; }
     public TypeDescriptor MethodReturnType { get; internal set; }
     public TypeDescriptor HandlerReturnType { get; internal set; }
+    public ReturnModel ReturnModel { get; internal set; }
     public List<ParameterDescriptor> Parameters { get; internal set; }
     public string HandlerInterfaceName { get; internal set; }
     public string HandlerImplementationName { get; internal set; }

@@ -1,10 +1,11 @@
 ﻿using Microsoft.CodeAnalysis;
 using RoyalCode.SmartCommands.Generators.Commands;
+using RoyalCode.SmartCommands.Generators.Models;
 using System.Text;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
-internal sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointGenerator
+internal sealed class MapInformation : IEquatable<MapInformation>
 {
 
 #nullable disable
@@ -33,8 +34,6 @@ internal sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointG
 
     public string[]? AuthorizationPolicies { get; set; }
 
-    internal CommandHandlerInformation? CommandInfo { get; set; }
-
     public bool Equals(MapInformation? other)
     {
         return other is not null &&
@@ -47,8 +46,11 @@ internal sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointG
             Equals(CreatedInformation, other.CreatedInformation) &&
             Equals(IdResultValueType, other.IdResultValueType) &&
             Equals(ResponseValues, other.ResponseValues) &&
-            AuthorizationPolicies.SequenceEqual(other.AuthorizationPolicies);
+            SequenceEqual(AuthorizationPolicies, other.AuthorizationPolicies);
     }
+
+    private static bool SequenceEqual(string[]? left, string[]? right) =>
+        left is null ? right is null : right is not null && left.SequenceEqual(right);
 
     public override bool Equals(object? obj)
     {
@@ -67,15 +69,23 @@ internal sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointG
         hashCode = hashCode * -1521134295 + CreatedInformation?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + IdResultValueType?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + ResponseValues?.GetHashCode() ?? 0;
-        hashCode = hashCode * -1521134295 + AuthorizationPolicies?.GetHashCode() ?? 0;
+        if (AuthorizationPolicies is not null)
+            foreach (var policy in AuthorizationPolicies)
+                hashCode = hashCode * -1521134295 + policy.GetHashCode();
         return hashCode;
     }
 
-    public void Generate(SourceProductionContext spc, GeneratorNodeList commands, GeneratorNodeList methods, bool withOpenApi)
+    internal void Generate(
+        SourceProductionContext spc,
+        GeneratorNodeList commands,
+        GeneratorNodeList methods,
+        bool withOpenApi,
+        CommandHandlerInformation commandInfo,
+        ReturnModel returnModel)
     {
         // nome do método que chamará o handler
         var handlerMethodName =
-            $"{CommandInfo!.ModelType.Name}{(CommandInfo.HandlerMustBeAsync ? "HandleAsync" : "Handle")}";
+            $"{commandInfo.ModelType.Name}{(commandInfo.HandlerMustBeAsync ? "HandleAsync" : "Handle")}";
 
         // Cria comando que invoca o método de mapeamento do handler
         var methodInvoke = GenerateMapMethodInvoke(this, handlerMethodName, withOpenApi);
@@ -83,13 +93,13 @@ internal sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointG
         commands.Add(invokeCommand);
 
         // Cria o método do Handler.
-        var handlerMethod = GenerateHandlerMethod(this, CommandInfo, handlerMethodName);
+        var handlerMethod = GenerateHandlerMethod(this, commandInfo, returnModel, handlerMethodName);
         methods.Add(handlerMethod);
 
         // se há ResponseValues, então cria a classe de resposta
         if (ResponseValues is not null)
         {
-            var responseClass = GenerateReponseClass(ResponseValues, CommandInfo);
+            var responseClass = GenerateReponseClass(ResponseValues, commandInfo);
             responseClass.Generate(spc);
         }
     }
@@ -150,12 +160,13 @@ internal sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointG
     private static MethodGenerator GenerateHandlerMethod(
         MapInformation mapInfo,
         CommandHandlerInformation commandInfo,
+        ReturnModel returnModel,
         string handlerMethodName)
     {
         const string resultVarName = "result";
 
         // tipo retornado pelo handler
-        var handlerReturnType = DiscoveryReturnType(commandInfo, mapInfo);
+        var handlerReturnType = DiscoveryReturnType(commandInfo, returnModel, mapInfo);
         var method = new MethodGenerator(handlerMethodName, handlerReturnType);
         method.Modifiers.Private();
         method.Modifiers.Static();
@@ -302,7 +313,10 @@ internal sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointG
             : parameter;
     }
 
-    private static TypeDescriptor DiscoveryReturnType(CommandHandlerInformation commandInfo, MapInformation mapInfo)
+    private static TypeDescriptor DiscoveryReturnType(
+        CommandHandlerInformation commandInfo,
+        ReturnModel returnModel,
+        MapInformation mapInfo)
     {
         TypeDescriptor typeDescriptor;
         const string ns = "RoyalCode.SmartProblems.HttpResults";
@@ -317,7 +331,10 @@ internal sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointG
         }
 
         // tenta obter o tipo de retorno
-        bool hasValueType = commandInfo.MethodReturnType.HasValueType(out var valueType);
+        var hasValueType = returnModel.ValueType is not null;
+        var valueType = returnModel.ValueType is null
+            ? null
+            : PipelineModelConversions.ToDescriptor(returnModel.ValueType);
 
         if (hasValueType)
         {
@@ -458,4 +475,30 @@ internal sealed class MapInformation : IEquatable<MapInformation>, IMapEndpointG
 
         return responseClass;
     }
+}
+
+internal sealed class CommandMapEndpointGenerator : IMapEndpointGenerator
+{
+    private readonly MapInformation map;
+    private readonly CommandHandlerInformation command;
+    private readonly ReturnModel returnModel;
+
+    internal CommandMapEndpointGenerator(
+        MapInformation map,
+        CommandHandlerInformation command,
+        ReturnModel returnModel)
+    {
+        this.map = map;
+        this.command = command;
+        this.returnModel = returnModel;
+    }
+
+    public string GroupName => map.GroupName;
+
+    public void Generate(
+        SourceProductionContext spc,
+        GeneratorNodeList commands,
+        GeneratorNodeList methods,
+        bool withOpenApi) =>
+        map.Generate(spc, commands, methods, withOpenApi, command, returnModel);
 }

@@ -1,5 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.Extensions.SourceGenerator.Generation;
+using RoyalCode.SmartCommands.Generators.Models;
 
 namespace RoyalCode.SmartCommands.Generators.Generators;
 
@@ -15,12 +17,29 @@ internal static class FindGenerator
     private const string WithAuthorizationAttributeName = "WithAuthorization";
     private const string WithPolicyAttributeName = "WithPolicy";
 
-    public static bool Predicate(SyntaxNode node, CancellationToken _) => node is ClassDeclarationSyntax;
-
-    public static FindInformation Transform(
-        GeneratorAttributeSyntaxContext context,
-        CancellationToken _)
+    public static bool Predicate(SyntaxNode node, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        return node is ClassDeclarationSyntax;
+    }
+
+    public static GenerationCandidate<FindModel> Transform(
+        GeneratorAttributeSyntaxContext context,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var information = TransformWorking(context, cancellationToken);
+        var diagnostics = PipelineDiagnostic.Snapshot(information.Diagnostics);
+        return diagnostics.IsEmpty
+            ? GenerationCandidate<FindModel>.Valid(FindModel.Create(information))
+            : GenerationCandidate<FindModel>.Invalid(diagnostics);
+    }
+
+    private static FindInformation TransformWorking(
+        GeneratorAttributeSyntaxContext context,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         // classe que contém o atributo
         var classDeclaration = (ClassDeclarationSyntax)context.TargetNode;
 
@@ -44,9 +63,17 @@ internal static class FindGenerator
             return new FindInformation(diagnostic);
         }
 
-        // deve ler os parâmetros do atributo
-        var endpointRoutePattern = mapFindAttribute!.ArgumentList?.Arguments[0].Expression.ToString();
-        var endpointName = mapFindAttribute.ArgumentList?.Arguments[1].Expression.ToString();
+        if (mapFindAttribute!.ArgumentList?.Arguments is not { Count: 2 } mapArguments)
+        {
+            var diagnostic = Diagnostic.Create(
+                CmdDiagnostics.InvalidMapFindUsage,
+                mapFindAttribute.GetLocation(),
+                "MapFindAttribute requires a route pattern and an endpoint name");
+            return new FindInformation(diagnostic);
+        }
+
+        var endpointRoutePattern = mapArguments[0].Expression.ToString();
+        var endpointName = mapArguments[1].Expression.ToString();
 
         string? description = null;
         string? summary = null;
@@ -92,14 +119,24 @@ internal static class FindGenerator
             }
         }
 
-        // extrai o tipo da entidade buscada
-        var syntax = (GenericNameSyntax)entityReferenceAttribute!.Name;
+        if (entityReferenceAttribute!.Name is not GenericNameSyntax
+            {
+                TypeArgumentList.Arguments.Count: 2,
+            } syntax)
+        {
+            var diagnostic = Diagnostic.Create(
+                CmdDiagnostics.InvalidMapFindUsage,
+                entityReferenceAttribute.GetLocation(),
+                "EntityReferenceAttribute requires entity and id type arguments");
+            return new FindInformation(diagnostic);
+        }
+
         var entitySyntaxType = syntax.TypeArgumentList.Arguments[0];
         var idSyntaxType = syntax.TypeArgumentList.Arguments[1];
 
         var entityType = TypeDescriptor.Create(entitySyntaxType, context.SemanticModel);
         var idType = TypeDescriptor.Create(idSyntaxType, context.SemanticModel);
-        var modelType = new TypeDescriptor(classDeclaration.Identifier.Text, [classDeclaration.GetNamespace()]);
+        var modelType = TypeDescriptor.Create((ITypeSymbol)context.TargetSymbol);
 
         return new FindInformation(
             entityType,

@@ -21,18 +21,20 @@ internal sealed class MapApiHandlersInformation: TransformationGeneratorBase<IMa
     {
         return other is not null &&
                Equals(ClassType, other.ClassType) &&
+               WithOpenApi == other.WithOpenApi &&
                EqualErrors(other);
     }
 
     public override bool Equals(object? obj)
     {
-        return obj is AddHandlersServicesInformation info && Equals(info);
+        return obj is MapApiHandlersInformation info && Equals(info);
     }
 
     public override int GetHashCode()
     {
         int hashCode = -1000160376;
         hashCode = hashCode * -1022234295 + ClassType.GetHashCode();
+        hashCode = hashCode * -1022234295 + WithOpenApi.GetHashCode();
         hashCode = hashCode * -1022234295 + Errors?.GetHashCode() ?? 0;
         return hashCode;
     }
