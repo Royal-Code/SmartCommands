@@ -35,6 +35,20 @@ internal static class Util
         out Compilation outputCompilation,
         out ImmutableArray<Diagnostic> diagnostics)
     {
+        var compilation = CreateCompilation(sourceCode);
+
+        // apply the source generator and collect the output
+        var driver = CSharpGeneratorDriver.Create(new IncrementalGenerator());
+
+        driver.RunGeneratorsAndUpdateCompilation(compilation, out outputCompilation, out diagnostics);
+    }
+
+    /// <summary>
+    /// Creates a compilation for <paramref name="sourceCode"/> with the same references used by
+    /// <see cref="Compile"/>.
+    /// </summary>
+    internal static Compilation CreateCompilation(string sourceCode)
+    {
         // the source code to be compiled
         var syntaxTree = CSharpSyntaxTree.ParseText(sourceCode);
 
@@ -67,13 +81,31 @@ internal static class Util
         var references = referencePaths.Select(path => MetadataReference.CreateFromFile(path));
 
         // create a compilation for the source code.
-        var compilation = CSharpCompilation.Create("SourceGeneratorTests", [syntaxTree], references,
+        return CSharpCompilation.Create("SourceGeneratorTests", [syntaxTree], references,
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+    }
 
-        // apply the source generator and collect the output
-        var driver = CSharpGeneratorDriver.Create(new IncrementalGenerator());
+    /// <summary>
+    /// Creates a <see cref="GeneratorDriver"/> that tracks incremental steps, so tests can assert caching
+    /// (<c>Cached</c>/<c>Unchanged</c>) and symbol-free retention across runs.
+    /// </summary>
+    internal static GeneratorDriver CreateTrackedDriver() =>
+        CSharpGeneratorDriver.Create(
+            generators: [new IncrementalGenerator().AsSourceGenerator()],
+            additionalTexts: default,
+            parseOptions: null,
+            optionsProvider: null,
+            driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
 
-        driver.RunGeneratorsAndUpdateCompilation(compilation, out outputCompilation, out diagnostics);
+    /// <summary>
+    /// Runs the generator once over <paramref name="sourceCode"/> with step tracking enabled and returns the
+    /// resulting driver (for a follow-up incremental run) and the run result (for inspecting tracked steps).
+    /// </summary>
+    internal static (GeneratorDriver Driver, GeneratorDriverRunResult Result) RunTracked(string sourceCode)
+    {
+        var compilation = CreateCompilation(sourceCode);
+        var driver = CreateTrackedDriver().RunGenerators(compilation);
+        return (driver, driver.GetRunResult());
     }
 }
 

@@ -4,12 +4,12 @@
 
 ## Progresso
 
-`░░░░░░░░░░░░` **0%** - 0 de 12 fases concluídas
+`█░░░░░░░░░░░` **8%** - 1 de 12 fases concluídas
 
 | Fase | Estado |
 |---|---|
-| Fase 1 - Baseline e decisões de contrato | Pendente |
-| Fase 2 - Modelos incrementais e isolamento de entradas inválidas | Pendente |
+| Fase 1 - Baseline e decisões de contrato | Concluida |
+| Fase 2 - Modelos incrementais e isolamento de entradas inválidas | Em andamento (base 0.4.0 pronta; migração bloqueada no gate) |
 | Fase 3 - Diagnósticos semânticos e catálogo | Pendente |
 | Fase 4 - Leitura semântica e emissão determinística | Pendente |
 | Fase 5 - Binding de `WithParameter` e resolução de `EditEntity` | Pendente |
@@ -424,13 +424,13 @@ dotnet test RoyalCode.SmartCommands.Demo.Tests/RoyalCode.SmartCommands.Demo.Test
 
 **Tarefas:**
 
-- [ ] Registrar no `Resultado da Fase 1` o commit, `git status --short`, SDKs instalados e alterações preexistentes a preservar.
-- [ ] Executar build/test padrão e registrar contagem por projeto, erros e warnings distintos.
-- [ ] Criar testes de caracterização que reproduzam as falhas de igualdade, null collection, múltiplos `[Command]`, múltiplos maps e entrada malformada sem ainda redesenhar a implementação.
-- [ ] Inventariar arquivos/hint names gerados por cada cenário para detectar mudanças não intencionais nas fases seguintes.
-- [ ] Registrar os comandos `rg`/PowerShell usados no inventário textual de descritores e membros, distinguindo ocorrências de dependências únicas.
+- [x] Registrar no `Resultado da Fase 1` o commit, `git status --short`, SDKs instalados e alterações preexistentes a preservar.
+- [x] Executar build/test padrão e registrar contagem por projeto, erros e warnings distintos.
+- [x] Criar testes de caracterização que reproduzam as falhas de igualdade, null collection, múltiplos `[Command]`, múltiplos maps e entrada malformada sem ainda redesenhar a implementação.
+- [x] Inventariar arquivos/hint names gerados por cada cenário para detectar mudanças não intencionais nas fases seguintes.
+- [x] Registrar os comandos `rg`/PowerShell usados no inventário textual de descritores e membros, distinguindo ocorrências de dependências únicas.
 - [x] Consolidar Q1-Q3, Q5 e Q6 como DF13-DF17 e atualizar as fases dependentes.
-- [ ] Responder Q4 ou manter a Fase 10 explicitamente bloqueada, limitada a design/backlog.
+- [x] Responder Q4 ou manter a Fase 10 explicitamente bloqueada, limitada a design/backlog. (Fase 10 mantida explicitamente bloqueada; Q4 permanece Aberta — ver `Resultado da Fase 1`.)
 
 **Critérios de aceite:** baseline reproduzível registrado; nenhuma alteração do usuário perdida; Q4 possui resposta fechada ou a Fase 10 permanece explicitamente bloqueada; testes de caracterização falham somente pelos bugs que pretendem capturar.
 
@@ -438,7 +438,132 @@ dotnet test RoyalCode.SmartCommands.Demo.Tests/RoyalCode.SmartCommands.Demo.Test
 
 ### Resultado da Fase 1
 
-*a preencher*
+Executada em 2026-07-15. Solução tratada em modo somente leitura; as únicas escritas foram este plano e os
+novos testes de caracterização.
+
+#### 1. Baseline (commit, worktree, SDKs)
+
+- **Commit:** `bbb5b38dcec0b8708496df4bd25a11091a357c85` (`bbb5b38`), branch `main`.
+- **`git status --short`:** limpo antes da execução — **nenhuma alteração preexistente do usuário a preservar**
+  (o estado descrito no Contexto para 2026-07-13 já havia sido consolidado nos commits). `git diff --check`: limpo.
+- **Escritas desta fase (worktree após execução):** somente `RoyalCode.SmartCommands.Tests/Characterization/`
+  (2 arquivos novos) e este arquivo de plano.
+- **SDK ativo:** .NET SDK `10.0.301` (sem `global.json`). **SDKs instalados:** `8.0.422`, `9.0.100`, `10.0.301`.
+  **Runtimes:** `Microsoft.NETCore.App`, `Microsoft.AspNetCore.App` e `Microsoft.WindowsDesktop.App` em `8.0.28`,
+  `9.0.0`, `10.0.9`. **Host:** `10.0.9`, x64.
+
+#### 2. Build/test padrão
+
+Comandos (a partir de `src/`): `dotnet restore SmartCommands.sln`; `dotnet build SmartCommands.sln -c Release
+--no-restore`; `dotnet test <projeto> -c Release --no-build`.
+
+| Verificação | Resultado |
+|---|---|
+| `dotnet build SmartCommands.sln -c Release` | **êxito** — 0 erros, **9 avisos, todos NU5104** (aceitos por DF10) |
+| `RoyalCode.SmartCommands.Tests` (baseline, sem caracterização) | **87/87** aprovados |
+| `RoyalCode.SmartCommands.Demo.Tests` | **68/68** aprovados |
+| Baseline total | **155/155** aprovados |
+
+- **Warnings distintos:** apenas `NU5104` ("versão estável com dependência de pré-versão"), originados de
+  `RoyalCode.SmartCommands` (dependências `RoyalCode.SmartProblems` e `RoyalCode.SmartValidations` em
+  `1.0.0-preview-7.0`) e de `RoyalCode.SmartCommands.EntityFramework` (`RoyalCode.SmartProblems.EntityFramework`),
+  multiplicados pelos TFMs `net8.0;net9.0;net10.0`. Nenhum outro erro/warning. Confirma DF10.
+- Os testes rodam somente em `net10.0` (lacuna de cobertura por TFM já registrada no Contexto).
+
+#### 3. Testes de caracterização (novos — falham por design)
+
+Pasta `RoyalCode.SmartCommands.Tests/Characterization/`, todos com `[Trait("Category", "Characterization")]`.
+Cada teste afirma o **comportamento-alvo** e, por isso, **falha no baseline exatamente pelo bug que documenta**;
+as Fases 2/3/4 devem torná-los verdes. Confirmado: `--filter "Category!=Characterization"` mantém **87/87**;
+o projeto passa a **96 testes = 87 aprovados + 9 falhos esperados**.
+
+`ModelEqualityCharacterizationTests` (igualdade/hash dos modelos do pipeline):
+
+| Teste | Bug capturado | Falha observada |
+|---|---|---|
+| `MapApiHandlersInformation_TypedEquality_ShouldConsiderWithOpenApi` | `Equals` tipado ignora `WithOpenApi` | `Assert.NotEqual` → são iguais |
+| `MapApiHandlersInformation_ObjectEquality_ShouldMatchSameType` | `Equals(object)` testa `AddHandlersServicesInformation` | `Assert.True` → falso |
+| `FindInformation_TypedEquality_ShouldConsiderIdType` | `Equals`/`GetHashCode` ignoram `IdType` | `Assert.NotEqual` → são iguais |
+| `MapCreatedInformation_Equality_ShouldCompareByContent` | `string[].Equals` (identidade de referência) | `Assert.Equal` → diferem |
+| `MapResponseValuesInformation_Equality_ShouldCompareByContent` | `IList.Equals` (identidade de referência) | `Assert.Equal` → diferem |
+| `MapInformation_EqualByContent_ShouldHaveEqualHashCode` | `Equals` por conteúdo vs `GetHashCode` por referência da coleção | `Assert.Equal(hash)` → diferem |
+
+`GeneratorRobustnessCharacterizationTests` (robustez do generator, via `Util.Compile`):
+
+| Teste | Alvo | Falha observada |
+|---|---|---|
+| `MultipleCommandMethods_InSameClass_ShouldNotCollideNorCrash` | DF8: dois `[Command]` → diagnóstico, sem colisão nem crash | **CS8785=1** (generator lança por hint name duplicado `I{Classe}Handler`) |
+| `MultipleMapAttributes_OnSameClass_ShouldBeDiagnosed` | maps conflitantes (`[MapPost]`+`[MapPut]`) diagnosticados | nenhum RCCMD (a cadeia `if/else if` escolhe POST em silêncio) |
+| `MalformedMapAttribute_ShouldNotCrashGenerator` | DF9: entrada malformada → RCCMD/nada, sem crash | **CS8785=1** (`[MapPost("x")]` com 1 arg atinge `Arguments[1]` não guardado) |
+
+Os três testes também exigem um erro `RCCMD` e ausência das fontes relacionadas. Assim, não podem ficar verdes
+apenas porque o generator deixou de lançar `CS8785` enquanto ainda escolhe silenciosamente uma entrada ambígua ou
+emite parcialmente a entrada inválida. O id exato será fixado quando o catálogo correspondente for criado na Fase 3.
+
+**Correção de premissa verificada nesta fase:** o plano previa `NullReferenceException` em `MapInformation.Equals`
+com `AuthorizationPolicies` nula. Empiricamente, **não lança**: o `SequenceEqual` em escopo no projeto do generator
+(vindo de `RoyalCode.Extensions.SourceGenerator`, já que o arquivo não importa `System.Linq`) **tolera `null`**
+(both-null → `true`). O defeito real e demonstrável de `MapInformation` sobre coleções é a **inconsistência
+Equals/GetHashCode**: `Equals` compara `AuthorizationPolicies` por conteúdo, mas `GetHashCode` usa a **identidade de
+referência** do array (`AuthorizationPolicies?.GetHashCode()`). O teste foi ajustado para capturar esse defeito real.
+
+#### 4. Inventário de arquivos/hint names gerados (baseline para diff futuro)
+
+Método reprodutível: `dotnet build SmartCommands.sln -c Release --no-incremental -p:EmitCompilerGeneratedFiles=true`
+e enumeração de `**/obj/Release/**/generated/RoyalCode.SmartCommands.Generators/**/*.g.cs`.
+
+- **Convenção de hint names por comando** (verificada nos emitters e nos arquivos emitidos):
+  `I{Classe}Handler.g.cs` (interface), `{Classe}Handler.g.cs` (implementação, namespace `.Internals`) e
+  `{Classe}_WasValidated.g.cs` (partial, quando há `HasProblems` + `partial`). POCO de resposta (`MapResponseValues`):
+  `{Classe}Response.g.cs`. Hosts `AddServices`/`MapApiHandlers`/`MapFind`/`MapSearch` emitem por host/grupo.
+- **Emissão em disco no estado atual** (poucos consumidores têm `[Command]`):
+  - `RoyalCode.SmartCommands.Tests.Models` → `ICriarProdutoHandler.g.cs`, `CriarProdutoHandler.g.cs`,
+    `CriarProduto_WasValidated.g.cs`.
+  - `RoyalCode.SmartCommands.Demo.Seguranca` → `ICriarUsuarioHandler.g.cs`, `CriarUsuarioHandler.g.cs`,
+    `CriarUsuario_WasValidated.g.cs`.
+  - Demais módulos `Demo.*` → 0 arquivos do SmartCommands (o `.g.cs` em `Demo.Tests` é do gerador OpenAPI do
+    ASP.NET, não deste). `RoyalCode.SmartCommands.Tests` referencia o generator como **biblioteca** (via
+    `InternalsVisibleTo`), não como analyzer ativo, e exercita os cenários `Scenarios/{As..Is}` **em memória** por
+    `Util.Compile`/`CSharpGeneratorDriver` — validados por comparação de snapshot nas suítes existentes.
+
+#### 5. Comandos do inventário textual de descritores/membros (ocorrências ≠ dependências únicas)
+
+Os números abaixo são **ocorrências textuais** (uma dependência lógica aparece muitas vezes; há matches em
+comentários). **Não representam dependências únicas.** Escopo: projeto `RoyalCode.SmartCommands.Generators`
+(o `.gitignore` exclui `obj/`). Reexecutar em 2026-07-15 confirmou que os valores **derivam** do estado do código
+e divergem do snapshot de 2026-07-14 do Contexto — o que reforça o caráter volátil da contagem.
+
+- **rg (Git Bash):** `rg -o "\bTypeDescriptor\b" -g "*.cs" | wc -l` (trocar o termo por descritor/membro/hint).
+  Para métodos: `rg -o "\.MarkAs[A-Za-z]+" -g "*.cs" | wc -l`; para `.Symbol`: `rg -o "\.Symbol\b" -g "*.cs" | wc -l`.
+- **PowerShell equivalente:**
+  `(Get-ChildItem -Recurse -Filter *.cs | Select-String -Pattern '\bTypeDescriptor\b' -AllMatches | ForEach-Object { $_.Matches } | Measure-Object).Count`.
+
+Contagens em 2026-07-15 (Generators): **Descritores** — `TypeDescriptor` 75, `ParameterDescriptor` 42,
+`ServiceTypeDescriptor` 11, `PropertyDescriptor` 7, `EditTypeDescriptor` 5, `IdPropertyBoundToEntityParameter` 4.
+**Emitters** — `ClassGenerator` 10, `MethodGenerator` 14, `ValueNode` 8, `FieldGenerator` 6, `ConstructorGenerator` 1,
+`InterfaceGenerator` 0. **Hints** — `IsEntity` 4, `IsContext` 3, `IsHandlerParameter` 3, `IsCollectionOfEntities` 5,
+`MarkAs*` 5. **Pipeline** — `ForAttributeWithMetadataName` 5, `.Collect()` 4. **`.Symbol` 0** (confirma que a emissão
+não acessa símbolo — premissa central da Fase 2).
+
+#### 6. Q4 e Fase 10
+
+Q4 (primeiro pacote de novas capacidades HTTP) **permanece Aberta**. Por decisão de escopo, a **Fase 10 fica
+explicitamente bloqueada**, limitada a documento de design e backlog, sem nova API pública — o que **satisfaz o
+critério de aceite** ("Q4 fechada ou Fase 10 explicitamente bloqueada"). A decisão será oferecida ao mantenedor
+(recomendação do plano: opção A — extensibilidade mínima); ao ser respondida, vira DF e destrava a Fase 10.
+
+#### Critérios de aceite — situação
+
+- Baseline reprodutível registrado (commit/status/SDKs/build/test). ✔
+- Nenhuma alteração do usuário perdida (worktree limpo antes; só caracterização + plano depois). ✔
+- Q4 fechada **ou** Fase 10 explicitamente bloqueada → **Fase 10 bloqueada**. ✔
+- Testes de caracterização falham **somente** pelos bugs-alvo (9/9 verificados individualmente). ✔
+
+**Verificações executadas:** `git rev-parse HEAD`, `git status --short`, `git diff --check`, `dotnet --info`;
+`dotnet build SmartCommands.sln -c Release` (9 NU5104, 0 erros); `dotnet test RoyalCode.SmartCommands.Tests` (96:
+87 aprovados + 9 caracterização falhos; `Category!=Characterization` → 87/87); `dotnet test
+RoyalCode.SmartCommands.Demo.Tests` (68/68); build com `-p:EmitCompilerGeneratedFiles=true` para o inventário;
+contagens `rg`.
 
 ---
 
@@ -452,29 +577,88 @@ dotnet test RoyalCode.SmartCommands.Demo.Tests/RoyalCode.SmartCommands.Demo.Test
 
 **Tarefas:**
 
-- [ ] **(Base 0.4.0)** Adicionar `EquatableArray<T>` ao `RoyalCode.Extensions.SourceGenerator` (`netstandard2.0`), normalizando `default` para vazio e testando igualdade/hash por conteúdo, ordem e `default == Empty`. Não criar uma cópia local.
-- [ ] **(Base 0.4.0)** Estender `TypeSnapshot` apenas com fatos estruturais symbol-free: metadata name/namespace, nulabilidade, named/array, elemento, argumentos genéricos, original definition e fatos value/reference/void. Helpers de política como `MustBeTask()` não entram no snapshot base.
-- [ ] **(Base 0.4.0)** Criar `TypeUsageSnapshot`/`TypeUsageRoles` e fazer os snapshots symbol-free de `ParameterDescriptor`, `ServiceTypeDescriptor`, `EditTypeDescriptor` e `IdPropertyBoundToEntityParameter` referenciarem o uso apropriado; `IsEntity`, `IsContext`, `IsHandlerParameter` e `IsCollectionOfEntities` nunca alteram o `TypeSnapshot` estrutural.
-- [ ] **(Base 0.4.0)** Adicionar `GenerationCandidate<T>` e `DiagnosticInfo` neutro/reutilizável com `ToDiagnostic(Func<string, DiagnosticDescriptor> descriptorResolver)`; não referenciar `AnalyzerDiagnostics` específico.
-- [ ] **(Base 0.4.0)** Gerar o `.nupkg`, testar Utils e SmartSelector contra a nova base e inspecionar o pacote. Após gate manual do mantenedor, publicar a versão, registrar as quebras nas notas da base e atualizar `ExSrcGenVer`. Nenhuma publicação ocorre automaticamente pelo plano ou por workflow.
-- [ ] Modelar command/find/search/map host/add-services sobre os snapshots da base, sem `Diagnostic`, `Location`, syntax, symbol, listas mutáveis ou ciclos. Verificado: a emissão atual não acessa `.Symbol`, portanto a migração é delimitada e possui baixo risco semântico na emissão.
-- [ ] Criar no SmartCommands classificadores puros: `ReturnModel` deriva Task/ValueTask, payload, Result e wrapping; o classificador de parâmetros reconhece `CancellationToken` e demais papéis. Ambos usam os fatos do `TypeSnapshot`, sem parsing de strings e sem transferir política para a base.
-- [ ] Remover `MapInformation.CommandInfo` e construir `EndpointModel` completo na transformação do comando.
-- [ ] Corrigir por substituição os bugs de igualdade de `MapApiHandlersInformation`, `MapInformation`, `FindInformation`, `MapCreatedInformation` e `MapResponseValuesInformation`.
-- [ ] Filtrar `GenerationCandidate.IsValid` antes das pipelines de handler, DI e endpoint.
-- [ ] Ordenar agregações por metadata name/endpoint name antes da emissão para saída determinística.
-- [ ] Manter saída por comando independente; agregar somente registros DI e endpoints por host/grupo.
-- [ ] Honrar `CancellationToken` em todas as transformações e seleções incrementais.
-- [ ] Estender o test host para reutilizar `GeneratorDriver` e habilitar tracked steps.
-- [ ] Criar teste estrutural recursivo que falha se qualquer modelo retido pelo pipeline alcançar `ISymbol`, `SyntaxNode`, `Compilation`, `SemanticModel`, `Location` ou `Diagnostic`.
+- [x] **(Base 0.4.0)** Adicionar `EquatableArray<T>` ao `RoyalCode.Extensions.SourceGenerator` (`netstandard2.0`), normalizando `default` para vazio e testando igualdade/hash por conteúdo, ordem e `default == Empty`. Não criar uma cópia local.
+- [x] **(Base 0.4.0)** Estender `TypeSnapshot` apenas com fatos estruturais symbol-free: metadata name/namespace, nulabilidade, named/array, elemento, argumentos genéricos, original definition e fatos value/reference/void. Helpers de política como `MustBeTask()` não entram no snapshot base.
+- [x] **(Base 0.4.0)** Criar `TypeUsageSnapshot`/`TypeUsageRoles` e fazer os snapshots symbol-free de `ParameterDescriptor`, `ServiceTypeDescriptor`, `EditTypeDescriptor` e `IdPropertyBoundToEntityParameter` referenciarem o uso apropriado; `IsEntity`, `IsContext`, `IsHandlerParameter` e `IsCollectionOfEntities` nunca alteram o `TypeSnapshot` estrutural.
+- [x] **(Base 0.4.0)** Adicionar `GenerationCandidate<T>` e `DiagnosticInfo` neutro/reutilizável com `ToDiagnostic(Func<string, DiagnosticDescriptor> descriptorResolver)`; não referenciar `AnalyzerDiagnostics` específico.
+- [x] **(Base 0.4.0)** Gerar o `.nupkg`, testar Utils e SmartSelector contra a nova base e inspecionar o pacote. **Pack + testes Utils (80/80) + cross-test SmartSelector (0 regressões) + inspeção concluídos.** Publicação, notas de quebra e atualização de `ExSrcGenVer` **permanecem no gate manual do mantenedor** (não executados). Ver `Resultado da Fase 2 (parcial)`.
+- [ ] Modelar command/find/search/map host/add-services sobre os snapshots da base, sem `Diagnostic`, `Location`, syntax, symbol, listas mutáveis ou ciclos. Verificado: a emissão atual não acessa `.Symbol`, portanto a migração é delimitada e possui baixo risco semântico na emissão. **(Bloqueado: exige a 0.4.0 consumida via `ExSrcGenVer` — gate.)**
+- [ ] Criar no SmartCommands classificadores puros: `ReturnModel` deriva Task/ValueTask, payload, Result e wrapping; o classificador de parâmetros reconhece `CancellationToken` e demais papéis. Ambos usam os fatos do `TypeSnapshot`, sem parsing de strings e sem transferir política para a base. **(Bloqueado pelo gate.)**
+- [ ] Remover `MapInformation.CommandInfo` e construir `EndpointModel` completo na transformação do comando. **(Bloqueado pelo gate.)**
+- [ ] Corrigir por substituição os bugs de igualdade de `MapApiHandlersInformation`, `MapInformation`, `FindInformation`, `MapCreatedInformation` e `MapResponseValuesInformation`. **(Bloqueado pelo gate; capturados pelos testes de caracterização da Fase 1.)**
+- [ ] Filtrar `GenerationCandidate.IsValid` antes das pipelines de handler, DI e endpoint. **(Bloqueado pelo gate.)**
+- [ ] Ordenar agregações por metadata name/endpoint name antes da emissão para saída determinística. **(Bloqueado pelo gate.)**
+- [ ] Manter saída por comando independente; agregar somente registros DI e endpoints por host/grupo. **(Bloqueado pelo gate.)**
+- [ ] Honrar `CancellationToken` em todas as transformações e seleções incrementais. **(Bloqueado pelo gate.)**
+- [x] Estender o test host para reutilizar `GeneratorDriver` e habilitar tracked steps. (`Util.CreateTrackedDriver`/`Util.RunTracked`; tracking names em `IncrementalGenerator`.)
+- [x] Criar teste estrutural recursivo que falha se qualquer modelo retido pelo pipeline alcançar `ISymbol`, `SyntaxNode`, `Compilation`, `SemanticModel`, `Location` ou `Diagnostic`. (`Incremental/PipelineRetentionTests` — RED até a migração dos modelos.)
 
 **Critérios de aceite:** editar arquivo não relacionado produz `Cached`/`Unchanged` nos passos e fontes não afetados; alterar `WithOpenApi`, `IdType`, policy ou item de coleção invalida exatamente as saídas dependentes; entrada inválida não chega a nenhum emitter; igualdade e hash obedecem o mesmo conjunto de campos; `default(EquatableArray<T>)` equivale a vazio; alterar somente o papel invalida `TypeUsageSnapshot`, mas não altera a igualdade do `TypeSnapshot` estrutural.
 
 **Testes:** `dotnet test ... --filter "FullyQualifiedName~Incremental"`; rodar o mesmo driver duas vezes, depois com trivia/arquivo irrelevante e depois com alteração semântica; compilar toda saída e afirmar ausência de `CS8785`.
 
-### Resultado da Fase 2
+### Resultado da Fase 2 (parcial)
 
-*a preencher*
+Executado em 2026-07-15. Entregue a **base 0.4.0** completa e o **test host incremental** do SmartCommands; a
+**migração dos modelos `*Information` para snapshots permanece bloqueada** pelo gate manual (exige a 0.4.0 publicada
+e consumida via `ExSrcGenVer`, o que o plano não faz automaticamente).
+
+#### Base `RoyalCode.Extensions.SourceGenerator` 0.4.0 (repo `Utils`)
+
+Todas as adições são **aditivas** (nenhuma assinatura pública existente mudou). Arquivos novos e alterados:
+
+- `Collections/EquatableArray.cs` — struct imutável com igualdade/hash por conteúdo e ordem; o construtor copia
+  arrays recebidos, e `default`, vazio e `null` colapsam na mesma sequência vazia (DF19), com hash `0`.
+- `Generation/GenerationCandidate.cs` — `GenerationCandidate<TModel>` (modelo opcional + `EquatableArray<DiagnosticInfo>`
+  + `IsValid`), com `Valid`/`Invalid`; modelo nulo sem diagnóstico representa descarte silencioso de entrada
+  incompleta/não aplicável, enquanto o overload de diagnóstico único rejeita `null`.
+- `Diagnostics/DiagnosticInfo.cs` — DTO symbol-free (id, argumentos, `FilePath`+`TextSpan`+`LinePositionSpan`) com
+  `ToDiagnostic(Func<string, DiagnosticDescriptor> resolver)` (DF15; sem catálogo específico).
+- `Descriptors/Snapshots/TypeUsageSnapshot.cs` — `TypeUsageRoles` (`[Flags]`: Entity/Context/HandlerParameter/
+  CollectionOfEntities) + `TypeUsageSnapshot` (estrutura + papéis), com `CreateFromHints` lendo os hints do descritor.
+- `Descriptors/Snapshots/DescriptorSnapshots.cs` — `ParameterSnapshot`, `ServiceTypeSnapshot`, `EditTypeSnapshot`,
+  `IdPropertyBindingSnapshot` (símbolo-free; parâmetros carregam papéis via `TypeUsageSnapshot`; `ServiceTypeSnapshot`
+  usa `TypeSnapshot` estrutural pois registro DI não tem papel).
+- `Descriptors/Snapshots/MatchSelectionSnapshot.cs` — `TypeSnapshot` **estendido** (aditivo) com `IsVoid`,
+  `IsNamedType`, rank/elemento de array, `ContainingType`, argumentos genéricos, identidade metadata curta e
+  totalmente qualificada e `HasCompleteShape`. Arrays multidimensionais/jagged, tipos aninhados genéricos e tipos
+  homônimos de namespaces distintos possuem forma/igualdade estrutural; descritores sem símbolo são explicitamente
+  incompletos, sem parsing heurístico. Políticas (Task/Result/wrapping) ficam no SmartCommands por DF18.
+- `csproj` — `Ver` 0.3.0 → **0.4.0**.
+
+Verificações: **`RoyalCode.Extensions.SourceGenerator.Tests` = 97/97** (incluindo imutabilidade defensiva,
+contratos nulos, formas estruturais difíceis e walker symbol-free). `.nupkg` 0.4.0 gerado e inspecionado (XML doc lista `EquatableArray\`1`,
+`GenerationCandidate\`1`, `DiagnosticInfo`, `TypeUsageSnapshot`).
+
+**Cross-test SmartSelector (task 5, pré-gate):** publicado o 0.4.0 num feed local temporário e apontado
+`ExtSrcGenVer` para 0.4.0 apenas para teste. Resultado **idêntico** em 0.3.0 e 0.4.0: **69 aprovados / 18 falhos**
+(as 18 falhas são pré-existentes no repo SmartSelector, em desenvolvimento na 0.5.1, sem relação com a base).
+**Zero regressões** introduzidas pela 0.4.0. Artefatos temporários (feed local, `nuget.config`, bump de
+`ExtSrcGenVer`) revertidos; SmartSelector ficou com apenas suas alterações de usuário pré-existentes.
+
+**Não executado (gate do mantenedor):** publicar 0.4.0, registrar notas de quebra da base e atualizar `ExSrcGenVer`
+no SmartCommands. Enquanto isso, o SmartCommands continua consumindo a 0.3.0 e a migração dos modelos fica parada.
+
+#### Test host incremental do SmartCommands (não depende do gate)
+
+- `Generators/IncrementalGenerator.cs` — `WithTrackingName` nas transformações, `Collect` e `Combine` que retêm
+  modelos; a lista central `RetainedModelSteps` delimita as fronteiras auditadas. Mudança aditiva, saída idêntica.
+- `Tests/Util.cs` — `CreateCompilation`, `CreateTrackedDriver` (com `trackIncrementalGeneratorSteps: true`) e
+  `RunTracked` (reuso de `GeneratorDriver`).
+- `Tests/Incremental/PipelineRetentionTests.cs` — gate estrutural que percorre somente as fronteiras de modelo
+  nomeadas (exclui passos internos do Roslyn, que legitimamente carregam syntax/compilation) e falha se elas retiverem
+  `ISymbol`/`SyntaxNode`/`SemanticModel`/`Compilation`/`Location`/`Diagnostic`. **RED no baseline** ao encontrar o
+  `ISymbol` real de `RoyalCode.SmartProblems.Result` via `TypeDescriptor`; a migração deve torná-lo verde.
+
+Verificações desta revisão: solução em Release **0 erros / 0 warnings**; `RoyalCode.SmartCommands.Tests` = **97 (87 aprovados +
+10 falhos esperados**: 9 caracterização da Fase 1 + 1 retenção); `Category!=Characterization` → **87/87**;
+`RoyalCode.SmartCommands.Demo.Tests` = **68/68** (mudança de tracking name não altera geração).
+
+#### Próximo passo (após o gate)
+
+Publicar a base 0.4.0, atualizar `ExSrcGenVer`, e então migrar `*Information` → modelos/snapshots symbol-free,
+corrigir os bugs de igualdade (capturados na Fase 1), aplicar `GenerationCandidate.IsValid`/ordenação determinística
+e virar verdes o `PipelineRetentionTests` e os testes de igualdade.
 
 ---
 
