@@ -72,6 +72,8 @@ Principais atributos em métodos de comando:
 - `WithUnitOfWork<TContext>`: injeta `IUnitOfWorkAccessor<TContext>` e habilita begin/complete no handler.
 - `WithDbContext`: similar a UoW mas baseado em `DbContext` genérico.
 - `WithWorkContext`: similar a UoW mas baseado em `IWorkContext`.
+- `WithTransaction`: exige transação para o comando (o handler emite `BeginAsync(requireTransaction: true, ct)`), mesmo com a opção `BeginTransactions` do adapter desligada. Use quando o corpo produz mais de uma escrita commitada antes do complete (ex.: saves intermediários), para que falha ou retry de concorrência desfaçam o trabalho parcial. Exige um dos atributos de unidade de trabalho (senão RCCMD043); é somente opt-in — não desliga transações habilitadas pela opção do adapter.
+- `WithRetryOnConcurrency`: reexecuta o corpo da unidade de trabalho em conflito otimista (suportado apenas com `WithWorkContext`). O problema de esgotamento passa sempre pela `IConcurrencyRetryProblemFactory`: com `Operation`, essa chave; sem `Operation`, a chave default `{namespace}.{Comando}` (`ConcurrencyRetryOperations.DefaultFor<TCommand>()`). As options `ExhaustedProblemDetail`/`ExhaustedProblemTypeId` valem em todos os caminhos, e `AddConcurrencyRetryProblem<TCommand>(factory)` (sem operation) registra pela mesma chave default.
 - `WithFindEntities<TContext>`: habilita lookup de entidades por ID/coleções quando não há UoW.
 - `ProduceNewEntity`: comando retorna entidade nova (gera fluxo de `Result<T>` quando aplicável).
 - `EditEntity(entityType)`: comando edita entidade existente; primeiro parâmetro deve ser do tipo da entidade.

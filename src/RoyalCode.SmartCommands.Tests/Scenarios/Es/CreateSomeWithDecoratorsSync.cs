@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
@@ -45,7 +45,7 @@ public class CreateSomeWithDecoratorsSyncHandler : ICreateSomeWithDecoratorsSync
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         var decoratorsMediator = new Mediator<CreateSomeWithDecoratorsSync, Some>(
             this.decorators,
@@ -129,7 +129,7 @@ public class CreateSomeWithDecoratorsSyncHandler : ICreateSomeWithDecoratorsSync
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         var decoratorsMediator = new Mediator<CreateSomeWithDecoratorsSync, Some>(
             this.decorators,

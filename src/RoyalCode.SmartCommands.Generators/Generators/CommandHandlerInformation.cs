@@ -178,16 +178,16 @@ internal sealed class CommandHandlerInformation : TransformationGeneratorBase, I
         hashCode = hashCode * -1521134295 + HasWithUnitOfWork.GetHashCode();
         hashCode = hashCode * -1521134295 + RequiresTransaction.GetHashCode();
         hashCode = hashCode * -1521134295 + HasWithFindEntities.GetHashCode();
-        hashCode = hashCode * -1521134295 + ContextAccessorType?.GetHashCode() ?? 0;
+        hashCode = hashCode * -1521134295 + (ContextAccessorType?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + ContextAccessorMode.GetHashCode();
-        hashCode = hashCode * -1521134295 + ProduceNewEntityType?.GetHashCode() ?? 0;
-        hashCode = hashCode * -1521134295 + EditType?.GetHashCode() ?? 0;
-        hashCode = hashCode * -1521134295 + MapInformation?.GetHashCode() ?? 0;
+        hashCode = hashCode * -1521134295 + (ProduceNewEntityType?.GetHashCode() ?? 0);
+        hashCode = hashCode * -1521134295 + (EditType?.GetHashCode() ?? 0);
+        hashCode = hashCode * -1521134295 + (MapInformation?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + HasRetryOnConcurrency.GetHashCode();
         hashCode = hashCode * -1521134295 + RetryMaxAttempts.GetHashCode();
         hashCode = hashCode * -1521134295 + (RetryOperation?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + HasBodyProperties.GetHashCode();
-        hashCode = hashCode * -1521134295 + Errors?.GetHashCode() ?? 0;
+        hashCode = hashCode * -1521134295 + (Errors?.GetHashCode() ?? 0);
         return hashCode;
     }
 

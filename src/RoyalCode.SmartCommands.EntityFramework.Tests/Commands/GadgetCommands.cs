@@ -42,6 +42,18 @@ public partial class RenomearGadget
 }
 
 /// <summary>
+/// Comando com <c>[WithTransaction]</c> (DF21): exige transação para este comando mesmo quando
+/// a opção global <c>BeginTransactions</c> está desligada.
+/// </summary>
+public partial class CriarGadgetTransacional
+{
+    public string? Nome { get; set; }
+
+    [Command, ProduceNewEntity, WithUnitOfWork<TestDbContext>, WithTransaction]
+    internal Gadget Criar() => new() { Id = Guid.NewGuid(), Nome = Nome ?? string.Empty };
+}
+
+/// <summary>
 /// Host do registro de DI gerado (<c>AddGadgetHandlersServices</c>).
 /// </summary>
 [MapApiHandlers, AddHandlersServices("Gadget")]

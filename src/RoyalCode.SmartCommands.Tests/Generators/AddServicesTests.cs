@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using RoyalCode.SmartProblems;
 using Xunit;
@@ -208,7 +208,7 @@ public class MyCommandHandler<TContext> : IMyCommandHandler
 
     public async Task<Result> HandleAsync(MyCommand command, CancellationToken ct)
     {
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         return await command.Do().ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
     }

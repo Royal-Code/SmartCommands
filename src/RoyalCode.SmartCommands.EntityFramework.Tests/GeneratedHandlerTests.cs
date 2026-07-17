@@ -90,6 +90,43 @@ public class GeneratedHandlerTests
     }
 
     [Fact]
+    public async Task WithTransaction_exige_transacao_mesmo_com_a_opcao_global_desligada()
+    {
+        using var database = new SqliteDatabase();
+        await using var provider = BuildProvider(database, beginTransactions: false);
+        using var scope = provider.CreateScope();
+
+        var handler = scope.ServiceProvider.GetRequiredService<ICriarGadgetTransacionalHandler>();
+        var result = await handler.HandleAsync(new CriarGadgetTransacional { Nome = "g1" }, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        // DF21: a transação foi criada e commitada por exigência do comando, não da opção
+        Assert.Equal(1, database.TransactionInterceptor.CommitCount);
+        Assert.Equal(1, database.CountGadgets());
+    }
+
+    [Fact]
+    public async Task WithTransaction_faz_rollback_da_transacao_exigida_em_falha()
+    {
+        using var database = new SqliteDatabase();
+        await using var provider = BuildProvider(database, beginTransactions: false);
+        using var scope = provider.CreateScope();
+
+        var saveFailure = new InvalidOperationException("save boom");
+        database.SaveInterceptor.Throw = saveFailure;
+
+        var handler = scope.ServiceProvider.GetRequiredService<ICriarGadgetTransacionalHandler>();
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => handler.HandleAsync(new CriarGadgetTransacional { Nome = "g1" }, CancellationToken.None));
+
+        Assert.Same(saveFailure, thrown);
+        Assert.Equal(1, database.TransactionInterceptor.RollbackCount);
+
+        database.SaveInterceptor.Throw = null;
+        Assert.Equal(0, database.CountGadgets());
+    }
+
+    [Fact]
     public async Task Conflito_otimista_real_chega_como_problema_ao_chamador()
     {
         using var database = new SqliteDatabase();

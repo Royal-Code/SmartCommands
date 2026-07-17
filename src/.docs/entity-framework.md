@@ -10,7 +10,9 @@ o `RepositoryAdapter<TEntity, TContext>` expõe o contexto tipado a subclasses.
   `IRepositoriesAccessor<TContext>` sobre um `DbContext`. É o accessor consumido pelos handlers
   gerados quando o comando usa `WithUnitOfWork<TContext>` com um `DbContext` concreto.
 - `DbContextAdapterOptions`: `BeginTransactions` (padrão `false`) determina se `BeginAsync`
-  inicia uma transação explícita e se `CompleteAsync` commita/faz rollback dela.
+  inicia uma transação explícita e se `CompleteAsync` commita/faz rollback dela. Um comando pode
+  exigir transação individualmente com `[WithTransaction]` (DF21): o handler gerado chama
+  `BeginAsync(requireTransaction: true, ct)` e a transação é criada mesmo com a opção desligada.
 - `RepositoryAdapter<TEntity, TContext>`: base para repositórios com projeção; expõe
   `protected TContext Context` para que subclasses implementem
   `FindEntityAsync<TDto, TId>` com o contexto tipado, sem guardar uma segunda referência.

@@ -46,7 +46,7 @@ public class DoSomethingWithDecoratorsSyncWithResultHandler : IDoSomethingWithDe
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         var decoratorsMediator = new Mediator<DoSomethingWithDecoratorsSyncWithResult, Result>(
             this.decorators,
@@ -127,7 +127,7 @@ public class DoSomethingWithDecoratorsSyncWithResultHandler : IDoSomethingWithDe
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         var decoratorsMediator = new Mediator<DoSomethingWithDecoratorsSyncWithResult, Result>(
             this.decorators,

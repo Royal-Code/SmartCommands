@@ -229,3 +229,9 @@ O mesmo nome de parâmetro foi usado com papéis incompatíveis entre o método 
 `[CommandValidation]`, por exemplo como dependência de DI em um método e como `[WithParameter]` em outro. Como
 o nome representa um único parâmetro lógico do handler, escolher uma das fontes alteraria silenciosamente o valor
 recebido. **Correção:** use o mesmo papel em todas as declarações ou renomeie um dos parâmetros.
+
+## RCCMD043
+O método `[Command]` usa `[WithTransaction]` sem uma unidade de trabalho. A transação exigida pelo comando é
+iniciada pelo `BeginAsync` do accessor, então o atributo só tem efeito quando o comando também usa
+`WithUnitOfWork<TContext>`, `WithDbContext` ou `WithWorkContext`. **Correção:** adicione um desses atributos de
+unidade de trabalho ou remova `[WithTransaction]`.

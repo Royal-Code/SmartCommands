@@ -44,7 +44,7 @@ public class DoSomethingAsyncWithResultSomeHandler : IDoSomethingAsyncWithResult
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         return await command.DoAsync(this.accessor.Context).ContinueAsync(this.accessor, static async (_, a, ct) => await a.CompleteAsync(ct), ct);
     }
@@ -117,7 +117,7 @@ public class DoSomethingAsyncWithResultSomeHandler : IDoSomethingAsyncWithResult
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         return await command.DoAsync(this.accessor.Context).ContinueAsync(this.accessor, static async (_, a, ct) => await a.CompleteAsync(ct), ct);
     }

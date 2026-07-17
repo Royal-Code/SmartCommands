@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using RoyalCode.SmartCommands.Demo.Tests.Support;
+using RoyalCode.SmartCommands.WorkContext.Extensions;
 using RoyalCode.SmartCommands.WorkContext.Options;
+using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext;
 
 namespace RoyalCode.SmartCommands.Demo.Tests;
@@ -111,16 +113,18 @@ public class DemoApiConcurrencyRetryTests
 	}
 
 	[Fact]
-	public async Task DesativarProduto_WithoutOperation_Must_IgnoreConfiguredProblemOptions_OnExhaustion()
+	public async Task DesativarProduto_WithoutOperation_Must_UseConfiguredProblemOptions_OnExhaustion()
 	{
-		// F1: o comando DesativarProduto não declara Operation, então o handler gerado não injeta a
-		// IConcurrencyRetryProblemFactory e usa o problema genérico da primitiva — ignorando as options
-		// ExhaustedProblemDetail/ExhaustedProblemTypeId. Este teste fixa esse comportamento.
+		// Fase 8: mesmo sem Operation no atributo, o handler gerado injeta a factory e usa a chave
+		// default ({namespace}.{Comando}); as options ExhaustedProblemDetail/ExhaustedProblemTypeId
+		// valem em todos os caminhos.
 		using var app = new DemoApiFactory(static services => services.Configure<RetryOnConcurrencyOptions>(options =>
 		{
 			options.MaxAttempts = 2;
-			options.ExhaustedProblemDetail = "detalhe das options nao deve aparecer";
-			options.ExhaustedProblemTypeId = "demo.should_not_apply";
+			options.ExhaustedProblemDetail = "detalhe configurado nas options";
+			// typeId configurado precisa estar no catálogo RFC 9457 do Demo para virar o campo "type";
+			// usa um typeId já catalogado para validar o caminho completo
+			options.ExhaustedProblemTypeId = "demo.concurrency_conflict";
 		}));
 		using var client = app.CreateClient();
 		await app.ResetDatabaseAsync();
@@ -130,11 +134,36 @@ public class DemoApiConcurrencyRetryTests
 		// DesativarProduto não tem corpo: a requisição é enviada sem body (o endpoint instancia o comando).
 		var response = await client.PatchAsync($"/produtos/{created.Id}/desativar", content: null);
 
-		await response.AssertProblemAsync(HttpStatusCode.Conflict, ConcurrencyRetryExtensions.ConcurrencyConflictDetail);
+		await response.AssertProblemAsync(HttpStatusCode.Conflict, "detalhe configurado nas options", "demo.concurrency_conflict");
 
 		var content = await response.Content.ReadApiTextAsync();
-		Assert.DoesNotContain("detalhe das options nao deve aparecer", content, StringComparison.OrdinalIgnoreCase);
-		Assert.DoesNotContain("demo.should_not_apply", content, StringComparison.OrdinalIgnoreCase);
+		Assert.DoesNotContain(ConcurrencyRetryExtensions.ConcurrencyConflictDetail, content, StringComparison.OrdinalIgnoreCase);
+		Assert.Equal(2, app.ConcurrencyFailures.Failures);
+	}
+
+	[Fact]
+	public async Task DesativarProduto_WithoutOperation_Must_UseRegistrationByDefaultKey_OnExhaustion()
+	{
+		// Fase 8: o registro sem operation usa a mesma chave default do handler gerado
+		using var app = new DemoApiFactory(static services =>
+		{
+			services.Configure<RetryOnConcurrencyOptions>(static options => options.MaxAttempts = 2);
+			services.AddConcurrencyRetryProblem<Demo.Commands.Produtos.DesativarProduto>(
+				static (_, _) => Problems.InvalidState(
+					"produto desativado por outro processo",
+					typeId: "demo.concurrency_conflict"));
+		});
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var created = await CreateProductAsync(client, ConcurrencyFailureController.RetryAlwaysProductName);
+
+		var response = await client.PatchAsync($"/produtos/{created.Id}/desativar", content: null);
+
+		await response.AssertProblemAsync(
+			HttpStatusCode.Conflict,
+			"produto desativado por outro processo",
+			"demo.concurrency_conflict");
 		Assert.Equal(2, app.ConcurrencyFailures.Failures);
 	}
 

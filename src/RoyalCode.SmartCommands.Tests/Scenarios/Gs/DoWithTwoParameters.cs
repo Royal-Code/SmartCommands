@@ -30,7 +30,7 @@ public class DoWithTwoParametersHandler : IDoWithTwoParametersHandler
 
     public async Task<Result<int>> HandleAsync(int someId, DoWithTwoParameters command, int other, int another, CancellationToken ct)
     {
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         Problem? notFoundProblem;
 
@@ -113,7 +113,7 @@ public class DoWithTwoParametersHandler : IDoWithTwoParametersHandler
 
     public async Task<Result<int>> HandleAsync(int someId, DoWithTwoParameters command, int other, int another, CancellationToken ct)
     {
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         Problem? notFoundProblem;
 

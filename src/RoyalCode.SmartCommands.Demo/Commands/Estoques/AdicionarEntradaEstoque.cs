@@ -20,7 +20,10 @@ public partial class AdicionarEntradaEstoque
 			.HasProblems(out problems);
 	}
 
-	[Command, WithValidateModel, EditEntity<Produto, Guid>, WithWorkContext, WithRetryOnConcurrency(Operation = "demo.estoques.adicionar")]
+	// WithTransaction (DF21): o corpo altera estoque além do produto carregado; a transação exigida
+	// pelo comando garante que cada tentativa do retry desfaça o trabalho parcial — e serve de
+	// cenário real (SQLite + WorkContext) para transação exigida + retry.
+	[Command, WithValidateModel, EditEntity<Produto, Guid>, WithWorkContext, WithTransaction, WithRetryOnConcurrency(Operation = "demo.estoques.adicionar")]
 	internal async Task<Result> Execute(Produto produto, DemoDbContext db, CancellationToken ct)
 	{
 		var estoque = await db.Estoques.TryFindByAsync(e => e.ProdutoId == produto.Id, ct);

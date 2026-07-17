@@ -61,8 +61,11 @@ public sealed class UnitOfWorkAccessor<TWorkContext> : IUnitOfWorkAccessor<TWork
     /// <inheritdoc />
     public async ValueTask BeginAsync(bool requireTransaction, CancellationToken ct)
     {
-        // DF21: o comando pode exigir transação ([WithTransaction]) mesmo com a opção global desligada
-        if (options.BeginTransactions || requireTransaction)
+        // DF21: o comando pode exigir transação ([WithTransaction]) mesmo com a opção global desligada.
+        // O adapter só assume ownership de transação que ainda não existia: a implementação real do
+        // WorkContext adota (??=) uma transação já aberta e GetCurrentTransaction retorna o próprio
+        // contexto, então iniciar aqui com transação pré-existente tomaria a transação do usuário.
+        if ((options.BeginTransactions || requireTransaction) && workContext.GetCurrentTransaction() is null)
             transaction = await workContext.BeginTransactionAsync(ct);
     }
 
@@ -125,11 +128,15 @@ public sealed class UnitOfWorkAccessor<TWorkContext> : IUnitOfWorkAccessor<TWork
         if (!AdapterOwnsCurrentTransaction())
             return;
 
+        // o campo é limpo mesmo se o rollback falhar: o estado da transação é desconhecido e uma
+        // nova tentativa de commit/rollback pelo adapter não seria segura
+        var current = transaction!;
+        transaction = null;
+
         try
         {
             // o token do handler pode já estar cancelado; a limpeza usa token próprio
-            await transaction!.RollbackAsync(CancellationToken.None);
-            transaction = null;
+            await current.RollbackAsync(CancellationToken.None);
         }
         catch (Exception rollbackEx)
         {

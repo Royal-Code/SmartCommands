@@ -36,7 +36,7 @@ public class AdicionarEntradaEstoqueHandler<TContext> : IAdicionarEntradaEstoque
         return await this.accessor.Context.RetryOnConcurrencyAsync(
             async () =>
             {
-                await this.accessor.BeginAsync(requireTransaction: false, ct);
+                await this.accessor.BeginAsync(requireTransaction: true, ct);
 
                 Problem? notFoundProblem;
 

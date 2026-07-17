@@ -4,7 +4,7 @@
 
 ## Progresso
 
-`███████░░░░░` **58%** - 7 de 12 fases concluídas
+`████████░░░░` **67%** - 8 de 12 fases concluídas
 
 | Fase | Estado |
 |---|---|
@@ -15,7 +15,7 @@
 | Fase 5 - Binding de `WithParameter` e resolução de `EditEntity` | Concluida |
 | Fase 6 - Validações adicionais do comando | Concluida |
 | Fase 7 - Confiabilidade do adapter Entity Framework | Concluida |
-| Fase 8 - Runtime de decorators, WorkContext e retry | Pendente |
+| Fase 8 - Runtime de decorators, WorkContext e retry | Concluida |
 | Fase 9 - Completude dos mapeamentos Minimal API existentes | Pendente |
 | Fase 10 - Novas capacidades de mapeamento Minimal API | Bloqueada por Q4 |
 | Fase 11 - Qualidade transversal, pacote, documentação e CI | Pendente |
@@ -1215,15 +1215,16 @@ usando `Context` sem segunda referência ao contexto.
 
 **Tarefas:**
 
-- [ ] Substituir o enumerador de `Mediator` por delegate pipeline composto em ordem reversa, sem recurso descartável mantido.
-- [ ] Definir/testar que cada chamada de `next` executa novamente o restante do pipeline, sem compartilhar posição mutável.
-- [ ] Manter uma instância de mediator/pipeline por `Handle`, sem estado entre requests.
-- [ ] Fazer `ExhaustedProblemTypeId` e `ExhaustedProblemDetail` valerem mesmo quando `[WithRetryOnConcurrency]` não informa `Operation`.
-- [ ] Definir chave estável default de operação para factory/registro sem usar texto localizado.
-- [ ] Preservar validação fora do retry e Begin/find/command/Complete dentro dele.
-- [ ] Implementar DF21: atributo `[WithTransaction]`, assinatura `BeginAsync(bool requireTransaction, CancellationToken ct)` nos dois accessors (EF e WorkContext), emissão do generator com `requireTransaction: true` quando o atributo estiver presente, diagnóstico RCCMD041 para uso sem UoW, testes (incluindo retry com transação exigida pelo comando) e documentação (`commands.md`, `entity-framework.md`, `AnalyzerReleases`).
-- [ ] Testar rollback/cleanup entre tentativas, budget `1`, opções default, custom factory por command/operação e cancelamento durante rollback.
-- [ ] Avaliar logging/métrica de tentativa e backoff como design; manter fora da implementação salvo nova decisão humana.
+- [x] Substituir o enumerador de `Mediator` por delegate pipeline composto em ordem reversa, sem recurso descartável mantido. (Pipeline composto uma vez no ctor, do último decorator para o primeiro; cada `next` capturado executa o restante; nenhum `IEnumerator` retido.)
+- [x] Definir/testar que cada chamada de `next` executa novamente o restante do pipeline, sem compartilhar posição mutável. (`MediatorTests`: `next` duas vezes reexecuta decorator interno + final de forma determinística; `NextAsync` repetido reexecuta o pipeline completo — antes, a segunda chamada pulava os decorators.)
+- [x] Manter uma instância de mediator/pipeline por `Handle`, sem estado entre requests. (O handler gerado já cria `new Mediator` por `HandleAsync` — dentro do laço de retry, quando presente; teste de instâncias separadas sem estado compartilhado.)
+- [x] Fazer `ExhaustedProblemTypeId` e `ExhaustedProblemDetail` valerem mesmo quando `[WithRetryOnConcurrency]` não informa `Operation`. (O handler gerado agora injeta sempre a `IConcurrencyRetryProblemFactory` e passa `onExhausted` em todos os caminhos; as options valem via fallback da factory. Teste do Demo que fixava o comportamento antigo foi invertido para o contrato novo.)
+- [x] Definir chave estável default de operação para factory/registro sem usar texto localizado. (Chave default = `{namespace}.{Comando}`; helper público `ConcurrencyRetryOperations.DefaultFor<TCommand>()` e overloads `AddConcurrencyRetryProblem<TCommand>(factory)` sem operation registram pela mesma chave.)
+- [x] Preservar validação fora do retry e Begin/find/command/Complete dentro dele. (Ordem inalterada e coberta pelos testes existentes de geração — `HasProblems`/validators fora do laço; `RetryOnConcurrencyAsync` agora faz o rollback entre tentativas com token próprio e checa cancelamento após o cleanup, antes de nova tentativa.)
+- [x] Implementar DF21: atributo `[WithTransaction]`, assinatura `BeginAsync(bool requireTransaction, CancellationToken ct)` nos dois accessors (EF e WorkContext), emissão do generator com `requireTransaction: true` quando o atributo estiver presente, diagnóstico RCCMD043 para uso sem UoW, testes (incluindo retry com transação exigida pelo comando) e documentação (`commands.md`, `entity-framework.md`, `AnalyzerReleases`). (RCCMD041/042 já haviam sido usados pela revisão do mantenedor; o ID novo é RCCMD043. Todos os espelhos/fixtures atualizados para a nova assinatura.)
+- [x] Testar rollback/cleanup entre tentativas, budget `1`, opções default, custom factory por command/operação e cancelamento durante rollback. (Suites `ConcurrencyRetryTests` +4 e `ConcurrencyRetryProblemFactoryTests` +3; cancelamento durante o ciclo: cleanup roda em `CancellationToken.None` e OCE atravessa antes de nova tentativa; esgotamento na última tentativa vence o cancelamento — contrato travado por teste.)
+- [x] Avaliar logging/métrica de tentativa e backoff como design; manter fora da implementação salvo nova decisão humana. (Avaliado e mantido fora — ver nota de design no Resultado.)
+- [x] Alinhar `UnitOfWorkAccessor` (WorkContext) ao DF14, coerente com a Fase 7: `CompleteAsync` não converte mais exceções de commit/rollback em `Result` (`result += ex` removido); exceções do save (incl. `ConcurrencyException` do retry e cancelamento) atravessam após rollback de cleanup em token próprio; ownership por instância da transação criada em `BeginAsync`; falha dupla vira `AggregateException`. (Tarefa adicionada nesta fase; `UnitOfWorkAccessorTests` com fake de `IWorkContext` cobre os 10 caminhos.)
 
 **Critérios de aceite:** decorators executam em ordem registrada; `next` repetido é determinístico; nenhuma enumeração fica viva; opções de exhausted são observadas em todos os caminhos; quantidade de tentativas e cleanup corresponde ao contrato; efeitos anteriores ao retry ocorrem uma vez.
 
@@ -1231,7 +1232,122 @@ usando `Context` sem segunda referência ao contexto.
 
 ### Resultado da Fase 8
 
-*a preencher*
+Executada em 2026-07-17.
+
+#### Implementação
+
+- **`Mediator<TModel, TResult>` reescrito:** o enumerador mutável (que fazia a segunda chamada de `next`
+  "pular" decorators e alterava o restante do pipeline) foi substituído por um pipeline de delegates composto
+  uma única vez no construtor, em ordem reversa. Cada decorator captura o `next` que executa o restante do
+  pipeline; invocar `next` (ou `NextAsync`) mais de uma vez reexecuta o restante deterministicamente, e nenhum
+  recurso descartável é retido. A superfície pública não mudou (ctor + `NextAsync`), então a emissão do
+  generator ficou intacta.
+- **Decisão de performance do `Mediator`:** mantida a composição por delegates após revisão comparativa. Ela
+  troca o custo constante do enumerador antigo por closures proporcionais aos decorators (microprobe Release:
+  1 decorator, 160 B contra 152 B; 3, 368 B contra 152 B; 5, 576 B contra 152 B), mas elimina o estado mutável
+  incorreto e torna `next` reentrante/determinístico. Para comandos com persistência o custo é secundário; uma
+  futura otimização deve vir acompanhada de benchmark e não pode reintroduzir posição compartilhada.
+- **Exhausted problems em todos os caminhos:** o handler gerado com `[WithRetryOnConcurrency]` agora injeta
+  **sempre** a `IConcurrencyRetryProblemFactory` e passa `onExhausted` — com a `Operation` explícita ou com a
+  **chave default `{namespace}.{Comando}`** (estável, sem texto localizado). `ExhaustedProblemDetail`/
+  `ExhaustedProblemTypeId` valem mesmo sem `Operation`. Novos públicos: `ConcurrencyRetryOperations.DefaultFor`
+  e overloads `AddConcurrencyRetryProblem<TCommand>(factory)`/`(serviceFactory)` sem operation.
+- **Retry endurecido:** o rollback entre tentativas roda em `CancellationToken.None` (a limpeza não pode ser
+  abortada por token já cancelado) e, após o cleanup, `ct.ThrowIfCancellationRequested()` impede nova tentativa
+  com cancelamento pendente; esgotamento na última tentativa vence o cancelamento (contrato travado por teste).
+- **DF21 (`[WithTransaction]`):** novo atributo público; `IUnitOfWorkAccessor<T>.BeginAsync` passou a
+  `BeginAsync(bool requireTransaction, CancellationToken ct)` (breaking direto, DF1); os dois accessors criam a
+  transação quando a opção global está ligada **ou** o comando exige; o generator emite
+  `BeginAsync(requireTransaction: true|false, ct)` conforme o atributo; `[WithTransaction]` sem UoW produz
+  **RCCMD043** (RCCMD041/042 já tinham sido usados pela revisão do mantenedor) e nenhuma fonte.
+- **`UnitOfWorkAccessor` (WorkContext) alinhado ao DF14** (coerente com o adapter EF da Fase 7): exceções do
+  save — incluindo a `ConcurrencyException` destinada ao laço de retry e cancelamento — atravessam após rollback
+  de cleanup em token próprio; problemas conhecidos do save fazem rollback e retornam o `Result`; falha de
+  commit é relançada após rollback (antes virava `result += ex`); falha dupla vira `AggregateException`
+  [primária, rollback]; ownership por instância (transação do usuário nunca é commitada/revertida).
+
+#### Testes
+
+- `MediatorTests` (6): ordem registrada, `next` duplo determinístico, `NextAsync` repetido, sem decorators,
+  instâncias independentes e execução concorrente de pipelines separados.
+- `ConcurrencyRetryTests` (+5): cancelamento para o laço após cleanup; rollback entre tentativas com token
+  próprio; esgotamento na última tentativa vence cancelamento; rollback falho nos overloads simples e genérico
+  ainda executa `CleanUp`; conflito + rollback + cleanup falhos preservam as três causas.
+- `ConcurrencyRetryProblemFactoryTests` (+3): registro pela chave default, fallback das options pela chave
+  default, `DefaultFor` = nome qualificado do tipo.
+- `UnitOfWorkAccessorTests` (10, novo, fake completo de `IWorkContext`): sucesso sem/com transação (commit
+  único), `requireTransaction` com opção desligada, problemas do save (rollback + `Result`), exceção do save
+  atravessa (mesma instância), cancelamento com cleanup em token próprio, falha de commit atravessa, falha
+  dupla (`AggregateException`), transação do usuário intocada e `BeginAsync` sem assumir transação preexistente.
+- `WithTransactionTests` (4, geração): `requireTransaction: true` com UoW, `false` sem o atributo, RCCMD043 sem
+  UoW (sem fonte, sem CS8785), retry + `[WithTransaction]` com a transação exigida dentro do laço.
+- EF (`GeneratedHandlerTests` +2): `[WithTransaction]` cria/commita transação com `BeginTransactions=false` e
+  faz rollback dela em falha.
+- Demo (`DemoApiConcurrencyRetryTests`): o teste que fixava o comportamento antigo
+  (`..._Must_IgnoreConfiguredProblemOptions_...`) foi invertido para o contrato novo
+  (`..._Must_UseConfiguredProblemOptions_...`) e ganhou par com registro pela chave default; typeId precisa
+  estar no catálogo RFC 9457 do Demo para virar o campo `type`.
+- Todos os espelhos/fixtures de cenários (25 arquivos) atualizados para `BeginAsync(requireTransaction: false, ct)`.
+
+#### Nota de design — logging/métrica de tentativa e backoff (avaliados, mantidos fora)
+
+- **Backoff:** conflito otimista não é falha transitória de infraestrutura; a tentativa seguinte recarrega o
+  estado e reaplica — esperar não aumenta a chance de sucesso e só adiciona latência sob contenção. Fora do
+  escopo por decisão anterior (ver Fora de escopo) e reconfirmado aqui.
+- **Logging/métrica:** o ponto natural seria o laço de `RetryOnConcurrencyAsync` (tentativa N de M, operação,
+  tipo do comando). Adotar exigiria decidir a dependência (`ILogger`/`Meter` no pacote WorkContext), nomes de
+  eventos/métricas e cardinalidade — uma decisão de API pública que fica para o humano; nenhum hook foi
+  adicionado para não congelar contrato não decidido. Se desejado, a proposta é um `IConcurrencyRetryObserver`
+  opcional resolvido por DI, chamado em cada conflito e no esgotamento.
+
+#### Breaking changes da fase (para as notas de release da Fase 12)
+
+1. `IUnitOfWorkAccessor<T>.BeginAsync(CancellationToken)` → `BeginAsync(bool requireTransaction, CancellationToken)`.
+2. `UnitOfWorkAccessor` (WorkContext) não converte mais exceções de commit/rollback em `Result` — elas
+   atravessam a borda (alinhamento DF14).
+3. Handler gerado com retry sem `Operation` agora resolve o problema de esgotamento pela factory com a chave
+   default `{namespace}.{Comando}` (antes: problema genérico fixo, ignorando options/registros).
+
+#### Revisão por subagente (2026-07-17)
+
+Revisão executada por subagente sobre o diff completo da fase (rodou build e as suítes por conta própria).
+Um achado médio e três baixos, tratados assim; um aparte pré-existente também corrigido:
+
+1. **MÉDIA — ownership por `ReferenceEquals` inócuo com o WorkContext real** (a implementação real implementa
+   `ITransaction` em si mesma: `GetCurrentTransaction()` retorna o próprio contexto e `BeginTransactionAsync`
+   adota via `??=` transações já abertas, então o adapter commitaria a transação do usuário). Corrigido:
+   `BeginAsync` só inicia — e só assume ownership — quando `GetCurrentTransaction()` é nulo; transação
+   pré-existente segue do usuário. Teste novo: `BeginAsync_nao_inicia_nem_assume_transacao_pre_existente_do_usuario`.
+2. **BAIXA — rollback falho entre tentativas do retry perdia a exceção primária e pulava o `CleanUp`.**
+   Corrigido no núcleo comum das duas overloads: o `CleanUp` é sempre tentado; conflito, falha do rollback e
+   eventual falha do change tracker são preservados em ordem na `AggregateException`. Há cobertura direta dos
+   caminhos não genérico, genérico e da falha tripla.
+3. **BAIXA — campo `transaction` do `UnitOfWorkAccessor` ficava stale quando o rollback falhava.** Corrigido:
+   o campo é limpo antes da tentativa de rollback (estado da transação é desconhecido após falha), como no
+   adapter EF.
+4. **BAIXA — faltava integração runtime real de `[WithTransaction]` + retry no caminho WorkContext.**
+   Corrigido no Demo: `AdicionarEntradaEstoque` (que já tem retry e altera estoque além do produto carregado)
+   ganhou `[WithTransaction]`; os testes de concorrência de estoque do Demo agora exercitam transação exigida +
+   conflito + retry sobre SQLite + WorkContext reais.
+5. **Aparte (pré-existente) — precedência de `?? 0` no `GetHashCode` de `CommandHandlerInformation`** zerava o
+   hash acumulado quando campos opcionais eram nulos (afetava só dispersão; `Equals` é autoritativo). Corrigido
+   com parênteses.
+
+Verificados OK pela revisão: ordem/closures/determinismo do novo `Mediator`; `RequiresTransaction` na igualdade
+e no modelo do pipeline (posições consistentes); chave default escapada com `FormatLiteral` e igual a
+`typeof(T).FullName` nos casos suportados; factory sempre registrada (`TryAddScoped`) e injetada; cleanup antes
+do retorno de exaustão e da checagem de cancelamento; RCCMD043 completo (catálogo, releases, docs, teste);
+breaking change propagado a todos os espelhos/fixtures/gerados; 0 warnings novos (DF10); inversão do teste do
+Demo correta e sem regressão de retry.
+
+#### Verificação (reexecutada em 2026-07-17, após as correções da revisão)
+
+| Verificação | Resultado |
+|---|---|
+| `dotnet build SmartCommands.sln -c Release` | **êxito** — 0 erros, somente NU5104 aceitos (DF10) |
+| `RoyalCode.SmartCommands.Tests` | **274/274** aprovados |
+| `RoyalCode.SmartCommands.Demo.Tests` | **72/72** aprovados |
+| `RoyalCode.SmartCommands.EntityFramework.Tests` | **24/24** aprovados |
 
 ---
 

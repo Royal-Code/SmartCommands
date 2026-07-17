@@ -239,7 +239,7 @@ public class CreateSomeHandler : ICreateSomeHandler
 
     public async Task<Result<Some>> HandleAsync(CreateSome command, CancellationToken ct)
     {
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         var commandResult = command.Execute(this.accessor.Context);
 

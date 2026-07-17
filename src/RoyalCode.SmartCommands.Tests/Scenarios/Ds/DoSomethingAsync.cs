@@ -48,7 +48,7 @@ public class DoSomethingAsyncHandler : IDoSomethingAsyncHandler
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         var commandResult = await command.DoAsync(this.accessor.Context);
 
@@ -123,7 +123,7 @@ public class DoSomethingAsyncHandler : IDoSomethingAsyncHandler
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         var commandResult = await command.DoAsync(this.accessor.Context);
 

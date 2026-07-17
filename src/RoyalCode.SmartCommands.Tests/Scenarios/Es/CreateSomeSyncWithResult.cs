@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 
@@ -43,7 +43,7 @@ public class CreateSomeSyncWithResultHandler : ICreateSomeSyncWithResultHandler
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         return await command.Create()
             .ContinueAsync(this.accessor, static async (e, a, ct) => await a.AddEntityAsync(e, ct), ct)
@@ -117,7 +117,7 @@ public class CreateSomeSyncWithResultHandler : ICreateSomeSyncWithResultHandler
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         return await command.Create()
             .ContinueAsync(this.accessor, static async (e, a, ct) => await a.AddEntityAsync(e, ct), ct)

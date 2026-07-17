@@ -37,6 +37,8 @@ public static class ConcurrencyRetryExtensions
     ///     Between attempts, any current transaction is rolled back (so partial work from the failed attempt is
     ///     undone) and the change tracker is cleared via <see cref="IUnitOfWork.CleanUp(bool)"/>, so the body
     ///     reloads fresh state from the store on the next attempt.
+    ///     Change-tracker cleanup is still attempted when rollback fails; cleanup failures preserve the original
+    ///     conflict and are reported together in an <see cref="AggregateException"/>.
     /// </para>
     /// </summary>
     /// <param name="unitOfWork">The unit of work being retried; owns the change tracker and the transaction, if any.</param>
@@ -58,45 +60,19 @@ public static class ConcurrencyRetryExtensions
     ///     rollback runs on its own token so the cleanup is never aborted before it runs.
     /// </param>
     /// <returns>The result of <paramref name="body"/>, or a conflict problem when the attempts are exhausted.</returns>
-    public static async Task<Result> RetryOnConcurrencyAsync(
+    public static Task<Result> RetryOnConcurrencyAsync(
         this IUnitOfWork unitOfWork,
         Func<Task<Result>> body,
         RetryOnConcurrencyOptions options,
         Func<Problem>? onExhausted = null,
         CancellationToken ct = default)
-    {
-        var maxAttempts = options.MaxAttempts < 1 ? 1 : options.MaxAttempts;
-        var attempt = 0;
-
-        while (true)
-        {
-            try
-            {
-                return await body();
-            }
-            catch (ConcurrencyException)
-            {
-                attempt++;
-
-                // Revert any partial work from the failed attempt before reloading: the save threw before the
-                // unit of work could roll back, so an open transaction would otherwise re-apply already-sent commands.
-                // The rollback runs on its own token: the handler token may already be cancelled, and the cleanup
-                // must not be aborted before it runs.
-                var transaction = unitOfWork.GetCurrentTransaction();
-                if (transaction is not null)
-                    await transaction.RollbackAsync(CancellationToken.None);
-
-                // Detach tracked entities so the next attempt reloads fresh state from the store.
-                unitOfWork.CleanUp();
-
-                if (attempt >= maxAttempts)
-                    return onExhausted?.Invoke() ?? Problems.InvalidState(ConcurrencyConflictDetail);
-
-                // cancellation stays cancellation: after the cleanup, do not start a new attempt
-                ct.ThrowIfCancellationRequested();
-            }
-        }
-    }
+        => RetryOnConcurrencyCoreAsync(
+            unitOfWork,
+            body,
+            options,
+            onExhausted,
+            static problem => problem,
+            ct);
 
     /// <summary>
     /// <para>
@@ -110,6 +86,7 @@ public static class ConcurrencyRetryExtensions
     ///     <see cref="IUnitOfWork.CleanUp(bool)"/>, so the body reloads fresh state on the next attempt. The same
     ///     re-execution contract of the non-generic overload applies: the body must be safe to run again (no
     ///     non-idempotent, immediately-committed side effect).
+    ///     Change-tracker cleanup is still attempted when rollback fails, preserving every cleanup failure.
     /// </para>
     /// </summary>
     /// <typeparam name="T">The value type carried by the <see cref="Result{T}"/> returned by the body.</typeparam>
@@ -125,12 +102,27 @@ public static class ConcurrencyRetryExtensions
     ///     rollback runs on its own token so the cleanup is never aborted before it runs.
     /// </param>
     /// <returns>The result of <paramref name="body"/>, or a conflict problem when the attempts are exhausted.</returns>
-    public static async Task<Result<T>> RetryOnConcurrencyAsync<T>(
+    public static Task<Result<T>> RetryOnConcurrencyAsync<T>(
         this IUnitOfWork unitOfWork,
         Func<Task<Result<T>>> body,
         RetryOnConcurrencyOptions options,
         Func<Problem>? onExhausted = null,
         CancellationToken ct = default)
+        => RetryOnConcurrencyCoreAsync(
+            unitOfWork,
+            body,
+            options,
+            onExhausted,
+            static problem => problem,
+            ct);
+
+    private static async Task<TResult> RetryOnConcurrencyCoreAsync<TResult>(
+        IUnitOfWork unitOfWork,
+        Func<Task<TResult>> body,
+        RetryOnConcurrencyOptions options,
+        Func<Problem>? onExhausted,
+        Func<Problem, TResult> problemResultFactory,
+        CancellationToken ct)
     {
         var maxAttempts = options.MaxAttempts < 1 ? 1 : options.MaxAttempts;
         var attempt = 0;
@@ -141,27 +133,66 @@ public static class ConcurrencyRetryExtensions
             {
                 return await body();
             }
-            catch (ConcurrencyException)
+            catch (ConcurrencyException conflict)
             {
                 attempt++;
-
-                // Revert any partial work from the failed attempt before reloading: the save threw before the
-                // unit of work could roll back, so an open transaction would otherwise re-apply already-sent commands.
-                // The rollback runs on its own token: the handler token may already be cancelled, and the cleanup
-                // must not be aborted before it runs.
-                var transaction = unitOfWork.GetCurrentTransaction();
-                if (transaction is not null)
-                    await transaction.RollbackAsync(CancellationToken.None);
-
-                // Detach tracked entities so the next attempt reloads fresh state from the store.
-                unitOfWork.CleanUp();
+                await CleanUpFailedAttemptAsync(unitOfWork, conflict);
 
                 if (attempt >= maxAttempts)
-                    return onExhausted?.Invoke() ?? Problems.InvalidState(ConcurrencyConflictDetail);
+                {
+                    var problem = onExhausted?.Invoke() ?? Problems.InvalidState(ConcurrencyConflictDetail);
+                    return problemResultFactory(problem);
+                }
 
                 // cancellation stays cancellation: after the cleanup, do not start a new attempt
                 ct.ThrowIfCancellationRequested();
             }
         }
+    }
+
+    private static async ValueTask CleanUpFailedAttemptAsync(
+        IUnitOfWork unitOfWork,
+        ConcurrencyException conflict)
+    {
+        Exception? rollbackFailure = null;
+        Exception? trackerCleanupFailure = null;
+
+        var transaction = unitOfWork.GetCurrentTransaction();
+        if (transaction is not null)
+        {
+            try
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                rollbackFailure = ex;
+            }
+        }
+
+        // Always detach tracked entities, even when rollback fails. No new attempt will start after a cleanup
+        // failure, but callers that inspect or dispose the context do not retain the failed attempt's entities.
+        try
+        {
+            unitOfWork.CleanUp();
+        }
+        catch (Exception ex)
+        {
+            trackerCleanupFailure = ex;
+        }
+
+        if (rollbackFailure is null && trackerCleanupFailure is null)
+            return;
+
+        var failures = new List<Exception> { conflict };
+        if (rollbackFailure is not null)
+            failures.Add(rollbackFailure);
+        if (trackerCleanupFailure is not null)
+            failures.Add(trackerCleanupFailure);
+
+        throw new AggregateException(
+            "The optimistic-concurrency retry could not clean up the failed attempt. " +
+            "The first inner exception is the concurrency conflict; subsequent exceptions are rollback/change-tracker cleanup failures.",
+            failures);
     }
 }
