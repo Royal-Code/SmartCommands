@@ -78,12 +78,12 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         hashCode = hashCode * -1521134295 + HttpMethod.GetHashCode();
         hashCode = hashCode * -1521134295 + RoutePattern.GetHashCode();
         hashCode = hashCode * -1521134295 + EndpointName.GetHashCode();
-        hashCode = hashCode * -1521134295 + Description?.GetHashCode() ?? 0;
-        hashCode = hashCode * -1521134295 + Summary?.GetHashCode() ?? 0;
-        hashCode = hashCode * -1521134295 + GroupName?.GetHashCode() ?? 0;
-        hashCode = hashCode * -1521134295 + CreatedInformation?.GetHashCode() ?? 0;
-        hashCode = hashCode * -1521134295 + IdResultValueType?.GetHashCode() ?? 0;
-        hashCode = hashCode * -1521134295 + ResponseValues?.GetHashCode() ?? 0;
+        hashCode = hashCode * -1521134295 + (Description?.GetHashCode() ?? 0);
+        hashCode = hashCode * -1521134295 + (Summary?.GetHashCode() ?? 0);
+        hashCode = hashCode * -1521134295 + (GroupName?.GetHashCode() ?? 0);
+        hashCode = hashCode * -1521134295 + (CreatedInformation?.GetHashCode() ?? 0);
+        hashCode = hashCode * -1521134295 + (IdResultValueType?.GetHashCode() ?? 0);
+        hashCode = hashCode * -1521134295 + (ResponseValues?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (EditRouteParameterName?.GetHashCode() ?? 0);
         if (AuthorizationPolicies is not null)
             foreach (var policy in AuthorizationPolicies)
@@ -104,7 +104,11 @@ internal sealed class MapInformation : IEquatable<MapInformation>
             $"{commandInfo.ModelType.Name}{(commandInfo.HandlerMustBeAsync ? "HandleAsync" : "Handle")}";
 
         // Cria comando que invoca o método de mapeamento do handler
-        var methodInvoke = GenerateMapMethodInvoke(this, handlerMethodName, withOpenApi);
+        var methodInvoke = GenerateMapMethodInvoke(
+            this,
+            handlerMethodName,
+            withOpenApi,
+            ProducesNoContent(this, returnModel));
         var invokeCommand = new Command(methodInvoke);
         commands.Add(invokeCommand);
 
@@ -120,7 +124,20 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         }
     }
 
-    private static MethodInvokeGenerator GenerateMapMethodInvoke(MapInformation mapInfo, string handlerMethodName, bool withOpenApi)
+    /// <summary>
+    /// O endpoint responde 204 No Content: Delete cujo contrato não retorna valor nem created.
+    /// A escolha de status por verbo vive aqui e em <see cref="DiscoveryReturnType"/>.
+    /// </summary>
+    private static bool ProducesNoContent(MapInformation mapInfo, ReturnModel returnModel) =>
+        mapInfo.HttpMethod == "Delete" &&
+        returnModel.ValueType is null &&
+        mapInfo.CreatedInformation is null;
+
+    private static MethodInvokeGenerator GenerateMapMethodInvoke(
+        MapInformation mapInfo,
+        string handlerMethodName,
+        bool withOpenApi,
+        bool producesNoContent)
     {
         // os valores vêm dos TypedConstants (sem aspas); a emissão os formata como literais C#
         var methodInvoke = new MethodInvokeGenerator("group", $"Map{mapInfo.HttpMethod}");
@@ -132,6 +149,16 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         {
             LineIdent = true
         };
+
+        if (producesNoContent)
+        {
+            // a metadata 204 do NoContentMatch não declara content-type e é descartada pelo ApiExplorer;
+            // o Produces explícito garante a resposta de sucesso no OpenAPI
+            methodInvoke = new MethodInvokeGenerator(methodInvoke, "Produces", "204")
+            {
+                LineIdent = true
+            };
+        }
 
         if (mapInfo.Description is not null)
         {
@@ -332,7 +359,13 @@ internal sealed class MapInformation : IEquatable<MapInformation>
     {
         TypeDescriptor typeDescriptor;
         const string ns = "RoyalCode.SmartProblems.HttpResults";
-        if (mapInfo.HttpMethod == "Delete")
+
+        // tenta obter o tipo de retorno
+        var hasValueType = returnModel.ValueType is not null;
+
+        // Delete responde 204 No Content somente quando o contrato não retorna valor nem created;
+        // com valor, o comportamento é o mesmo dos demais verbos (o valor não é descartado em silêncio).
+        if (ProducesNoContent(mapInfo, returnModel))
         {
             typeDescriptor = new TypeDescriptor("NoContentMatch", [ns]);
 
@@ -341,9 +374,6 @@ internal sealed class MapInformation : IEquatable<MapInformation>
 
             return typeDescriptor;
         }
-
-        // tenta obter o tipo de retorno
-        var hasValueType = returnModel.ValueType is not null;
         var valueType = returnModel.ValueType is null
             ? null
             : PipelineModelConversions.ToDescriptor(returnModel.ValueType);
@@ -399,20 +429,29 @@ internal sealed class MapInformation : IEquatable<MapInformation>
 
         // montando a rota
 
-        // primeiro monta a rota com o nome do grupo e o padrão da rota informado no atributo MapCreatedRoute
-        var routeTemplate = $"{mapInfo.GroupName}/{createdInfo.RoutePattern}";
+        // primeiro monta a rota com o nome do grupo (quando houver) e o padrão do atributo MapCreatedRoute
+        var routeTemplate = mapInfo.GroupName is null
+            ? createdInfo.RoutePattern
+            : CombineRoutePatterns(mapInfo.GroupName, createdInfo.RoutePattern);
 
         // escapa o conteúdo literal da string interpolada (aspas, contrabarras e chaves); os
-        // placeholders {i} são escapados junto (viram {{i}}) e depois convertidos em interpolação
+        // placeholders nomeados são escapados junto (viram {{name}}) e depois convertidos em interpolação
         var routeLiteral = SymbolDisplay.FormatLiteral(routeTemplate, quote: true);
         var escapedRoute = routeLiteral.Substring(1, routeLiteral.Length - 2)
             .Replace("{", "{{")
             .Replace("}", "}}");
 
-        // por fim, para cada propriedade do MapCreatedRoute, substitui o placeholder escapado {{i}}
-        // pela interpolação do valor da propriedade
-        for (int i = 0; i < createdInfo.PropertiesNames.Length; i++)
-            escapedRoute = escapedRoute.Replace($"{{{{{i}}}}}", $"{{v.{createdInfo.PropertiesNames[i]}}}");
+        // DF17: cada placeholder nomeado do pattern vira a interpolação da propriedade declarada que casa
+        // com ele (sem diferenciar maiúsculas); o transform já garantiu correspondência única e válida
+        foreach (var placeholder in RoutePatternParser.Parse(createdInfo.RoutePattern))
+        {
+            var propertyName = createdInfo.PropertiesNames.FirstOrDefault(name =>
+                string.Equals(name, placeholder.Name, StringComparison.OrdinalIgnoreCase));
+            if (propertyName is null)
+                continue;
+
+            escapedRoute = escapedRoute.Replace($"{{{{{placeholder.Name}}}}}", $"{{v.{propertyName}}}");
+        }
 
         // adiciona o parâmetro da rota como expressão lambda
         methodInvoke.AddArgument(new StringValueNode($"v => $\"{escapedRoute}\""));
@@ -432,6 +471,14 @@ internal sealed class MapInformation : IEquatable<MapInformation>
 
         return methodInvoke;
     }
+
+    /// <summary>
+    /// Junta o prefixo de <c>MapGroup</c> ao padrão de <c>MapCreatedRoute</c>, normalizando somente a barra
+    /// criada na fronteira entre os dois valores. A validade dos padrões continua sendo responsabilidade do
+    /// roteamento do ASP.NET Core.
+    /// </summary>
+    private static string CombineRoutePatterns(string groupName, string routePattern) =>
+        $"{groupName.TrimEnd('/')}/{routePattern.TrimStart('/')}";
 
     private static void AddResponseValuesParameter(
         MethodInvokeGenerator methodInvoke,
@@ -515,7 +562,7 @@ internal sealed class CommandMapEndpointGenerator : IMapEndpointGenerator
         this.returnModel = returnModel;
     }
 
-    public string GroupName => map.GroupName;
+    public string? GroupName => map.GroupName;
 
     public void Generate(
         SourceProductionContext spc,

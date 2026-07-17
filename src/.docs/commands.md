@@ -82,11 +82,26 @@ Principais atributos em métodos de comando:
 - `ProduceProblems(params ProblemCategory[])`: declara problemas esperados.
 
 Principais atributos na classe de comando (mapeamento HTTP):
-- `MapPost(routePattern, endpointName)` e equivalentes para outros verbos.
-- `MapGroup(groupName)`: agrupa endpoints.
-- `MapCreatedRoute(routePattern, params string[] idProperties)`: constrói `Location` em 201.
+- `MapPost(routePattern, endpointName)` e equivalentes para outros verbos. O endpoint name não pode ser vazio
+  (RCCMD044) e deve ser único entre todos os endpoints mapeados (RCCMD030).
+- `MapGroup(routePrefix)`: agrupa endpoints sob um prefixo de rota. **Opcional de forma consistente**: sem
+  `MapGroup`, os endpoints são mapeados sem prefixo (`MapGroup("")`), na classe nomeada a partir do host
+  (`Map{Host}Api`). O prefixo pode conter variáveis de rota (`lojas/{lojaId:int}`); o nome da classe gerada é
+  normalizado a partir do prefixo (RCCMD045/RCCMD046 diagnosticam nomes inválidos ou colidentes).
+- `MapCreatedRoute(routePattern, params string[] propertiesNames)`: constrói `Location` em 201 com
+  **placeholders nomeados** (DF17) casados, sem diferenciar maiúsculas, com as propriedades declaradas
+  (prefira `nameof`): `[MapCreatedRoute("{id}", nameof(Produto.Id))]`. Quantidade, nomes, duplicação e
+  propriedade incompatível são validados em compilação (RCCMD050); o formato posicional `"{0}"` foi removido.
+- `MapIdResultValue` **ou** `MapResponseValues(params string[])` moldam o corpo da resposta; os dois juntos
+  são erro (RCCMD049) e as propriedades precisam ser públicas e legíveis (RCCMD048).
 - `WithDescription(text)` / `WithSummary(text)`: metadados de documentação.
 - `WithAuthorization` / `WithPolicy(params string[] policies)`: exigem autenticação/política.
+
+Status de sucesso por verbo:
+- `MapGet`/`MapPost`/`MapPut`/`MapPatch`: `200 OK` com o valor do `Result` (ou `201 Created` com
+  `MapCreatedRoute`).
+- `MapDelete`: `204 No Content` somente quando o contrato não retorna valor nem created; quando o comando
+  retorna valor, o endpoint responde `200 OK` com o valor — o valor nunca é descartado em silêncio.
 
 Validações automáticas do Generator:
 - Proíbe generics na classe/método de comando.
@@ -202,19 +217,22 @@ Com `WithDecorators`, o handler criará um mediador que invoca `next` com pipeli
 
 ### 6.4 Mapeamento HTTP com Created
 ```csharp
-[MapPost("/api/products", "CreateProduct")]
-[MapGroup("Products")]
+[MapPost("/", "CreateProduct")]
+[MapGroup("api/products")]
 [WithSummary("Create product")]
 [WithDescription("Creates a new product")]
-[MapCreatedRoute("/api/products/{id}")]
+[MapCreatedRoute("{id}", nameof(Product.Id))]
 public partial class CreateProduct
 {
-    [Command, WithUnitOfWork<MyDbContext>]
+    [Command, ProduceNewEntity, WithUnitOfWork<MyDbContext>]
     public Result<Product> Execute() { /* ... */ }
 }
 ```
 
-Quando a resposta for `Result<Product>`, `MapIdResultValue` pode ser usado para garantir que o campo `Id` exista no valor retornado e construir `Location` em 201 com `MapCreatedRoute`.
+O placeholder nomeado `{id}` casa (sem diferenciar maiúsculas) com a propriedade declarada por `nameof`; a
+`Location` gerada é `api/products/{produto.Id}` (o prefixo do grupo é prefixado quando presente). Quando a
+resposta for `Result<Product>`, `MapIdResultValue` pode ser usado para expor o campo `Id` como corpo da
+resposta, combinável com `MapCreatedRoute`.
 
 ### 6.5 Integração com WorkContext
 ```csharp
@@ -315,8 +333,17 @@ Erros esperados são convertidos em `Problems` conforme atributos `ProduceProble
 - `WithDbContext` e `WithUnitOfWork` não podem coexistir; idem `WithWorkContext` com ambos.
 - `ProduceNewEntity` e `EditEntity` exigem UoW; não podem coexistir entre si no mesmo método.
 - `WithDecorators` exige tipo de retorno (não-`void`).
-- `MapIdResultValue` exige que o tipo retornado tenha propriedade `Id`.
-- Diagnósticos são emitidos durante a geração com mensagens indicando o ponto de falha.
+- `MapIdResultValue` exige que o tipo retornado tenha propriedade `Id` pública e legível; não pode coexistir
+  com `MapResponseValues` (RCCMD049).
+- `MapFind` exige que o template (grupo + rota) declare a variável `{id}` exatamente uma vez, obrigatória,
+  não catch-all e com constraint compatível com o tipo do id (`{id:guid}` para `Guid` etc.); a classe do DTO
+  deve ser top-level, não genérica e não file-local (mesmas regras para a classe de filtro do `MapSearch`).
+- Em filtros de `MapSearch`, atributos de binding só têm efeito em parâmetros `[WithParameter]`; em parâmetros
+  de serviço eles são diagnosticados (RCCMD023) em vez de ignorados.
+- Dois endpoints do mesmo grupo não podem gerar o mesmo método handler (RCCMD047), e prefixos de grupo que
+  normalizam para a mesma classe são diagnosticados (RCCMD046).
+- Diagnósticos são emitidos durante a geração com mensagens indicando o ponto de falha; o catálogo completo
+  está em `.docs/diagnostics.md`.
 
 ## 10. Resumo
 

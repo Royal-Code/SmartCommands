@@ -26,6 +26,8 @@ public static partial class ProgramExtensions
         services.AddTransient<IRegistrarEstoqueInicialHandler, RegistrarEstoqueInicialHandler<TContext>>();
         services.AddTransient<IReservarEstoqueHandler, ReservarEstoqueHandler<TContext>>();
         services.AddTransient<ICriarLojaHandler, CriarLojaHandler>();
+        services.AddTransient<IExcluirLojaHandler, ExcluirLojaHandler>();
+        services.AddTransient<IRelatorioLojasHandler, RelatorioLojasHandler>();
         services.AddTransient<IRegistrarVisualizacaoHandler, RegistrarVisualizacaoHandler>();
         services.AddTransient<ICancelarPedidoHandler, CancelarPedidoHandler<TContext>>();
         services.AddTransient<ICriarPedidoHandler, CriarPedidoHandler<TContext>>();
@@ -33,5 +35,6 @@ public static partial class ProgramExtensions
         services.AddTransient<IDesativarProdutoHandler, DesativarProdutoHandler<TContext>>();
         services.AddTransient<IEditarProdutoHandler, EditarProdutoHandler<TContext>>();
         services.AddTransient<IReativarProdutoHandler, ReativarProdutoHandler<TContext>>();
+        services.AddTransient<IVerificarSkuDisponivelHandler, VerificarSkuDisponivelHandler>();
     }
 }

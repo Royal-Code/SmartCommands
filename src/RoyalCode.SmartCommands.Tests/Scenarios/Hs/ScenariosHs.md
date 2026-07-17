@@ -66,7 +66,7 @@ public class CreateSome
 ```cs
 [MapGroup("api/some")]
 [MapPost("/", "create some")]
-[MapCreatedRoute("{0}", "Id")]
+[MapCreatedRoute("{id}", nameof(Some.Id))]
 public class CreateSome
 {
     public int Value { get; set; }

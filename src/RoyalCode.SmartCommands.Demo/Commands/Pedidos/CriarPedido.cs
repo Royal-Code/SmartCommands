@@ -9,8 +9,8 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Pedidos;
 
 [MapGroup("pedidos")]
 [MapPost("/", "criar-pedido")]
-[MapResponseValues("Id", "Status", "Total")]
-[MapCreatedRoute("{0}", "Id")]
+[MapResponseValues(nameof(Pedido.Id), nameof(Pedido.Status), nameof(Pedido.Total))]
+[MapCreatedRoute("{id}", nameof(Pedido.Id))]
 public partial class CriarPedido
 {
 	public List<CriarPedidoItem>? Itens { get; set; }

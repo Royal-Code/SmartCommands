@@ -172,11 +172,65 @@ internal class IncrementalGenerator : IIncrementalGenerator
                     endpoint.NameLocation.ToLocation(),
                     endpoint.EndpointName));
 
+            var remaining = endpointModels
+                .Where(endpoint => !duplicateNames.Contains(endpoint.EndpointName))
+                .ToList();
+
+            // prefixos de grupo distintos que normalizam para a mesma classe gerada (Map{Nome}Api)
+            // produziriam hint names/tipos duplicados; os grupos conflitantes são diagnosticados
+            // (RCCMD046) e excluídos da emissão.
+            var hostClassName = orderedHosts[0].ClassType.Name;
+            var groupsByClassName = new Dictionary<string, List<string?>>(StringComparer.Ordinal);
+            foreach (var groupKey in remaining.Select(endpoint => endpoint.Group).Distinct())
+            {
+                var groupClassName = EndpointNameRules.GroupClassName(groupKey, hostClassName);
+                if (groupClassName is null)
+                    continue;
+
+                if (!groupsByClassName.TryGetValue(groupClassName, out var groupKeys))
+                    groupsByClassName[groupClassName] = groupKeys = [];
+                groupKeys.Add(groupKey);
+            }
+
+            var conflictingGroups = new HashSet<string?>(groupsByClassName
+                .Where(pair => pair.Value.Count > 1)
+                .SelectMany(pair => pair.Value));
+
+            if (conflictingGroups.Count > 0)
+            {
+                foreach (var endpoint in remaining.Where(endpoint => conflictingGroups.Contains(endpoint.Group)))
+                    spc.ReportDiagnostic(Diagnostic.Create(
+                        CmdDiagnostics.ConflictingGroupNames,
+                        endpoint.NameLocation.ToLocation(),
+                        endpoint.Group ?? hostClassName,
+                        EndpointNameRules.GroupClassName(endpoint.Group, hostClassName)));
+
+                remaining.RemoveAll(endpoint => conflictingGroups.Contains(endpoint.Group));
+            }
+
+            // dois endpoints do mesmo grupo que gerariam o mesmo método handler (ex.: comandos homônimos
+            // em namespaces diferentes ou dois MapFind da mesma entidade) produziriam C# inválido;
+            // são diagnosticados (RCCMD047) e excluídos da emissão.
+            var duplicateHandlerMethods = new HashSet<IMapEndpointModel>(remaining
+                .GroupBy(endpoint => $"{endpoint.Group}\u001f{endpoint.HandlerMethodName}", StringComparer.Ordinal)
+                .Where(group => group.Count() > 1)
+                .SelectMany(group => group));
+
+            if (duplicateHandlerMethods.Count > 0)
+            {
+                foreach (var endpoint in remaining.Where(duplicateHandlerMethods.Contains))
+                    spc.ReportDiagnostic(Diagnostic.Create(
+                        CmdDiagnostics.DuplicateEndpointHandlerMethod,
+                        endpoint.NameLocation.ToLocation(),
+                        endpoint.EndpointName,
+                        endpoint.HandlerMethodName));
+
+                remaining.RemoveAll(duplicateHandlerMethods.Contains);
+            }
+
             orderedHosts[0].ToInformation().Generate(
                 spc,
-                endpointModels
-                    .Where(endpoint => !duplicateNames.Contains(endpoint.EndpointName))
-                    .Select(endpoint => endpoint.ToGenerator()));
+                remaining.Select(endpoint => endpoint.ToGenerator()));
         });
     }
 

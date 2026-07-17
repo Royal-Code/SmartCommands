@@ -24,5 +24,12 @@ public class Loja : Entity<int>
 
     public string Endereco { get; private set; }
 
+    /// <summary>
+    /// Exclusao logica: o DELETE da API desativa a loja em vez de remover o registro.
+    /// </summary>
+    public bool Ativa { get; private set; } = true;
+
+    public void Desativar() => Ativa = false;
+
     public override string ToString() => $"{Nome} - {Endereco}";
 }

@@ -76,11 +76,11 @@ services.AddWorkContext<MyDbContext>()
 
 HTTP mapping (Minimal APIs):
 ```csharp
-[MapPost("/api/products", "CreateProduct")]
-[MapGroup("Products")]
+[MapPost("/", "CreateProduct")]
+[MapGroup("api/products")]
 [WithSummary("Create product")]
 [WithDescription("Creates a new product")]
-[MapCreatedRoute("/api/products/{id}")]
+[MapCreatedRoute("{id}", nameof(Product.Id))]
 public partial class CreateProduct { /* ... */ }
 ```
 

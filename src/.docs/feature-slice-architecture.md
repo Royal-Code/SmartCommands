@@ -488,10 +488,10 @@ using RoyalCode.SmartProblems;
 using RoyalCode.SmartValidations;
 using RoyalCode.WorkContext.Abstractions;
 
-[MapPost("/api/products", "CreateProduct")]
-[MapGroup("Products")]
+[MapPost("/", "CreateProduct")]
+[MapGroup("api/products")]
 [WithSummary("Create a product")]
-[MapCreatedRoute("/api/products/{id}")]
+[MapCreatedRoute("{id}", nameof(Product.Id))]
 [MapIdResultValue]
 public partial class CreateProduct
 {

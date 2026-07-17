@@ -4,7 +4,7 @@
 
 ## Progresso
 
-`████████░░░░` **67%** - 8 de 12 fases concluídas
+`█████████░░░` **75%** - 9 de 12 fases concluídas
 
 | Fase | Estado |
 |---|---|
@@ -16,7 +16,7 @@
 | Fase 6 - Validações adicionais do comando | Concluida |
 | Fase 7 - Confiabilidade do adapter Entity Framework | Concluida |
 | Fase 8 - Runtime de decorators, WorkContext e retry | Concluida |
-| Fase 9 - Completude dos mapeamentos Minimal API existentes | Pendente |
+| Fase 9 - Completude dos mapeamentos Minimal API existentes | Concluida |
 | Fase 10 - Novas capacidades de mapeamento Minimal API | Bloqueada por Q4 |
 | Fase 11 - Qualidade transversal, pacote, documentação e CI | Pendente |
 | Fase 12 - Compatibilidade, regressão e preparação de release | Pendente |
@@ -228,6 +228,7 @@ textual por ocorrência com `rg -o` + `Measure-Object -Line`; os números não r
 - **DF19 — `EquatableArray<T>` normaliza ausência:** `default(EquatableArray<T>)` e coleção vazia representam a mesma sequência sem itens, com igualdade e hash idênticos; ausência com significado de domínio deve ser modelada explicitamente fora da coleção. Fonte: definição do mantenedor a partir da revisão arquitetural.
 - **DF21 — Transação por comando (`[WithTransaction]`):** novo atributo opcional no método de comando exige transação para aquele comando, independentemente da opção global `BeginTransactions`. `IUnitOfWorkAccessor<T>.BeginAsync` ganha a assinatura `BeginAsync(bool requireTransaction, CancellationToken ct)`: com `options.BeginTransactions = true` a transação é sempre criada (como hoje); com a opção desligada, criada somente quando `requireTransaction = true`. Somente opt-in — não há modo de desligar por comando. O atributo exige UoW (`WithUnitOfWork`/`WithDbContext`/`WithWorkContext`); uso sem UoW produz diagnóstico (RCCMD041). A mudança de interface é breaking direta (DF1), sem default interface method, e vale para os dois accessors (EF e WorkContext). Implementação na Fase 8. Fonte: proposta do mantenedor em 2026-07-16, motivada por retry com escritas intermediárias.
 - **DF20 — Hint names legíveis, curtos e determinísticos:** todo arquivo emitido pelo generator usa o formato `{nomeLegívelLimitado}.{hash}.g.cs`, mantendo o nome do tipo/artefato na frente para facilitar localização. `nomeLegívelLimitado` é sanitizado e limitado a 32 caracteres; `hash` possui exatamente 8 caracteres Base32 (`A-Z2-7`) e codifica os primeiros 40 bits do SHA-256 da identidade completa do artefato, incluindo namespace e papel gerado. O sufixo é sempre emitido, não representa erro nem workaround transitório: ele evita colisões entre tipos homônimos e mantém os caminhos materializados abaixo dos limites comuns do Windows/Git. Não usar o metadata name completo no nome físico, não mover o hash para prefixo e não reduzir a identidade abaixo de 40 bits sem nova decisão. Fonte: definição do mantenedor após validação do limite de caminhos e da usabilidade dos arquivos gerados.
+- **DF22 — Fronteira da validação de rotas:** validade sintática, precedência e seleção de endpoints pertencem ao roteamento do ASP.NET Core; o SmartCommands não mantém parser geral concorrente nem proíbe genericamente combinações iguais de verbo+template que o framework possa diferenciar por constraints ou metadata. O generator valida somente invariantes que ele próprio interpreta ou cria: nome derivável do grupo, binding obrigatório de `{id}` no `MapFind`, placeholders simples do `MapCreatedRoute`, colisões de nomes/tipos/métodos gerados e normalização da barra na junção `MapGroup` + `MapCreatedRoute`. Fonte: definição do mantenedor após revisão da Fase 9.
 
 ---
 
@@ -1361,16 +1362,16 @@ Demo correta e sem regressão de retry.
 
 **Tarefas:**
 
-- [ ] Fazer zero/um/múltiplos `Map*` terem comportamento explícito; múltiplos geram RCCMD, nunca prioridade silenciosa por `else if`.
-- [ ] Tornar `MapGroup` opcional de forma consistente ou diagnosticá-lo como obrigatório conforme contrato documentado; remover diagnóstico local atualmente descartado em Search.
-- [ ] Validar endpoint/group names vazios, duplicados e colisões após `ToPascalCase`.
-- [ ] Validar `MapIdResultValue`/`MapResponseValues`: retorno com valor, propriedade pública legível, tipo emitível, lista não vazia e nomes sem duplicata.
-- [ ] Implementar DF17 em `MapCreatedRoute`: aceitar somente placeholders nomeados, casar nomes sem diferenciar maiúsculas e validar quantidade, duplicação e propriedades declaradas por `nameof`; gerar URI sem substituição textual posicional frágil.
-- [ ] Revisar status por verbo: não forçar `NoContent` para Delete quando o contrato retorna valor sem diagnóstico; tornar escolha consistente/documentada.
-- [ ] Corrigir assinaturas/metadata de `MapFind` e `MapSearch`, incluindo tipo de ID, `NotFound`, async semântico, group e policies anuláveis.
-- [ ] Gerar metadata de todos os `ProduceProblems`, `WithSummary`, `WithDescription`, authorization/policies e respostas de sucesso.
-- [ ] Verificar OpenAPI gerado para body obrigatório/opcional, parâmetros, status e ProblemDetails.
-- [ ] Criar matriz end-to-end de GET/POST/PUT/PATCH/DELETE/Find/Search, com e sem body e com policies.
+- [x] Fazer zero/um/múltiplos `Map*` terem comportamento explícito; múltiplos geram RCCMD, nunca prioridade silenciosa por `else if`. (Já garantido desde a Fase 3 — zero maps = handler sem endpoint, múltiplos = RCCMD027 sem emissão; agora coberto também por teste explícito do caso zero.)
+- [x] Tornar `MapGroup` opcional de forma consistente ou diagnosticá-lo como obrigatório conforme contrato documentado; remover diagnóstico local atualmente descartado em Search. (Opcional consistente: sem `MapGroup`, endpoints são mapeados sem prefixo (`MapGroup("")`) na classe nomeada a partir do host — antes o nome da classe do host virava prefixo de rota; `SearchModel.GroupName`/`SearchInformation.GroupName` viraram anuláveis de verdade (fim do `null!`); o diagnóstico descartado do Search já havia sido eliminado na reescrita das Fases 2-4 — confirmado ausente.)
+- [x] Validar endpoint/group names vazios, duplicados e colisões após `ToPascalCase`. (RCCMD044 para endpoint name vazio em Map*/MapFind/MapSearch; RCCMD045 para prefixo de grupo que não deriva identificador; RCCMD046 na agregação para prefixos distintos que normalizam para a mesma classe; RCCMD047 para dois endpoints do mesmo grupo com o mesmo método handler; a normalização (EndpointNameRules) é compartilhada entre transform, agregação e emissão e sanitiza variáveis de rota do prefixo (`stores/{storeId}` → `MapStoresStoreIdApi`) — o `ToPascalCase` da base lançava para segmento vazio e emitia identificador inválido para `{...}`.)
+- [x] Validar `MapIdResultValue`/`MapResponseValues`: retorno com valor, propriedade pública legível, tipo emitível, lista não vazia e nomes sem duplicata. (Lista vazia e nomes duplicados = RCCMD041; propriedade não pública/sem getter público/estática/tipo inacessível = RCCMD048; os dois atributos juntos = RCCMD049 — antes o `MapResponseValues` era ignorado em silêncio; retorno sem valor continua RCCMD014/RCCMD015.)
+- [x] Implementar DF17 em `MapCreatedRoute`: aceitar somente placeholders nomeados, casar nomes sem diferenciar maiúsculas e validar quantidade, duplicação e propriedades declaradas por `nameof`; gerar URI sem substituição textual posicional frágil. (RCCMD050 com motivo detalhado; a emissão substitui cada placeholder nomeado pela propriedade casada via `RoutePatternParser` — sem substituição posicional; tipos de valor não resolvidos (erro do compilador) não geram RCCMD extra (DF9); todos os usos existentes migrados: Demo, cenários Hs, EF tests, XML docs, README e docs.)
+- [x] Revisar status por verbo: não forçar `NoContent` para Delete quando o contrato retorna valor sem diagnóstico; tornar escolha consistente/documentada. (Delete responde 204 somente sem valor e sem created; com valor responde 200 com o valor, como os demais verbos — antes o valor era descartado e `MapDelete`+`MapCreatedRoute` gerava código inválido; o 204 agora entra na metadata OpenAPI via `.Produces(204)` explícito porque a metadata do `NoContentMatch` (sem content-type) é descartada pelo ApiExplorer; documentado em `.docs/commands.md`.)
+- [x] Corrigir assinaturas/metadata de `MapFind` e `MapSearch`, incluindo tipo de ID, `NotFound`, async semântico, group e policies anuláveis. (MapFind: o template grupo+rota deve declarar `{id}` uma única vez, obrigatório, não catch-all e com constraint compatível com o TId — RCCMD021 com motivo; DTO/filtro devem ser top-level, não genéricos e não file-local; MapSearch: atributo de binding em parâmetro de filtro sem `[WithParameter]` agora é RCCMD023 em vez de virar `[FromServices]` em silêncio (pendência registrada na Fase 5); `SearchInformation.Equals` não retorna mais falso para policies nulas dos dois lados e o hash não lança para grupo nulo; async semântico e `NotFound` já estavam corretos e seguem testados.)
+- [x] Gerar metadata de todos os `ProduceProblems`, `WithSummary`, `WithDescription`, authorization/policies e respostas de sucesso. (Emissão já existente confirmada e agora testada por superfície — testes de metadata completa para Find e Search (description, summary, policies e ProduceProblems) somam-se aos cenários Is dos comandos; resposta de sucesso 204 adicionada explicitamente, 200/201 vêm dos typed results.)
+- [x] Verificar OpenAPI gerado para body obrigatório/opcional, parâmetros, status e ProblemDetails. (`DemoOpenApiTests` inspeciona o JSON do Swagger no ambiente Development: requestBody do POST, ausência de body no GET de comando, parâmetro de rota do Find com 200/404, parâmetros de query do Search (`[AsParameters]`), DELETE com 204 e sem body, e presença de ProblemDetails.)
+- [x] Criar matriz end-to-end de GET/POST/PUT/PATCH/DELETE/Find/Search, com e sem body e com policies. (`DemoApiMatrixTests` + novos comandos do Demo: `VerificarSkuDisponivel` (GET sem corpo, parâmetro externo por query, DI), `ExcluirLoja` (DELETE 204 com exclusão lógica via `EditEntity`) e `RelatorioLojas` (GET com `WithPolicy` — metadata `IAuthorizeData` verificada via `EndpointDataSource`; a demo não configura autenticação, então o fluxo 401/403 fica fora do escopo); POST/PUT/PATCH/Find/Search cobertos com corpo, sem corpo (400), NotFound (404) e busca.)
 
 **Critérios de aceite:** cada superfície da coluna “Alvo obrigatório” na matriz está implementada; nenhum atributo é ignorado silenciosamente; OpenAPI contém parâmetros e respostas reais; endpoint names/hints são únicos; todas as rotas geradas iniciam sem exceção do ASP.NET Core.
 
@@ -1378,7 +1379,113 @@ Demo correta e sem regressão de retry.
 
 ### Resultado da Fase 9
 
-*a preencher*
+**Concluída em 2026-07-17.**
+
+#### Implementação
+
+- **Nomes e colisões (RCCMD044-047):** endpoint name vazio é RCCMD044 (Map*/MapFind/MapSearch); prefixo de
+  `MapGroup` que não deriva identificador é RCCMD045; a agregação diagnostica prefixos distintos que
+  normalizam para a mesma classe (RCCMD046) e dois endpoints do mesmo grupo com o mesmo método handler
+  (RCCMD047 — ex.: dois `MapFind` da mesma entidade), excluindo os conflitantes da emissão. A normalização
+  vive em `EndpointNameRules` (compartilhada por transform, agregação via `IMapEndpointModel.HandlerMethodName`
+  e emissão) e sanitiza variáveis de rota do prefixo — antes, `MapGroup("stores/{storeId}")` emitia classe com
+  identificador inválido e `MapGroup("produtos/")` derrubava o generator no `ToPascalCase` da base.
+- **`MapGroup` opcional consistente:** sem grupo, endpoints são mapeados sem prefixo (`MapGroup("")`) na
+  classe nomeada a partir do host (`Map{Host}Api`) — antes o nome da classe do host virava prefixo de rota.
+  `GroupName` ficou anulável de ponta a ponta no Search (fim do `null!`), e `IMapEndpointGenerator.GroupName`
+  é `string?`.
+- **Respostas (RCCMD048-049):** propriedades de `MapIdResultValue`/`MapResponseValues`/`MapCreatedRoute`
+  precisam ser de instância, públicas, legíveis e de tipo acessível (RCCMD048); lista vazia ou nome duplicado
+  em `MapResponseValues` é RCCMD041 (inclusive nomes que diferem somente por caixa, pois colidiriam sob a
+  política JSON web usual; antes a lista vazia era ignorada em silêncio); `MapIdResultValue` +
+  `MapResponseValues` é RCCMD049.
+- **DF17 (`MapCreatedRoute`, RCCMD050):** somente placeholders nomeados simples, casados sem diferenciar
+  maiúsculas com as propriedades declaradas (quantidade, nome, duplicação e propriedade incompatível
+  validados); a emissão substitui cada placeholder pela propriedade casada usando o `RoutePatternParser` —
+  a substituição posicional `{0}` foi removida e o formato antigo produz RCCMD050 com mensagem orientando o
+  novo contrato. Sem grupo, a Location é o próprio pattern (antes ganhava `/` inicial espúrio); com grupo,
+  somente a barra na fronteira entre o prefixo e o pattern é normalizada, sem reimplementar o parser de rotas
+  do ASP.NET Core (DF22).
+- **Status por verbo:** Delete responde 204 apenas quando o contrato não retorna valor nem created; com valor
+  responde 200 com o valor (antes o valor era descartado e `MapDelete`+`MapCreatedRoute` emitia código que não
+  compilava). O 204 entra no OpenAPI por `.Produces(204)` explícito: a metadata do `NoContentMatch` não declara
+  content-type e o ApiExplorer a descarta (verificado empiricamente com sonda de metadata).
+- **`MapFind`:** o template grupo+rota deve declarar `{id}` exatamente uma vez, obrigatório, sem default,
+  não catch-all e
+  com constraint compatível com o TId (mesma tabela de constraints do `EditEntity`, agora compartilhada em
+  `RouteConstraintTypes`); DTO top-level, não genérico, não file-local (idem filtro do Search).
+- **`MapSearch`:** atributo de binding em parâmetro de filtro sem `[WithParameter]` é RCCMD023 (antes virava
+  `[FromServices]` silenciosamente — pendência da Fase 5); `SearchInformation.Equals` corrigido para policies
+  nulas em ambos os lados (retornava falso) e hash seguro para grupo nulo; precedência de `?? 0` no
+  `GetHashCode` de `MapInformation` corrigida (mesmo defeito tratado na Fase 8 em `CommandHandlerInformation`).
+- **Metadata:** description/summary/policies/ProduceProblems emitidos e testados por superfície (command via
+  cenários Is; Find e Search com testes próprios de metadata completa).
+
+#### Demo e testes end-to-end
+
+- Novos comandos: `VerificarSkuDisponivel` (GET sem corpo, `[WithParameter]` por query, DI de `DemoDbContext`),
+  `ExcluirLoja` (DELETE 204, exclusão lógica via `EditEntity<Loja,int>` + flag `Loja.Ativa`) e
+  `RelatorioLojas` (GET com `WithPolicy("relatorios")`).
+- `DemoApiMatrixTests` (4): GET com/sem parâmetro, POST/PUT/PATCH com e sem corpo (400 sem body), DELETE 204 +
+  efeito verificado no banco + 404, Find 200/404 com ProblemDetails, Search, e metadata `IAuthorizeData` do
+  endpoint com policy (a demo não configura autenticação; o fluxo 401/403 não é exercitado).
+- `DemoOpenApiTests` (1): inspeção do JSON do Swagger (ambiente Development, `DemoApiFactory` ganhou parâmetro
+  de ambiente): requestBody do POST, GET de comando sem body, parâmetros de rota/query, 200/201/204/404 e
+  `application/problem+json`/schema `ProblemDetails` verificados nas respostas específicas. A obrigatoriedade
+  do body é comprovada no teste HTTP: o parâmetro anulável é necessário para o guard devolver o Problem
+  padronizado e o ApiExplorer expõe essa nulabilidade; forçar `requestBody.required` acoplaria a emissão ao
+  provedor OpenAPI ou mudaria o binding do ASP.NET Core.
+- `MapEndpointCompletenessTests` (35): zero-map, grupo opcional, RCCMD044-050 (incluindo theory DF17 com 7
+  formas inválidas), grupo com variável de rota, Delete com/sem valor, rota do Find (ausente/incompatível/no
+  grupo/default), normalização da fronteira grupo+created route, duplicação de response values sem diferenciar
+  caixa, binding de filtro sem marcador e metadata completa de Find/Search.
+
+#### Ajustes após a revisão da fase
+
+- A validade geral dos templates e combinações de verbo+rota permanece sob responsabilidade do ASP.NET Core,
+  conforme DF22; não foram adicionados diagnósticos que duplicariam ou restringiriam o roteador.
+- A `Location` de created normaliza a barra criada pela composição do grupo com o pattern e é verificada também
+  na borda HTTP do adapter EF.
+- `MapFind` rejeita `{id}` com valor default, pois o contrato específico exige a chave da entidade.
+- `MapResponseValues` rejeita duplicação sem diferenciar caixa, prevenindo colisão do contrato JSON usual.
+- O teste OpenAPI valida `ProblemDetails` por operação/status, em vez de procurar o nome do schema em qualquer
+  ponto do documento.
+
+#### Breaking changes da fase (para as notas de release da Fase 12)
+
+1. `MapCreatedRoute` usa placeholders nomeados (DF17); o formato posicional `"{0}"` é erro RCCMD050.
+2. `MapDelete` com comando que retorna valor passa a responder 200 com o valor (antes: 204 descartando-o).
+3. Comando mapeado sem `MapGroup` não usa mais o nome da classe do host como prefixo de rota (agora sem
+   prefixo); a Location de `MapCreatedRoute` sem grupo não ganha mais `/` inicial.
+4. `MapIdResultValue` + `MapResponseValues` juntos, `MapResponseValues` vazio/duplicado e endpoint name
+   vazio passam a ser erros de compilação (RCCMD049/041/044).
+5. Grupos/DTOs/filtros inválidos (prefixo não nomeável, classe aninhada/genérica/file-local, rota de Find sem
+   `{id}`) passam a ser diagnosticados em vez de gerar código inválido ou comportamento surpreendente.
+
+#### Desvio registrado
+
+- O "modelo comum" (`EndpointModel` único do Design alvo) foi implementado como contrato compartilhado
+  (`IMapEndpointModel` com `Group`/`EndpointName`/`HandlerMethodName`/`SortKey`/`NameLocation` +
+  `EndpointNameRules`/`RouteConstraintTypes` compartilhados), não como um único record que substitui
+  `CommandEndpointModel`/`FindModel`/`SearchModel`. A unificação estrutural completa fica para a Fase 10
+  reavaliar quando novas capacidades exigirem reuso maior; nenhum critério de aceite da Fase 9 depende dela.
+
+#### Verificação (2026-07-17)
+
+| Verificação | Resultado |
+|---|---|
+| `dotnet build SmartCommands.sln -c Release --no-restore --disable-build-servers` | **êxito** — 0 erros e 0 warnings |
+| `RoyalCode.SmartCommands.Tests` | **309/309** aprovados (274 anteriores + 35 da fase/revisão) |
+| `RoyalCode.SmartCommands.EntityFramework.Tests` | **24/24** aprovados |
+| `RoyalCode.SmartCommands.Demo.Tests` | **77/77** aprovados (72 anteriores + 5 da fase) |
+
+**Critérios de aceite — situação:** superfícies da coluna "Alvo obrigatório" implementadas (maps com modelo de
+binding/resposta/metadata validado e conflitos diagnosticados; Find com rota/tipo/acessibilidade/NotFound;
+Search com async semântico, binding geral e grupo opcional; Created com placeholders nomeados e Location
+determinística; erros com metadata OpenAPI coerente) ✔; nenhum atributo ignorado silenciosamente ✔ (RCCMD023/
+041/044/049/050); OpenAPI contém parâmetros e respostas reais ✔ (teste do JSON); endpoint names/hints únicos ✔
+(RCCMD030/046/047 + hint por identidade completa); todas as rotas geradas iniciam sem exceção do ASP.NET Core ✔
+(WebApplicationFactory em todos os testes do Demo).
 
 ---
 
@@ -1529,7 +1636,7 @@ Demo correta e sem regressão de retry.
 | Mudança EF quebrar consumidor não HTTP | consumidor esperava exceção convertida em Result | breaking runtime | DF14, release notes e testes das duas bordas | Aberto |
 | Rollback usar token cancelado | cancelamento durante save | transação fica aberta/erro secundário | token de cleanup definido e teste específico | Aberto |
 | Novas features HTTP ampliarem escopo | Q4=B sem priorização | atraso e abstrações incompletas | matriz de caso de uso e implementar somente aprovadas | Aberto |
-| Metadados OpenAPI divergirem do runtime | status/body real não aparece na spec | clientes gerados incorretos | teste do JSON OpenAPI e resposta HTTP para cada map | Aberto |
+| Metadados OpenAPI divergirem do runtime | status/body real não aparece na spec | clientes gerados incorretos | teste do JSON OpenAPI e resposta HTTP para cada map | Mitigado na Fase 9 (`DemoOpenApiTests` + `.Produces(204)` explícito); revalidar na Fase 12 |
 | Dependências não suportarem smoke em TFM | restore/compile falha em net8/net9 | pacote anuncia suporte incorreto | consumer-smoke por `.nupkg` antes de release | Aberto |
 | Worktree concorrente sofrer sobreposição | arquivos do Demo mudam durante execução | perda/conflito de trabalho do usuário | registrar status por fase e editar somente hunks necessários | Aberto |
 | CRLF tornar snapshots frágeis | execução Linux difere de Windows | CI falso negativo | comparar texto normalizado para `\n` sem impor newline do SO | Aberto |

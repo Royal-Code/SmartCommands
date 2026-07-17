@@ -279,6 +279,9 @@ internal sealed record CommandEndpointModel(
 {
     public string? Group => GroupName;
 
+    public string HandlerMethodName =>
+        $"{Command.ModelType.Name}{(Command.HandlerMustBeAsync ? "HandleAsync" : "Handle")}";
+
     public string SortKey => $"{GroupName}\u001f{EndpointName}\u001f{HttpMethod}\u001f{RoutePattern}";
 
     public IMapEndpointGenerator ToGenerator() =>
@@ -343,6 +346,12 @@ internal interface IMapEndpointModel : IEquatable<IMapEndpointModel>
 
     string EndpointName { get; }
 
+    /// <summary>
+    /// O nome do método handler gerado dentro da classe do grupo; usado pela agregação para diagnosticar
+    /// colisões de métodos no mesmo grupo (RCCMD047) antes de emitir código inválido.
+    /// </summary>
+    string HandlerMethodName { get; }
+
     LocationModel NameLocation { get; }
 
     string SortKey { get; }
@@ -364,6 +373,8 @@ internal sealed record FindModel(
     LocationModel NameLocation) : IMapEndpointModel
 {
     public string? Group => GroupName;
+
+    public string HandlerMethodName => $"Find{EntityType.Name}HandleAsync";
 
     public string SortKey => $"{GroupName}\u001f{EndpointName}\u001fFind\u001f{EndpointRoutePattern}";
 
@@ -418,11 +429,13 @@ internal sealed record SearchModel(
     string? Summary,
     bool RequiresAuthorization,
     EquatableArray<string> AuthorizationPolicies,
-    string GroupName,
+    string? GroupName,
     SearchFilterModel? Filter,
     LocationModel NameLocation) : IMapEndpointModel
 {
     public string? Group => GroupName;
+
+    public string HandlerMethodName => $"Search{EntityType.Name}By{FilterType.Name}Async";
 
     public string SortKey => $"{GroupName}\u001f{EndpointName}\u001fSearch\u001f{EndpointRoutePattern}";
 

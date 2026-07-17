@@ -22,10 +22,14 @@ internal sealed class DemoApiFactory : WebApplicationFactory<Program>
 {
 	private readonly SqliteConnection connection = CreateOpenConnection();
 	private readonly Action<IServiceCollection>? configureTestServices;
+	private readonly string environment;
 
-	public DemoApiFactory(Action<IServiceCollection>? configureTestServices = null)
+	public DemoApiFactory(
+		Action<IServiceCollection>? configureTestServices = null,
+		string environment = "Testing")
 	{
 		this.configureTestServices = configureTestServices;
+		this.environment = environment;
 	}
 
 	public ConcurrencyFailureController ConcurrencyFailures { get; } = new();
@@ -93,7 +97,7 @@ internal sealed class DemoApiFactory : WebApplicationFactory<Program>
 
 	protected override void ConfigureWebHost(IWebHostBuilder builder)
 	{
-		builder.UseEnvironment("Testing");
+		builder.UseEnvironment(environment);
 
 		builder.ConfigureTestServices(services =>
 		{

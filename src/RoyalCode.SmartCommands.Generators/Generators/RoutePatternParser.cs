@@ -12,6 +12,30 @@ internal sealed record RoutePatternParameter(
 
 /// <summary>
 /// <para>
+///     Constraints de rota que determinam um tipo CLR (nome na forma mínima do C#). Compartilhado entre a
+///     resolução de <c>EditEntity</c> (RCCMD032) e a validação da rota de <c>MapFind</c>.
+/// </para>
+/// </summary>
+internal static class RouteConstraintTypes
+{
+    private static readonly Dictionary<string, string> Names = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["int"] = "int",
+        ["long"] = "long",
+        ["guid"] = "Guid",
+        ["bool"] = "bool",
+        ["datetime"] = "DateTime",
+        ["decimal"] = "decimal",
+        ["double"] = "double",
+        ["float"] = "float",
+    };
+
+    internal static bool TryGetClrTypeName(string constraintName, out string clrTypeName) =>
+        Names.TryGetValue(constraintName, out clrTypeName!);
+}
+
+/// <summary>
+/// <para>
 ///     Parser único de route patterns do Minimal API: extrai nomes de parâmetros, constraints, catch-all
 ///     (<c>*</c>/<c>**</c>), opcionalidade (<c>?</c>) e valores default (<c>=</c>), respeitando os escapes
 ///     <c>{{</c>/<c>}}</c> e constraints com argumentos (ex.: <c>{id:regex(^\\d{{4}}$)}</c>).

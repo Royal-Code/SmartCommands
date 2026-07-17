@@ -84,26 +84,30 @@ internal static class MapApiHandlersGenerator
         // para cada grupo, deve ser criado uma classe como, por exemplo: MapMeuGrupoApi
         foreach (var group in commandGroup)
         {
-            var groupName = group.Key ?? left.ClassType.Name;
-            var safeGroupName = groupName.ToPascalCase();
-            var className = safeGroupName.EndsWith("Api")
-                ? safeGroupName
-                : $"{safeGroupName}Api";
+            // MapGroup é opcional de forma consistente: sem grupo, os endpoints são mapeados sem prefixo
+            // (MapGroup("")) e a classe/método são nomeados a partir do host; a normalização é a mesma da
+            // validação (RCCMD045) e da detecção de colisão (RCCMD046)
+            var safeGroupName = EndpointNameRules.GroupPascalName(group.Key, left.ClassType.Name);
+            var className = EndpointNameRules.GroupClassName(group.Key, left.ClassType.Name);
+            if (safeGroupName is null || className is null)
+                continue; // o transform já diagnosticou o prefixo inválido (RCCMD045)
+
+            var groupRoute = group.Key ?? string.Empty;
 
             // a classe terá um método estático que mapeará os handlers;
             // o hint name usa o nome completo (namespace + tipo)
             var (classGenerator, methodGenerator) = CreateGroupClassAndMethod(
-                className: $"Map{className}",
+                className: className,
                 classNamespace: left.ClassType.Namespaces[0],
                 methodName: $"Map{safeGroupName}Group");
-            var hintIdentity = $"{left.ClassType.Namespaces[0]}.Map{className}";
-            classGenerator.FileName = HintName.Create(hintIdentity, $"Map{className}");
+            var hintIdentity = $"{left.ClassType.Namespaces[0]}.{className}";
+            classGenerator.FileName = HintName.Create(hintIdentity, className);
 
             // comando que cria o group
             // deve gerar algo como: var group = builder.MapGroup("MyGroup")
             var assignment = new AssignValueCommand(
                 new StringValueNode("var group"),
-                new StringValueNode($"builder.MapGroup({SymbolDisplay.FormatLiteral(groupName, quote: true)})"))
+                new StringValueNode($"builder.MapGroup({SymbolDisplay.FormatLiteral(groupRoute, quote: true)})"))
             {
                 AppendLine = true
             };

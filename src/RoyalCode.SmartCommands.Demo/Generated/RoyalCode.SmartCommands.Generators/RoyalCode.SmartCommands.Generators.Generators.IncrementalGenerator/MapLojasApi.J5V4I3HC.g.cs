@@ -3,6 +3,7 @@
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using RoyalCode.SmartCommands.Demo.Commands.Lojas;
 using RoyalCode.SmartProblems;
@@ -16,10 +17,32 @@ public static partial class MapLojasApi
     {
         var group = builder.MapGroup("lojas");
 
+        group.MapDelete("/{id:int}", ExcluirLojaHandleAsync)
+            .WithName("excluir-loja")
+            .Produces(204)
+            .WithDescription("Desativa a loja informada (exclusao logica).")
+            .WithSummary("Excluir Loja");
+
         group.MapPost("/", CriarLojaHandleAsync)
             .WithName("loja-criar");
 
+        group.MapGet("/relatorio", RelatorioLojasHandleAsync)
+            .WithName("relatorio-lojas")
+            .WithSummary("Relatorio de lojas")
+            .RequireAuthorization("relatorios");
+
         return group;
+    }
+
+    private static async Task<NoContentMatch> ExcluirLojaHandleAsync(
+        IExcluirLojaHandler handler, 
+        [FromRoute(Name = "id")]  int lojaId, 
+        CancellationToken ct)
+    {
+        var command = new ExcluirLoja();
+
+        var result = await handler.HandleAsync(lojaId, command, ct);
+        return result;
     }
 
     [ProduceProblems(ProblemCategory.InvalidParameter)]
@@ -33,5 +56,15 @@ public static partial class MapLojasApi
 
         var result = await handler.HandleAsync(command, ct);
         return result.CreatedMatch(v => $"lojas/{v.Id}", v => new CriarLojaResponse(v.Id, v.Nome));
+    }
+
+    private static async Task<OkMatch<RelatorioLojasResultado>> RelatorioLojasHandleAsync(
+        IRelatorioLojasHandler handler, 
+        CancellationToken ct)
+    {
+        var command = new RelatorioLojas();
+
+        var result = await handler.HandleAsync(command, ct);
+        return result;
     }
 }

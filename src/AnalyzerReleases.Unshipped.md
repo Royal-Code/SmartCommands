@@ -23,3 +23,10 @@ RCCMD040 | Usage | Error | The same parameter name is declared with different ty
 RCCMD041 | Usage | Error | Invalid endpoint metadata attribute argument
 RCCMD042 | Usage | Error | The same parameter name is declared with incompatible roles
 RCCMD043 | Usage | Error | WithTransaction requires a unit of work
+RCCMD044 | Usage | Error | The endpoint name must not be empty or whitespace
+RCCMD045 | Usage | Error | The MapGroup route prefix cannot derive a valid group class name
+RCCMD046 | Usage | Error | Distinct group route prefixes generate the same group class
+RCCMD047 | Usage | Error | Two endpoints in the same group generate the same handler method
+RCCMD048 | Usage | Error | The property cannot be used in the endpoint response
+RCCMD049 | Usage | Error | MapIdResultValue and MapResponseValues cannot be combined
+RCCMD050 | Usage | Error | Invalid MapCreatedRoute pattern (DF17 named placeholders)

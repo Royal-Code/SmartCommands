@@ -9,8 +9,8 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
 
 [MapGroup("produtos")]
 [MapPost("/", "criar-produto")]
-[MapResponseValues("Id", "Nome", "Sku")]
-[MapCreatedRoute("{0}", "Id")]
+[MapResponseValues(nameof(Produto.Id), nameof(Produto.Nome), nameof(Produto.Sku))]
+[MapCreatedRoute("{id}", nameof(Produto.Id))]
 [WithDescription("Cria um novo produto no catalogo.")]
 [WithSummary("Criar Produto")]
 public partial class CriarProduto2

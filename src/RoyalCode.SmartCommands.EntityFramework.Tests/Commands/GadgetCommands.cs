@@ -9,7 +9,7 @@ namespace RoyalCode.SmartCommands.EntityFramework.Tests.Commands;
 /// </summary>
 [MapGroup("gadgets")]
 [MapPost("/", "create-gadget")]
-[MapCreatedRoute("/{0}", nameof(Gadget.Id))]
+[MapCreatedRoute("/{id}", nameof(Gadget.Id))]
 public partial class CriarGadget
 {
     public string? Nome { get; set; }

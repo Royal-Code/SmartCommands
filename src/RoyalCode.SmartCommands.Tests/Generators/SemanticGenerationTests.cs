@@ -391,7 +391,7 @@ public class SemanticGenerationTests
 
             [MapGroup("things")]
             [MapPost("/", "create-thing")]
-            [MapCreatedRoute("/created/{0}\nnext", nameof(Thing.Id))]
+            [MapCreatedRoute("/created/{id}\nnext", nameof(Thing.Id))]
             public class CreateThing
             {
                 [Command]

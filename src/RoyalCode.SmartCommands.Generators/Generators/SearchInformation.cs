@@ -31,7 +31,7 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
         string? description,
         string? summary,
         string[]? authorizationPolicies,
-        string groupName,
+        string? groupName,
         SearchFilterInformation? filter)
     {
         EntityType = entityType;
@@ -57,7 +57,7 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
 
     public string EndpointName { get; } = null!;
 
-    public string GroupName { get; } = null!;
+    public string? GroupName { get; }
 
     public string? Description { get; }
 
@@ -87,9 +87,12 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
             GroupName == other.GroupName &&
             Description == other.Description &&
             Summary == other.Summary &&
-            AuthorizationPolicies?.SequenceEqual(other.AuthorizationPolicies ?? []) == true &&
+            SequenceEqual(AuthorizationPolicies, other.AuthorizationPolicies) &&
             (Filter is null && other.Filter is null || Filter?.Equals(other.Filter) == true);
     }
+
+    private static bool SequenceEqual(string[]? left, string[]? right) =>
+        left is null ? right is null : right is not null && left.SequenceEqual(right);
 
     public override bool Equals(object obj)
     {
@@ -104,7 +107,7 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
         hashCode = hashCode * -1521134295 + FilterType.GetHashCode();
         hashCode = hashCode * -1521134295 + EndpointRoutePattern.GetHashCode();
         hashCode = hashCode * -1521134295 + EndpointName.GetHashCode();
-        hashCode = hashCode * -1521134295 + GroupName.GetHashCode();
+        hashCode = hashCode * -1521134295 + (GroupName?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (Description?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (Summary?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (AuthorizationPolicies != null ? 

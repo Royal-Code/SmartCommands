@@ -114,15 +114,14 @@ internal static class SearchGenerator
                 return diagnostic is null ? null : new SearchInformation(diagnostic);
         }
 
-        // tenta obter o MapGroup attribute
+        // tenta obter o MapGroup attribute; o grupo é opcional de forma consistente — sem MapGroup os
+        // endpoints são mapeados sem prefixo, na classe nomeada a partir do host (Fase 9)
         if (KnownAttributes.TryGet(classSymbol, KnownAttributes.MapGroup, out var groupAttr))
         {
             if (!TryReadRequiredString(groupAttr!, "MapGroup", "a non-null route prefix", classLocation,
                     cancellationToken, out groupName, out var diagnostic))
                 return diagnostic is null ? null : new SearchInformation(diagnostic);
         }
-        // NOTA (Fase 9): a obrigatoriedade de MapGroup para Search será decidida e diagnosticada lá;
-        // hoje o grupo ausente segue nulo, comportamento preservado.
 
         // tenta obter o authorization
         if (KnownAttributes.Has(classSymbol, KnownAttributes.WithAuthorization))
@@ -165,6 +164,47 @@ internal static class SearchGenerator
         var selectType = selectSymbol is null ? null : SemanticTypes.CreateDescriptor(selectSymbol);
         var filterType = TypeDescriptor.Create((ITypeSymbol)context.TargetSymbol);
 
+        // validações acumuláveis: nome do endpoint, grupo e acessibilidade da classe do filtro
+        var declarationErrors = new List<DiagnosticInfo>();
+
+        EndpointNameRules.ValidateEndpointName(
+            endpointName,
+            "MapSearch",
+            KnownAttributes.GetArgumentLocation(mapSearchAttribute, 1, cancellationToken, classLocation),
+            declarationErrors);
+
+        if (groupName is not null && groupAttr is not null)
+        {
+            EndpointNameRules.ValidateGroupName(
+                groupName,
+                KnownAttributes.GetLocation(groupAttr, cancellationToken, classLocation),
+                declarationErrors);
+        }
+
+        // o filtro é referenciado pelo delegate gerado em outra árvore: precisa ser top-level,
+        // não file-local e não genérico (mesmas regras dos comandos)
+        if (classSymbol.ContainingType is not null)
+        {
+            declarationErrors.Add(DiagnosticInfo.Create(CmdDiagnostics.InvalidMapSearchUsage,
+                classLocation,
+                "The class with MapSearchAttribute must be a top-level type, not a nested type"));
+        }
+        if (classSymbol.IsFileLocal)
+        {
+            declarationErrors.Add(DiagnosticInfo.Create(CmdDiagnostics.InvalidMapSearchUsage,
+                classLocation,
+                "The class with MapSearchAttribute must not be a file-local type (declared with the 'file' modifier)"));
+        }
+        if (classSymbol.Arity > 0)
+        {
+            declarationErrors.Add(DiagnosticInfo.Create(CmdDiagnostics.InvalidMapSearchUsage,
+                classLocation,
+                "The class with MapSearchAttribute must not be generic"));
+        }
+
+        if (declarationErrors.Count > 0)
+            return new SearchInformation(declarationErrors);
+
         // obtém os métodos da classe, em busca de métodos anotados com WithFilter
         if (!TryCreateFilter(
             classSymbol,
@@ -186,7 +226,7 @@ internal static class SearchGenerator
             description,
             summary,
             authorizationPolicies,
-            groupName!,
+            groupName,
             searchFilterInformation)
         {
             EndpointNameLocation = KnownAttributes.GetArgumentLocation(
@@ -280,6 +320,23 @@ internal static class SearchGenerator
                     var location = parameterSymbol.Locations.FirstOrDefault(l => l.IsInSource) ?? Location.None;
                     BindingAttributes.Validate(captured, parameterSymbol.Name, location, routePattern, groupName, errors);
                     bindings = captured.Bindings;
+                }
+                else if (!KnownAttributes.IsType(parameterSymbol.Type, "RoyalCode.SmartSearch", "ICriteria`1") &&
+                         !KnownAttributes.IsType(parameterSymbol.Type, "System.Threading", "CancellationToken") &&
+                         !KnownAttributes.IsType(parameterSymbol.Type, "Microsoft.AspNetCore.Http", "HttpContext"))
+                {
+                    // sem [WithParameter], o parâmetro vem de DI ([FromServices]); atributos de binding
+                    // seriam ignorados em silêncio — isso é diagnosticado, não descartado
+                    var captured = BindingAttributes.Capture(parameterSymbol);
+                    if (captured.SourceCount > 0 || captured.HasAsParameters)
+                    {
+                        var location = parameterSymbol.Locations.FirstOrDefault(l => l.IsInSource) ?? Location.None;
+                        errors.Add(DiagnosticInfo.Create(CmdDiagnostics.InvalidWithFilterUsage,
+                            location,
+                            $"the parameter '{parameterSymbol.Name}' declares binding attributes but is not marked " +
+                            "with WithParameterAttribute; without the marker the parameter is resolved from " +
+                            "dependency injection and the binding attributes would be ignored"));
+                    }
                 }
 
                 return new SearchFilterParameterInformation(

@@ -64,6 +64,11 @@ public static partial class MapProdutosApi
         group.MapPost("/{id:guid}/estoque/reservas", ReservarEstoqueHandleAsync)
             .WithName("reservar-estoque");
 
+        group.MapGet("/sku-disponivel", VerificarSkuDisponivelHandleAsync)
+            .WithName("verificar-sku-disponivel")
+            .WithDescription("Indica se o SKU informado ainda nao esta em uso por outro produto.")
+            .WithSummary("Verificar disponibilidade de SKU");
+
         return group;
     }
 
@@ -224,6 +229,17 @@ public static partial class MapProdutosApi
             return Problems.InvalidParameter("The request body is required.");
 
         var result = await handler.HandleAsync(produtoId, command, ct);
+        return result;
+    }
+
+    private static async Task<OkMatch<SkuDisponibilidade>> VerificarSkuDisponivelHandleAsync(
+        IVerificarSkuDisponivelHandler handler, 
+        string sku, 
+        CancellationToken ct)
+    {
+        var command = new VerificarSkuDisponivel();
+
+        var result = await handler.HandleAsync(command, sku, ct);
         return result;
     }
 }

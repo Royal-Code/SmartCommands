@@ -222,7 +222,9 @@ Um atributo auxiliar do endpoint (`MapGroup`, `WithDescription`, `WithSummary`, 
 Sem o diagnóstico, o metadado poderia ser omitido ou alterar silenciosamente a rota gerada. **Correção:** informe
 um valor constante não nulo; coleções vazias continuam válidas quando o atributo permitir.
 
-O diagnóstico também se aplica a `[ProduceProblems]` quando sua coleção de categorias é explicitamente nula.
+O diagnóstico também se aplica a `[ProduceProblems]` quando sua coleção de categorias é explicitamente nula,
+e a `[MapResponseValues]` quando a lista de propriedades é vazia ou contém nomes duplicados (a projeção
+declara as propriedades da resposta; vazia ou repetida ela geraria um POCO inválido).
 
 ## RCCMD042
 O mesmo nome de parâmetro foi usado com papéis incompatíveis entre o método `[Command]` e um ou mais métodos
@@ -235,3 +237,44 @@ O método `[Command]` usa `[WithTransaction]` sem uma unidade de trabalho. A tra
 iniciada pelo `BeginAsync` do accessor, então o atributo só tem efeito quando o comando também usa
 `WithUnitOfWork<TContext>`, `WithDbContext` ou `WithWorkContext`. **Correção:** adicione um desses atributos de
 unidade de trabalho ou remova `[WithTransaction]`.
+
+## RCCMD044
+O endpoint name declarado em um atributo de mapeamento (`Map*`, `MapFind` ou `MapSearch`) é vazio ou contém
+apenas espaços. O nome alimenta `WithName` e a deduplicação global de endpoints (RCCMD030). **Correção:**
+informe um nome de endpoint não vazio e único.
+
+## RCCMD045
+O prefixo de rota do `MapGroup` não consegue derivar um nome de classe/método C# válido para o grupo gerado
+(`Map{Nome}Api`/`Map{Nome}Group`). Segmentos são separados por `-` e `/`, parâmetros de rota
+(`{personId:int}`) usam o nome da variável e caracteres inválidos são removidos; o diagnóstico ocorre quando
+nada resta para nomear a classe (ex.: `"///"`). **Correção:** use um prefixo com ao menos um caractere de
+identificador.
+
+## RCCMD046
+Dois prefixos de grupo distintos (ex.: `my-group` e `my/group`) normalizam para a mesma classe gerada
+(`MapMyGroupApi`), o que produziria tipos e hint names duplicados. Os endpoints dos grupos conflitantes são
+excluídos da emissão. **Correção:** use prefixos que normalizem para nomes distintos ou unifique o grupo.
+
+## RCCMD047
+Dois endpoints do mesmo grupo gerariam o mesmo método handler na classe do grupo (ex.: comandos homônimos em
+namespaces diferentes, dois `MapFind` da mesma entidade ou dois `MapSearch` da mesma dupla entidade/filtro).
+A emissão dos endpoints conflitantes é bloqueada para não produzir C# inválido. **Correção:** renomeie um dos
+tipos envolvidos ou mapeie-os em grupos diferentes.
+
+## RCCMD048
+Uma propriedade usada na resposta gerada (`MapIdResultValue`, `MapResponseValues` ou os placeholders de
+`MapCreatedRoute`) não é utilizável: não é pública, não tem getter público, é estática ou o tipo dela não é
+acessível ao código gerado. **Correção:** exponha a propriedade como leitura pública ou remova-a da projeção.
+
+## RCCMD049
+O comando declara `MapIdResultValue` e `MapResponseValues` ao mesmo tempo. Os dois definem o corpo da resposta
+e um deles seria ignorado em silêncio. **Correção:** mantenha apenas um dos mapeamentos de resposta.
+
+## RCCMD050
+**Pattern inválido em `MapCreatedRoute` (DF17).** O pattern usa placeholders nomeados (`"{id}"`) casados, sem
+diferenciar maiúsculas, com as propriedades declaradas (prefira `nameof`). A mensagem detalha o motivo:
+placeholder com constraint/default/opcional/catch-all, placeholder ou propriedade duplicados, quantidade de
+placeholders diferente da quantidade de propriedades, placeholder sem propriedade correspondente (inclui o
+formato posicional antigo `"{0}"`, removido) ou propriedade inexistente/não legível no tipo de valor
+retornado. **Correção:** alinhe placeholders e propriedades, por exemplo
+`[MapCreatedRoute("{id}", nameof(Produto.Id))]`.

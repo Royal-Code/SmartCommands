@@ -44,7 +44,7 @@ namespace RoyalCode.SmartCommands;
 /// // Creating a new entity and returning 201 Created with Location
 /// [MapGroup("api/products")]
 /// [MapPost("/", "create-product")]
-/// [MapCreatedRoute("{0}", "Id")]
+/// [MapCreatedRoute("{id}", nameof(Product.Id))]
 /// public class CreateProductWithEntity
 /// {
 ///     public string Name { get; set; }
@@ -57,7 +57,7 @@ namespace RoyalCode.SmartCommands;
 /// // Creating from an existing entity (EditEntity + MapCreatedRoute)
 /// [MapGroup("api/products")]
 /// [MapPost("/{sourceId}", "duplicate-product")]
-/// [MapCreatedRoute("{0}", "Id")]
+/// [MapCreatedRoute("{id}", nameof(Product.Id))]
 /// public class DuplicateProduct
 /// {
 ///     public string sourceId { get; set; }

@@ -171,8 +171,24 @@ At this point, the unit of work should be committed (or the save changes should 
             cache.Add(@"T:RoyalCode.SmartCommands.MapApiHandlersAttribute", new XmlComment(@"    Indicates that the decorated static partial class will have its API endpoints mapped
 by the source generator.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.MapCreatedRouteAttribute", new XmlComment(@"    Used with MapPostAttribute so the generated endpoint returns a 201 Created response
-with a Location header pointing to the created resource, instead of the default response.", null, null, null, null, false, null, null, null));
-            cache.Add(@"M:RoyalCode.SmartCommands.MapCreatedRouteAttribute.#ctor(System.String,System.String[])", new XmlComment(@"Initializes a new instance of the MapCreatedRouteAttribute class.", null, null, null, null, false, null, [new XmlParameterComment(@"endpointRoutePattern", @"The route pattern used to build the `Location` header, e.g. `""/{id}""`.", null, false), new XmlParameterComment(@"propertiesNames", @"The names of the properties, from the value returned by the command, used to fill the route pattern placeholders.", null, false)], null));
+with a Location header pointing to the created resource, instead of the default response.
+    The route pattern uses named placeholders, like ""{id}"", matched case-insensitively to the
+properties of the value returned by the command, declared in propertiesNames
+(prefer nameof). Each placeholder must match exactly one declared property, and every declared
+property must be used by a placeholder; mismatches, duplications and unknown or unreadable properties
+are reported at compile time (RCCMD050).
+    Example:
+          ```[MapGroup(""api/products"")]
+[MapPost(""/"", ""create-product"")]
+[MapCreatedRoute(""{id}"", nameof(Product.Id))]
+public class CreateProduct
+{
+    // the generated handler responds 201 with Location ""api/products/{created.Id}""
+}```", null, null, null, null, false, null, null, null));
+            cache.Add(@"M:RoyalCode.SmartCommands.MapCreatedRouteAttribute.#ctor(System.String,System.String[])", new XmlComment(@"Initializes a new instance of the MapCreatedRouteAttribute class.", null, null, null, null, false, null, [new XmlParameterComment(@"endpointRoutePattern", @"The route pattern used to build the `Location` header, with named placeholders,
+e.g. `""/{id}""`. When the command declares MapGroupAttribute, the group prefix
+is prepended to the generated location.", null, false), new XmlParameterComment(@"propertiesNames", @"The names of the properties, from the value returned by the command, matched (case-insensitively)
+to the named placeholders of the route pattern. Prefer declaring them with `nameof`.", null, false)], null));
             cache.Add(@"T:RoyalCode.SmartCommands.MapDeleteAttribute", new XmlComment(@"    Maps a command class to an HTTP DELETE endpoint in Minimal API.
     Use this attribute on a class that contains a method marked with CommandAttribute that removes or deactivates
 an existing resource. For soft delete or deactivate scenarios combine with EditEntityAttribute&lt;TEntity, TId&gt;.
@@ -316,7 +332,7 @@ public class CreateProduct
 // Creating a new entity and returning 201 Created with Location
 [MapGroup(""api/products"")]
 [MapPost(""/"", ""create-product"")]
-[MapCreatedRoute(""{0}"", ""Id"")]
+[MapCreatedRoute(""{id}"", nameof(Product.Id))]
 public class CreateProductWithEntity
 {
     public string Name { get; set; }
@@ -329,7 +345,7 @@ public class CreateProductWithEntity
 // Creating from an existing entity (EditEntity + MapCreatedRoute)
 [MapGroup(""api/products"")]
 [MapPost(""/{sourceId}"", ""duplicate-product"")]
-[MapCreatedRoute(""{0}"", ""Id"")]
+[MapCreatedRoute(""{id}"", nameof(Product.Id))]
 public class DuplicateProduct
 {
     public string sourceId { get; set; }

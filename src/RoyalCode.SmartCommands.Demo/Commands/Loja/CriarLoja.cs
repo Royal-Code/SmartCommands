@@ -8,8 +8,8 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Lojas;
 
 [MapGroup("lojas")]
 [MapPost("/", "loja-criar")]
-[MapResponseValues("Id", "Nome")]
-[MapCreatedRoute("{0}", "Id")]
+[MapResponseValues(nameof(Loja.Id), nameof(Loja.Nome))]
+[MapCreatedRoute("{id}", nameof(Loja.Id))]
 public partial class CriarLoja
 {
     public string? Nome { get; set; }

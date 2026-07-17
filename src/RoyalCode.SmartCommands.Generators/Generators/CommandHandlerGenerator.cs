@@ -1295,7 +1295,7 @@ internal static class CommandHandlerGenerator
             if (parenthesis >= 0)
                 baseName = baseName.Substring(0, parenthesis);
 
-            if (!ConstraintTypeNames.TryGetValue(baseName.Trim(), out var expectedTypeName))
+            if (!RouteConstraintTypes.TryGetClrTypeName(baseName.Trim(), out var expectedTypeName))
                 continue;
 
             // Nullable<T> no id ('int?') vincula normalmente uma rota '{id:int}'
@@ -1310,19 +1310,6 @@ internal static class CommandHandlerGenerator
             }
         }
     }
-
-    /// <summary>Constraints de rota que determinam um tipo CLR (nome na forma mínima do C#).</summary>
-    private static readonly Dictionary<string, string> ConstraintTypeNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["int"] = "int",
-        ["long"] = "long",
-        ["guid"] = "Guid",
-        ["bool"] = "bool",
-        ["datetime"] = "DateTime",
-        ["decimal"] = "decimal",
-        ["double"] = "double",
-        ["float"] = "float",
-    };
 
     private static HashSet<string> CollectEndpointReservedNames(EditTypeDescriptor? editType)
     {
@@ -1675,6 +1662,13 @@ internal static class CommandHandlerGenerator
             return null;
         }
 
+        // o endpoint name alimenta WithName e a deduplicação global (RCCMD030); vazio é inválido
+        EndpointNameRules.ValidateEndpointName(
+            endpointName,
+            $"Map{httpMethod}",
+            KnownAttributes.GetArgumentLocation(attr, 1, cancellationToken, attributeLocation),
+            errors);
+
         // tenta obter a descrição
         if (KnownAttributes.TryGet(commandType, KnownAttributes.WithDescription, out var descAttr))
         {
@@ -1717,6 +1711,12 @@ internal static class CommandHandlerGenerator
             if (!TryReadRequiredString(groupAttr!, "MapGroup", "a non-null route prefix", method, errors,
                     cancellationToken, out groupName))
                 return null;
+
+            // o prefixo do grupo deriva a classe/método gerados (Map{Nome}Api); precisa formar identificador
+            EndpointNameRules.ValidateGroupName(
+                groupName!,
+                KnownAttributes.GetLocation(groupAttr!, cancellationToken, method.Identifier.GetLocation()),
+                errors);
         }
 
         // tenta obter MapCreatedRoute — (route pattern, params nomes de propriedades)
@@ -1749,11 +1749,36 @@ internal static class CommandHandlerGenerator
                 }
             }
 
+            // DF17: somente placeholders nomeados, casados sem diferenciar maiúsculas com as propriedades
+            // declaradas; quantidade, nome, duplicação e propriedade incompatível são diagnosticados
+            ValidateCreatedRoute(
+                createdRouteAttr!,
+                createdRoutePattern,
+                propertiesNames,
+                valueReturnType,
+                method,
+                errors,
+                cancellationToken);
+
             createdInformation = new MapCreatedInformation(createdRoutePattern, propertiesNames);
         }
 
+        // MapIdResultValue e MapResponseValues são mapeamentos de resposta mutuamente exclusivos;
+        // com os dois presentes, um deles seria ignorado em silêncio
+        var hasMapIdResultValue = KnownAttributes.Has(commandType, KnownAttributes.MapIdResultValue);
+        var hasMapResponseValues = KnownAttributes.TryGet(
+            commandType, KnownAttributes.MapResponseValues, out var resultValueAttr);
+        if (hasMapIdResultValue && hasMapResponseValues)
+        {
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.ConflictingResponseMappings,
+                attributeLocation,
+                commandType.Name));
+            return null;
+        }
+
         // tenta obter MapIdResultValue
-        if (KnownAttributes.Has(commandType, KnownAttributes.MapIdResultValue))
+        if (hasMapIdResultValue)
         {
             // quando há o attribute MapIdResultValue, deve obter a propriedade Id e o tipo dela no tipo de valor retornado.
             var idProperty = valueReturnType?
@@ -1761,21 +1786,29 @@ internal static class CommandHandlerGenerator
                 .OfType<IPropertySymbol>()
                 .FirstOrDefault(p => p.Name == "Id");
 
-            if (idProperty is not null)
-            {
-                idResultValueType = TypeDescriptor.Create(idProperty.Type);
-            }
-            else
+            if (idProperty is null)
             {
                 // se não achar a propriedade, gera o diagnóstico.
                 errors.Add(DiagnosticInfo.Create(
                     CmdDiagnostics.IdNotFoundInReturnedCommand,
                     method.ReturnType.GetLocation()));
             }
+            else if (GetResponsePropertyProblem(idProperty) is { } idPropertyProblem)
+            {
+                errors.Add(DiagnosticInfo.Create(
+                    CmdDiagnostics.InvalidResponseProperty,
+                    method.ReturnType.GetLocation(),
+                    "Id",
+                    idPropertyProblem));
+            }
+            else
+            {
+                idResultValueType = TypeDescriptor.Create(idProperty.Type);
+            }
         }
 
         // tenta obter MapResponseValues e seus parâmetros
-        if (KnownAttributes.TryGet(commandType, KnownAttributes.MapResponseValues, out var resultValueAttr))
+        if (hasMapResponseValues)
         {
             if (resultValueAttr!.ConstructorArguments.Length == 0 ||
                 resultValueAttr.ConstructorArguments[0].Kind == TypedConstantKind.Error)
@@ -1789,8 +1822,29 @@ internal static class CommandHandlerGenerator
                 return null;
             }
 
-            if (propertiesNames.Length > 0)
+            if (propertiesNames.Length == 0)
             {
+                // lista vazia era ignorada em silêncio; o atributo declara uma projeção e precisa de propriedades
+                AddInvalidEndpointMetadataDiagnostic(
+                    resultValueAttr, "MapResponseValues", "a non-empty array of property names", method, errors,
+                    cancellationToken);
+            }
+            else
+            {
+                // nomes duplicados gerariam propriedades/parâmetros repetidos no POCO de resposta
+                foreach (var duplicated in propertiesNames
+                    .GroupBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .Where(group => group.Count() > 1))
+                {
+                    AddInvalidEndpointMetadataDiagnostic(
+                        resultValueAttr,
+                        "MapResponseValues",
+                        $"unique property names (the property '{duplicated.Key}' is declared more than once)",
+                        method,
+                        errors,
+                        cancellationToken);
+                }
+
                 var returnTypeProperties = valueReturnType?
                     .GetAllMembers()
                     .OfType<IPropertySymbol>()
@@ -1806,7 +1860,7 @@ internal static class CommandHandlerGenerator
                 else
                 {
                     // para cada propriedade, obtém o membro do tipo retornado que corresponde a ela,
-                    // então valida se é uma propriedade, e cria um PropertyDescription
+                    // valida existência, leitura pública e tipo emitível, e cria um PropertyDescriptor
                     var properties = propertiesNames.Select(name =>
                         {
                             // obtém o membro do tipo retornado que corresponde a ela
@@ -1821,11 +1875,19 @@ internal static class CommandHandlerGenerator
                                     name));
                                 return null;
                             }
-                            else
+
+                            if (GetResponsePropertyProblem(property) is { } propertyProblem)
                             {
-                                // cria o PropertyDescription, quando existir a propriedade
-                                return PropertyDescriptor.Create(property);
+                                errors.Add(DiagnosticInfo.Create(
+                                    CmdDiagnostics.InvalidResponseProperty,
+                                    method.ReturnType.GetLocation(),
+                                    name,
+                                    propertyProblem));
+                                return null;
                             }
+
+                            // cria o PropertyDescriptor, quando a propriedade é utilizável
+                            return PropertyDescriptor.Create(property);
                         })
                         .Where(p => p is not null)
                         .ToList();
@@ -1849,6 +1911,140 @@ internal static class CommandHandlerGenerator
             ResponseValues = responseValues,
             AuthorizationPolicies = authorizationPolicies
         };
+    }
+
+    /// <summary>
+    /// DF17: valida o pattern do <c>MapCreatedRoute</c> — somente placeholders nomeados simples, sem
+    /// duplicação, na mesma quantidade das propriedades declaradas, cada placeholder casando (sem diferenciar
+    /// maiúsculas) com uma propriedade legível existente no tipo de valor retornado.
+    /// </summary>
+    private static void ValidateCreatedRoute(
+        AttributeData attribute,
+        string routePattern,
+        string[] propertiesNames,
+        ITypeSymbol? valueReturnType,
+        MethodDeclarationSyntax method,
+        List<DiagnosticInfo> errors,
+        CancellationToken cancellationToken)
+    {
+        var location = KnownAttributes.GetLocation(attribute, cancellationToken, method.Identifier.GetLocation());
+        var placeholders = RoutePatternParser.Parse(routePattern);
+
+        void Fail(string reason) =>
+            errors.Add(DiagnosticInfo.Create(CmdDiagnostics.InvalidCreatedRoute, location, routePattern, reason));
+
+        foreach (var placeholder in placeholders)
+        {
+            if (placeholder.Constraint is not null || placeholder.DefaultValue is not null ||
+                placeholder.IsOptional || placeholder.IsCatchAll)
+            {
+                Fail($"the placeholder '{placeholder.Name}' must be a simple name, without constraints, " +
+                    "default values, optional or catch-all markers");
+            }
+        }
+
+        foreach (var duplicated in placeholders
+            .GroupBy(placeholder => placeholder.Name, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1))
+        {
+            Fail($"the placeholder '{duplicated.Key}' occurs more than once");
+        }
+
+        foreach (var duplicated in propertiesNames
+            .GroupBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1))
+        {
+            Fail($"the property '{duplicated.Key}' is declared more than once");
+        }
+
+        if (placeholders.Count != propertiesNames.Length)
+        {
+            Fail($"the pattern declares {placeholders.Count} placeholder(s) but {propertiesNames.Length} " +
+                "property name(s) were declared; each placeholder must match exactly one property declared with nameof");
+        }
+
+        foreach (var placeholder in placeholders)
+        {
+            if (!propertiesNames.Any(name => string.Equals(name, placeholder.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                Fail($"the placeholder '{{{placeholder.Name}}}' does not match any declared property; " +
+                    "MapCreatedRoute uses named placeholders (e.g. \"{id}\") matched, case-insensitively, " +
+                    "to properties declared with nameof");
+            }
+        }
+
+        if (propertiesNames.Length == 0)
+            return;
+
+        if (valueReturnType is null)
+        {
+            Fail("the command does not return a value; there are no properties to fill the placeholders");
+            return;
+        }
+
+        // tipo de valor não resolvido (em digitação): o compilador já reporta o erro; sem RCCMD extra (DF9)
+        if (valueReturnType.TypeKind == TypeKind.Error)
+            return;
+
+        foreach (var propertyName in propertiesNames)
+        {
+            var property = valueReturnType
+                .GetAllMembers()
+                .OfType<IPropertySymbol>()
+                .FirstOrDefault(candidate => candidate.Name == propertyName);
+
+            if (property is null)
+                Fail($"the property '{propertyName}' was not found on the returned value type '{valueReturnType.Name}'");
+            else if (GetResponsePropertyProblem(property) is { } problem)
+                Fail($"the property '{propertyName}' cannot be used: {problem}");
+        }
+    }
+
+    /// <summary>
+    /// Uma propriedade usada na resposta gerada (Location de created, projeção de <c>MapResponseValues</c> ou
+    /// <c>MapIdResultValue</c>) precisa ser de instância, pública, legível e de tipo acessível ao código gerado.
+    /// </summary>
+    private static string? GetResponsePropertyProblem(IPropertySymbol property)
+    {
+        if (property.IsStatic)
+            return "the property is static";
+        if (property.DeclaredAccessibility != Accessibility.Public)
+            return "the property is not public";
+        if (property.GetMethod is null)
+            return "the property does not have a getter";
+        if (property.GetMethod.DeclaredAccessibility != Accessibility.Public)
+            return "the property getter is not public";
+        if (property.Type.TypeKind == TypeKind.Error)
+            return "the property type cannot be resolved";
+        if (!IsEmittableType(property.Type))
+            return "the property type is not accessible to the generated code";
+        return null;
+    }
+
+    /// <summary>
+    /// O código é gerado no mesmo assembly: tipos públicos e internos são utilizáveis; privados e protegidos
+    /// (aninhados) não podem ser referenciados pela emissão.
+    /// </summary>
+    private static bool IsEmittableType(ITypeSymbol type)
+    {
+        switch (type)
+        {
+            case IArrayTypeSymbol array:
+                return IsEmittableType(array.ElementType);
+            case INamedTypeSymbol named:
+                for (INamedTypeSymbol? current = named; current is not null; current = current.ContainingType)
+                {
+                    if (current.DeclaredAccessibility is
+                        Accessibility.Private or Accessibility.Protected or Accessibility.ProtectedAndInternal)
+                    {
+                        return false;
+                    }
+                }
+
+                return named.TypeArguments.All(IsEmittableType);
+            default:
+                return true;
+        }
     }
 
     private static bool TryReadRequiredString(

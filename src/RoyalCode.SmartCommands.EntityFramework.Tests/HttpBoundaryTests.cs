@@ -58,6 +58,9 @@ public class HttpBoundaryTests
         var response = await client.PostAsJsonAsync("/gadgets", new { nome = "g1" });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.NotNull(response.Headers.Location);
+        Assert.StartsWith("gadgets/", response.Headers.Location.OriginalString, StringComparison.Ordinal);
+        Assert.DoesNotContain("//", response.Headers.Location.OriginalString, StringComparison.Ordinal);
         Assert.Equal(1, database.CountGadgets());
     }
 

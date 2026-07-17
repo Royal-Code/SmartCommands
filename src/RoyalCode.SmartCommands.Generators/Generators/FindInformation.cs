@@ -15,6 +15,11 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
         errors = [diagnostic];
     }
 
+    public FindInformation(List<DiagnosticInfo> diagnostics)
+    {
+        errors = diagnostics;
+    }
+
     public FindInformation(
         TypeDescriptor entityType,
         TypeDescriptor idType,
