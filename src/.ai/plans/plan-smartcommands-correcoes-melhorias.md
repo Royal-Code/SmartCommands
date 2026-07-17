@@ -837,7 +837,7 @@ filtro); `Demo.Tests` **68/68**; base Utils **97/97**.
 - DF7: `GenerateReponseClass`→`GenerateResponseClass`, `assigment`→`assignment`, `Invoka`→`Invoca`,
   `exitam`→`existam`, `commando`→`comando`, `requered`→`required`.
 
-**Testes (T9):** novo `Generators/SemanticGenerationTests` (8 casos) compila a saída completa dentro do teste
+**Testes (T9):** `Generators/SemanticGenerationTests` (14 casos) compila a saída completa dentro do teste
 (`output.GetDiagnostics()` sem erros) para alias, atributos qualificados/`global::`, `Task.FromResult`,
 `ValueTask`, `WithPolicy` com array explícito, constante referenciada em rota, homônimos e cabeçalho do Response;
 `RoutePatternParserTests` (13 casos) cobre o parser. Snapshots ajustados onde a emissão mudou de forma
@@ -864,8 +864,17 @@ gerada possui cabeçalho (incl. Response POCO) ✔.
 - **[BAIXA] `[FromRoute(Name = ...)]`** passou a usar `SymbolDisplay.FormatLiteral`; **enum combinado (flags)**
   em `ProduceProblems` agora é emitido como cast `(Enum)valor` em vez de descartado.
 - Registrados sem ação nesta fase (comportamento preservado, donos definidos): normalização de group name para
-  identificador de classe e `MemberNotNullWhen` sem filtrar o primeiro argumento `bool` (Fase 9/Fase 6);
-  localização de argumento nomeado fora de ordem em `GetArgumentLocation` (cosmético).
+  identificador de classe e `MemberNotNullWhen` sem filtrar o primeiro argumento `bool` (Fase 9/Fase 6).
+
+**Revisão adicional em 2026-07-16** (achados corrigidos antes da revisão da Fase 5):
+- parâmetros de command, validation e `[WithFilter]` agora usam o tipo semântico normalizado; aliases não vazam
+  para arquivos gerados sem a diretiva correspondente. O teste de filtro partial passou a compilar a saída com
+  as referências reais de SmartSearch;
+- metadados auxiliares nulos (`MapGroup`, `WithDescription`, `WithSummary`, `WithPolicy`, `MapCreatedRoute` e
+  `MapResponseValues`) bloqueiam o endpoint e produzem RCCMD041; arrays constantes nulos/default não são enumerados;
+- `MapCreatedRoute` usa `SymbolDisplay.FormatLiteral` antes de abrir a interpolação, cobrindo caracteres de controle;
+- `GetArgumentLocation` resolve argumentos de construtor nomeados pelo nome do parâmetro, mesmo fora de ordem;
+- testes de regressão adicionados para aliases em parâmetros, metadados nulos, caracteres de controle e localização.
 
 Verificações finais (pós-revisão, executadas): solução Release **0 erros**; `SmartCommands.Tests` **159/159**
 (sem filtro; 136 anteriores + 21 da fase + 2 da revisão); `Demo.Tests` **68/68**; incrementais
@@ -961,6 +970,20 @@ ambiguidade produz RCCMD031 e nenhuma fonte de endpoint ✔.
 Verificações finais (pós-revisão, executadas): solução Release **0 erros**; `SmartCommands.Tests` **195/195**
 (160 anteriores + 35 da fase); `Demo.Tests` **70/70** (68 anteriores + 2 HTTP novos).
 
+**Revisão adicional em 2026-07-16** (ajustes aplicados antes da revisão da Fase 6):
+- A detecção de binding customizado do comando deixou de aceitar apenas o nome do método: agora valida as
+  assinaturas reconhecidas de `BindAsync(HttpContext[, ParameterInfo])` e
+  `TryParse(string[, IFormatProvider], out T)`. Métodos homônimos inválidos não suprimem mais RCCMD036.
+- Um comando com binding customizado válido não é mais contado como body JSON implícito; portanto pode coexistir
+  com um único `[FromBody]` externo sem falso RCCMD037.
+- A resolução DF4 passou a exigir ocorrência única do nome no template: variáveis de rota duplicadas produzem
+  RCCMD031 tanto na seleção explícita quanto na convencional e bloqueiam o endpoint.
+- Cobertura ampliada para formas válidas e inválidas de `BindAsync`/`TryParse`, comando custom-bound com body
+  explícito externo, `FromForm` válido, rota duplicada e special type real (`HttpContext`) no teste HTTP da Demo.
+
+Verificações após esses ajustes: solução Release **0 erros / 9 NU5104 aceitos**; `SmartCommands.Tests`
+**240/240**; `Demo.Tests` **71/71**.
+
 ---
 
 ## Fase 6 - Validações adicionais do comando
@@ -1046,6 +1069,21 @@ mesma pauta de riscos, com estes resultados:
 
 Verificações finais (pós-revisão): solução Release **0 erros / NU5104 aceitos**; `SmartCommands.Tests`
 **226/226** (195 anteriores + 31 da fase); `Demo.Tests` **71/71** (70 anteriores + 1 novo).
+
+**Revisão adicional em 2026-07-16** (achados residuais corrigidos):
+- Bindings explícitos repetidos para o mesmo parâmetro lógico são normalizados antes do DTO: bindings idênticos
+  são deduplicados e fontes divergentes produzem RCCMD033, eliminando a colisão no `ToDictionary` e o CS8785.
+- O mesmo nome e tipo com papéis diferentes (DI versus `[WithParameter]`) passou a produzir **RCCMD042**; a
+  escolha silenciosa causada pelo sombreamento entre campo e parâmetro do handler não é mais possível.
+- `ProduceProblems` com array explicitamente nulo passou a produzir RCCMD041 localizado, sem enumerar um
+  `TypedConstant.Values` default e sem falha do generator.
+- A garantia de execução única fora do retry ganhou teste runtime com contador: um validator para três tentativas
+  do corpo e dois cleanups de concorrência.
+- Testes de regressão cobrem binding compartilhado idêntico, binding compartilhado divergente, conflito de papel
+  e `ProduceProblems` nulo; documentação de parâmetros compartilhados e catálogo RCCMD foram atualizados.
+
+Verificações após os ajustes: solução Release **0 erros / 9 NU5104 aceitos**; `SmartCommands.Tests`
+**245/245**; `Demo.Tests` **71/71**; testes direcionados de validação **36/36**.
 
 ---
 

@@ -19,6 +19,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(CodeAnalysisVer)" />
+		<PackageReference Include="RoyalCode.SmartSearch.AspNetCore" Version="$(SmartSearchVer)" />
 	</ItemGroup>
 
 	<ItemGroup>

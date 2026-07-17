@@ -17,7 +17,8 @@ public class DemoBindingTests
 		string? Origem,
 		string? Usuario,
 		DateTimeOffset Momento,
-		DateTimeOffset RegistradoEm);
+		DateTimeOffset RegistradoEm,
+		string TraceIdentifier);
 
 	[Fact]
 	public async Task RegistrarVisualizacao_Must_Bind_Route_Query_Header_BindAsync_And_Service()
@@ -42,6 +43,7 @@ public class DemoBindingTests
 
 		var registered = await response.Content.ReadApiJsonAsync<VisualizacaoRegistradaResponse>();
 		Assert.NotNull(registered);
+		Assert.False(string.IsNullOrWhiteSpace(registered.TraceIdentifier));
 		Assert.Equal(42, registered.MovieId);                 // rota ([FromRoute(Name = "movieId")])
 		Assert.Equal("tv", registered.Plataforma);            // body implícito (command)
 		Assert.Equal("web", registered.Origem);               // query ([FromQuery(Name = "origem")])
@@ -78,6 +80,7 @@ public class DemoBindingTests
 
 		var registered = await response.Content.ReadApiJsonAsync<VisualizacaoRegistradaResponse>();
 		Assert.NotNull(registered);
+		Assert.False(string.IsNullOrWhiteSpace(registered.TraceIdentifier));
 		Assert.Equal(7, registered.MovieId);
 		Assert.Null(registered.Plataforma);
 		Assert.Null(registered.Origem);

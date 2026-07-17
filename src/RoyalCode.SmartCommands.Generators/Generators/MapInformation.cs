@@ -404,9 +404,8 @@ internal sealed class MapInformation : IEquatable<MapInformation>
 
         // escapa o conteúdo literal da string interpolada (aspas, contrabarras e chaves); os
         // placeholders {i} são escapados junto (viram {{i}}) e depois convertidos em interpolação
-        var escapedRoute = routeTemplate
-            .Replace("\\", "\\\\")
-            .Replace("\"", "\\\"")
+        var routeLiteral = SymbolDisplay.FormatLiteral(routeTemplate, quote: true);
+        var escapedRoute = routeLiteral.Substring(1, routeLiteral.Length - 2)
             .Replace("{", "{{")
             .Replace("}", "}}");
 

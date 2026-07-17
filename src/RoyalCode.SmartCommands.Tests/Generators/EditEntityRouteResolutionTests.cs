@@ -118,6 +118,23 @@ public class EditEntityRouteResolutionTests
         Assert.DoesNotContain(output.SyntaxTrees.Skip(1), tree => tree.ToString().Contains("EditPersonHandler"));
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("(RouteParameterName = \"personId\")")]
+    public void Variavel_de_rota_duplicada_produz_RCCMD031_e_bloqueia_a_fonte(string attributeArguments)
+    {
+        Util.Compile(
+            EditCommand("/{personId}/{personId}", attributeArguments),
+            out var output,
+            out var diagnostics);
+
+        var resolutionErrors = diagnostics.Where(d => d.Id == "RCCMD031").ToArray();
+        Assert.Single(resolutionErrors);
+        Assert.Contains("more than once", resolutionErrors[0].GetMessage(), StringComparison.Ordinal);
+        Assert.DoesNotContain(diagnostics, d => d.Id == "CS8785");
+        Assert.DoesNotContain(output.SyntaxTrees.Skip(1), tree => tree.ToString().Contains("edit-person"));
+    }
+
     [Fact]
     public void Ambiguidade_produz_RCCMD031_e_nenhuma_fonte_de_endpoint()
     {

@@ -20,3 +20,5 @@ RCCMD037 | Usage | Error | The endpoint has more than one request body source
 RCCMD038 | Usage | Error | Invalid command validation method
 RCCMD039 | Usage | Error | Parameter not allowed in a command validation method
 RCCMD040 | Usage | Error | The same parameter name is declared with different types
+RCCMD041 | Usage | Error | Invalid endpoint metadata attribute argument
+RCCMD042 | Usage | Error | The same parameter name is declared with incompatible roles

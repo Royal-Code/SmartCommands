@@ -335,6 +335,22 @@ internal static class CmdDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor InvalidEndpointMetadataArgument = new(
+        id: "RCCMD041",
+        title: "Invalid endpoint metadata attribute argument",
+        messageFormat: "The {0} attribute requires {1}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor ConflictingParameterRoles = new(
+        id: "RCCMD042",
+        title: "The same parameter name is declared with incompatible roles",
+        messageFormat: "The parameter '{0}' is declared with incompatible roles across the command and its validators ({1} and {2}); parameters with the same name must use the same source",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> Descriptors =
         new[]
         {
@@ -379,6 +395,8 @@ internal static class CmdDiagnostics
             InvalidCommandValidation,
             InvalidCommandValidationParameter,
             ConflictingParameterTypes,
+            InvalidEndpointMetadataArgument,
+            ConflictingParameterRoles,
         }
         .ToDictionary(descriptor => descriptor.Id, StringComparer.Ordinal);
 

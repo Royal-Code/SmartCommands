@@ -31,12 +31,13 @@ public static partial class MapPlaygroundApi
         [FromHeader(Name = "x-demo-user")]  string? usuario, 
         MomentoDaRequisicao momento, 
         IRelogioDemo relogio, 
+        HttpContext httpContext, 
         CancellationToken ct)
     {
         if (command is null)
             return Problems.InvalidParameter("The request body is required.");
 
-        var result = await handler.HandleAsync(command, movieId, origem, usuario, momento, relogio, ct);
+        var result = await handler.HandleAsync(command, movieId, origem, usuario, momento, relogio, httpContext, ct);
         return result;
     }
 }

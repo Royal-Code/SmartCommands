@@ -48,6 +48,8 @@ severidade e uma orientação de correção. Entradas inválidas produzem o diag
 | [RCCMD038](#rccmd038) | Error | Uso inválido de `[CommandValidation]` (mensagem detalha o motivo) |
 | [RCCMD039](#rccmd039) | Error | Parâmetro não permitido em método de validação |
 | [RCCMD040](#rccmd040) | Error | Mesmo nome de parâmetro com tipos diferentes |
+| [RCCMD041](#rccmd041) | Error | Argumento inválido em atributo de metadados do endpoint |
+| [RCCMD042](#rccmd042) | Error | Mesmo nome de parâmetro com papéis incompatíveis |
 
 ---
 
@@ -213,3 +215,17 @@ DI, `[WithParameter]` ou `CancellationToken`; validação pós-carregamento é u
 O mesmo nome de parâmetro aparece com tipos diferentes entre o método do comando e os validators. Parâmetros com
 o mesmo nome compartilham uma única dependência/valor no handler gerado e devem ter o mesmo tipo.
 **Correção:** alinhe os tipos ou renomeie um dos parâmetros.
+
+## RCCMD041
+Um atributo auxiliar do endpoint (`MapGroup`, `WithDescription`, `WithSummary`, `WithPolicy`,
+`MapCreatedRoute` ou `MapResponseValues`) recebeu `null` onde o generator exige uma string ou coleção válida.
+Sem o diagnóstico, o metadado poderia ser omitido ou alterar silenciosamente a rota gerada. **Correção:** informe
+um valor constante não nulo; coleções vazias continuam válidas quando o atributo permitir.
+
+O diagnóstico também se aplica a `[ProduceProblems]` quando sua coleção de categorias é explicitamente nula.
+
+## RCCMD042
+O mesmo nome de parâmetro foi usado com papéis incompatíveis entre o método `[Command]` e um ou mais métodos
+`[CommandValidation]`, por exemplo como dependência de DI em um método e como `[WithParameter]` em outro. Como
+o nome representa um único parâmetro lógico do handler, escolher uma das fontes alteraria silenciosamente o valor
+recebido. **Correção:** use o mesmo papel em todas as declarações ou renomeie um dos parâmetros.

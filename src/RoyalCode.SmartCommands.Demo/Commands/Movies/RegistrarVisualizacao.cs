@@ -34,7 +34,8 @@ public class RegistrarVisualizacao
         [WithParameter, FromQuery(Name = "origem")] string? origem,
         [WithParameter, FromHeader(Name = "x-demo-user")] string? usuario,
         [WithParameter] MomentoDaRequisicao momento,
-        [WithParameter] IRelogioDemo relogio)
+        [WithParameter] IRelogioDemo relogio,
+        [WithParameter] HttpContext httpContext)
     {
         return new VisualizacaoRegistrada(
             movieId,
@@ -42,7 +43,8 @@ public class RegistrarVisualizacao
             origem,
             usuario,
             momento.Valor,
-            relogio.Agora());
+            relogio.Agora(),
+            httpContext.TraceIdentifier);
     }
 }
 
@@ -53,4 +55,5 @@ public sealed record VisualizacaoRegistrada(
     string? Origem,
     string? Usuario,
     DateTimeOffset Momento,
-    DateTimeOffset RegistradoEm);
+    DateTimeOffset RegistradoEm,
+    string TraceIdentifier);

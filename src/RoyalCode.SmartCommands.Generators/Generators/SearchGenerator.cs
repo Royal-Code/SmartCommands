@@ -99,24 +99,27 @@ internal static class SearchGenerator
         string? groupName = null;
 
         // tenta obter a description
-        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithDescription, out var descAttr) &&
-            descAttr!.ConstructorArguments.Length == 1)
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithDescription, out var descAttr))
         {
-            description = KnownAttributes.GetString(descAttr.ConstructorArguments[0]);
+            if (!TryReadRequiredString(descAttr!, "WithDescription", "a non-null description", classLocation,
+                    cancellationToken, out description, out var diagnostic))
+                return diagnostic is null ? null : new SearchInformation(diagnostic);
         }
 
         // tenta obter o summary
-        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithSummary, out var summaryAttr) &&
-            summaryAttr!.ConstructorArguments.Length == 1)
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithSummary, out var summaryAttr))
         {
-            summary = KnownAttributes.GetString(summaryAttr.ConstructorArguments[0]);
+            if (!TryReadRequiredString(summaryAttr!, "WithSummary", "a non-null summary", classLocation,
+                    cancellationToken, out summary, out var diagnostic))
+                return diagnostic is null ? null : new SearchInformation(diagnostic);
         }
 
         // tenta obter o MapGroup attribute
-        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.MapGroup, out var groupAttr) &&
-            groupAttr!.ConstructorArguments.Length == 1)
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.MapGroup, out var groupAttr))
         {
-            groupName = KnownAttributes.GetString(groupAttr.ConstructorArguments[0]);
+            if (!TryReadRequiredString(groupAttr!, "MapGroup", "a non-null route prefix", classLocation,
+                    cancellationToken, out groupName, out var diagnostic))
+                return diagnostic is null ? null : new SearchInformation(diagnostic);
         }
         // NOTA (Fase 9): a obrigatoriedade de MapGroup para Search será decidida e diagnosticada lá;
         // hoje o grupo ausente segue nulo, comportamento preservado.
@@ -128,9 +131,15 @@ internal static class SearchGenerator
         // se tiver o attribute WithPolicy, deve obter o(s) nome(s) da(s) política(s) — aceita params e array explícito
         if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithPolicy, out var policyAttr))
         {
-            var policies = policyAttr!.ConstructorArguments.Length > 0
-                ? KnownAttributes.GetStrings(policyAttr.ConstructorArguments[0]).ToArray()
-                : [];
+            if (policyAttr!.ConstructorArguments.Length != 1 ||
+                policyAttr.ConstructorArguments[0].Kind == TypedConstantKind.Error)
+                return null;
+            if (!KnownAttributes.TryGetStrings(policyAttr.ConstructorArguments[0], out var policies))
+            {
+                return new SearchInformation(CreateInvalidEndpointMetadataDiagnostic(
+                    policyAttr, "WithPolicy", "a non-null array of policy names", classLocation,
+                    cancellationToken));
+            }
             authorizationPolicies = policies.Length > 0 ? policies : authorizationPolicies ?? [];
         }
 
@@ -161,7 +170,6 @@ internal static class SearchGenerator
             classSymbol,
             endpointRoutePattern,
             groupName,
-            context.SemanticModel,
             cancellationToken,
             out SearchFilterInformation? searchFilterInformation,
             out List<DiagnosticInfo>? errors))
@@ -190,7 +198,6 @@ internal static class SearchGenerator
         INamedTypeSymbol classSymbol,
         string routePattern,
         string? groupName,
-        SemanticModel semanticModel,
         CancellationToken cancellationToken,
         out SearchFilterInformation? searchFilterInformation,
         out List<DiagnosticInfo>? diagnostics)
@@ -228,7 +235,7 @@ internal static class SearchGenerator
 
             var errors = new List<DiagnosticInfo>();
             var parameters = CreateSearchFilterParameters(
-                methodWithFilter, routePattern, groupName, semanticModel, errors, cancellationToken);
+                methodWithFilter, routePattern, groupName, errors, cancellationToken);
 
             if (errors.Count > 0)
             {
@@ -252,7 +259,6 @@ internal static class SearchGenerator
         IMethodSymbol method,
         string routePattern,
         string? groupName,
-        SemanticModel semanticModel,
         List<DiagnosticInfo> errors,
         CancellationToken cancellationToken)
     {
@@ -261,14 +267,9 @@ internal static class SearchGenerator
             {
                 var hasWithParameterAttribute = KnownAttributes.Has(parameterSymbol, KnownAttributes.WithParameter);
 
-                // o descritor para emissão continua vindo da sintaxe (nome do tipo como escrito);
-                // as classificações são semânticas, congeladas aqui como fatos booleanos.
-                var parameterSyntax = parameterSymbol.DeclaringSyntaxReferences
-                    .Select(reference => reference.GetSyntax(cancellationToken))
-                    .OfType<ParameterSyntax>()
-                    .FirstOrDefault();
-
-                var parameterDescriptor = CreateParameterDescriptor(parameterSymbol, parameterSyntax, semanticModel);
+                var parameterDescriptor = new ParameterDescriptor(
+                    SemanticTypes.CreateDescriptor(parameterSymbol.Type),
+                    parameterSymbol.Name);
 
                 // DF3: captura e valida os bindings explícitos dos parâmetros [WithParameter] do filtro
                 // (o search sempre participa de um endpoint mapeado)
@@ -294,20 +295,39 @@ internal static class SearchGenerator
         return parameters;
     }
 
-    private static ParameterDescriptor CreateParameterDescriptor(
-        IParameterSymbol parameterSymbol,
-        ParameterSyntax? parameterSyntax,
-        SemanticModel semanticModel)
+    private static bool TryReadRequiredString(
+        AttributeData attribute,
+        string attributeName,
+        string requirement,
+        Location fallback,
+        CancellationToken cancellationToken,
+        out string? value,
+        out DiagnosticInfo? diagnostic)
     {
-        if (parameterSyntax is null)
-            return new ParameterDescriptor(SemanticTypes.CreateDescriptor(parameterSymbol.Type), parameterSymbol.Name);
+        value = null;
+        diagnostic = null;
+        if (attribute.ConstructorArguments.Length != 1 ||
+            attribute.ConstructorArguments[0].Kind == TypedConstantKind.Error)
+            return false;
 
-        // o método [WithFilter] pode estar declarado em outra árvore (classe partial em outro arquivo);
-        // o semantic model precisa ser o da árvore do parâmetro, senão o Roslyn lança exceção.
-        var parameterModel = parameterSyntax.SyntaxTree == semanticModel.SyntaxTree
-            ? semanticModel
-            : semanticModel.Compilation.GetSemanticModel(parameterSyntax.SyntaxTree);
+        value = KnownAttributes.GetString(attribute.ConstructorArguments[0]);
+        if (value is not null)
+            return true;
 
-        return ParameterDescriptor.Create(parameterSyntax, parameterModel);
+        diagnostic = CreateInvalidEndpointMetadataDiagnostic(
+            attribute, attributeName, requirement, fallback, cancellationToken);
+        return false;
     }
+
+    private static DiagnosticInfo CreateInvalidEndpointMetadataDiagnostic(
+        AttributeData attribute,
+        string attributeName,
+        string requirement,
+        Location fallback,
+        CancellationToken cancellationToken) =>
+        DiagnosticInfo.Create(
+            CmdDiagnostics.InvalidEndpointMetadataArgument,
+            KnownAttributes.GetLocation(attribute, cancellationToken, fallback),
+            attributeName,
+            requirement);
 }

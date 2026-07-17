@@ -144,9 +144,25 @@ internal static class KnownAttributes
         if (attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken) is AttributeSyntax
             {
                 ArgumentList.Arguments: { } arguments
-            } && argumentIndex < arguments.Count)
+            })
         {
-            return arguments[argumentIndex].GetLocation();
+            var parameterName = attribute.AttributeConstructor?.Parameters.Length > argumentIndex
+                ? attribute.AttributeConstructor.Parameters[argumentIndex].Name
+                : null;
+
+            if (parameterName is not null)
+            {
+                var namedArgument = arguments.FirstOrDefault(argument =>
+                    argument.NameColon?.Name.Identifier.ValueText == parameterName);
+                if (namedArgument is not null)
+                    return namedArgument.GetLocation();
+            }
+
+            var positionalArguments = arguments
+                .Where(argument => argument.NameColon is null && argument.NameEquals is null)
+                .ToArray();
+            if (argumentIndex < positionalArguments.Length)
+                return positionalArguments[argumentIndex].GetLocation();
         }
 
         return GetLocation(attribute, cancellationToken, fallback);
@@ -162,18 +178,46 @@ internal static class KnownAttributes
     /// </summary>
     internal static IEnumerable<string> GetStrings(TypedConstant constant)
     {
+        return TryGetStrings(constant, out var values) ? values : [];
+    }
+
+    /// <summary>
+    /// Tenta extrair uma string ou array de strings constante e não nulo. Diferentemente de
+    /// <see cref="GetStrings"/>, permite ao reader distinguir uma coleção vazia válida de um valor inválido.
+    /// </summary>
+    internal static bool TryGetStrings(TypedConstant constant, out string[] values)
+    {
         if (constant.Kind == TypedConstantKind.Array)
         {
-            foreach (var item in constant.Values)
+            if (constant.IsNull || constant.Values.IsDefault)
             {
-                if (GetString(item) is { } value)
-                    yield return value;
+                values = [];
+                return false;
             }
+
+            values = new string[constant.Values.Length];
+            for (var index = 0; index < constant.Values.Length; index++)
+            {
+                if (GetString(constant.Values[index]) is not { } value)
+                {
+                    values = [];
+                    return false;
+                }
+
+                values[index] = value;
+            }
+
+            return true;
         }
-        else if (GetString(constant) is { } single)
+
+        if (GetString(constant) is { } single)
         {
-            yield return single;
+            values = [single];
+            return true;
         }
+
+        values = [];
+        return false;
     }
 
     /// <summary>Comparação semântica de tipo por namespace + metadata name (nunca por nome simples).</summary>

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using RoyalCode.SmartCommands.Generators.Generators;
 using Xunit;
 
@@ -37,13 +38,16 @@ public class SemanticGenerationTests
             """
             using RoyalCode.SmartCommands;
             using MyResult = RoyalCode.SmartProblems.Result;
+            using MyClock = Tests.Semantic.Alias.SystemClock;
 
             namespace Tests.Semantic.Alias;
+
+            public sealed class SystemClock { }
 
             public class DoAliased
             {
                 [Command]
-                public MyResult Execute() => MyResult.Ok();
+                public MyResult Execute([WithParameter] MyClock clock) => MyResult.Ok();
             }
             """;
 
@@ -54,8 +58,9 @@ public class SemanticGenerationTests
 
         // o alias resolve para Result: a interface gerada usa o tipo real, não o texto do alias
         var generated = GeneratedSources(output);
-        Assert.Contains(generated, source => source.Contains("public Result Handle(DoAliased command)"));
+        Assert.Contains(generated, source => source.Contains("public Result Handle(DoAliased command, SystemClock clock)"));
         Assert.DoesNotContain(generated, source => source.Contains("MyResult"));
+        Assert.DoesNotContain(generated, source => source.Contains("MyClock"));
     }
 
     [Fact]
@@ -288,6 +293,8 @@ public class SemanticGenerationTests
                 public int Id { get; set; }
             }
 
+            public sealed class SystemClock { }
+
             [MapGroup("ents")]
             [MapSearch("/", "search-ents")]
             [SearchReference<Ent>]
@@ -303,13 +310,14 @@ public class SemanticGenerationTests
         const string fileB =
             """
             using RoyalCode.SmartCommands;
+            using Clock = Tests.Semantic.PartialFilter.SystemClock;
 
             namespace Tests.Semantic.PartialFilter;
 
             public partial class EntFilter
             {
                 [WithFilter]
-                internal void Configure([WithParameter] string extra) { }
+                internal void Configure([WithParameter] Clock clock) { }
             }
             """;
 
@@ -319,11 +327,117 @@ public class SemanticGenerationTests
 
         Assert.DoesNotContain(diagnostics, d => d.Id == "CS8785");
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertOutputCompiles(output);
 
         // o filtro declarado no outro arquivo participa do endpoint gerado
         var generated = output.SyntaxTrees.Skip(2).Select(tree => tree.ToString()).ToArray();
         Assert.Contains(generated, source => source.Contains("\"search-ents\""));
-        Assert.Contains(generated, source => source.Contains("filter.Configure(extra)"));
+        Assert.Contains(generated, source => source.Contains("SystemClock clock"));
+        Assert.Contains(generated, source => source.Contains("filter.Configure(clock)"));
+        Assert.DoesNotContain(generated, source => source.Contains(" Clock clock"));
+    }
+
+    [Fact]
+    public void Metadados_auxiliares_nulos_produzem_diagnostico_e_nao_geram_endpoint()
+    {
+        const string code =
+            """
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+            using Microsoft.AspNetCore.Routing;
+
+            namespace Tests.Semantic.NullMetadata;
+
+            [MapGroup(null!), MapPost("/", "null-group")]
+            public class NullGroup
+            {
+                [Command]
+                public Result Execute() => Result.Ok();
+            }
+
+            [MapPost("/", "null-policies"), WithPolicy(null!)]
+            public class NullPolicies
+            {
+                [Command]
+                public Result Execute() => Result.Ok();
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.Equal(2, diagnostics.Count(d => d.Id == "RCCMD041"));
+        Assert.DoesNotContain(diagnostics, d => d.Id == "CS8785");
+        Assert.DoesNotContain(output.SyntaxTrees.Skip(1), tree => tree.ToString().Contains("null-group"));
+        Assert.DoesNotContain(output.SyntaxTrees.Skip(1), tree => tree.ToString().Contains("null-policies"));
+    }
+
+    [Fact]
+    public void MapCreatedRoute_com_caractere_de_controle_emite_string_csharp_valida()
+    {
+        const string code =
+            """
+            using RoyalCode.SmartCommands;
+            using Microsoft.AspNetCore.Routing;
+
+            namespace Tests.Semantic.CreatedRoute;
+
+            public sealed class Thing
+            {
+                public int Id { get; set; }
+            }
+
+            [MapGroup("things")]
+            [MapPost("/", "create-thing")]
+            [MapCreatedRoute("/created/{0}\nnext", nameof(Thing.Id))]
+            public class CreateThing
+            {
+                [Command]
+                public Thing Execute() => new() { Id = 1 };
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertOutputCompiles(output);
+        Assert.Contains(GeneratedSources(output), source => source.Contains("\\nnext"));
+    }
+
+    [Fact]
+    public void Localizacao_de_argumento_nomeado_respeita_nome_do_parametro_do_construtor()
+    {
+        const string code =
+            """
+            using System;
+
+            public class Target
+            {
+                [Obsolete(error: true, message: "reason")]
+                public void Execute() { }
+            }
+            """;
+
+        var compilation = Util.CreateCompilation(code);
+        var tree = compilation.SyntaxTrees.Single();
+        var method = tree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>().Single();
+        var model = compilation.GetSemanticModel(tree);
+        var symbol = (IMethodSymbol)model.GetDeclaredSymbol(method)!;
+        var attribute = symbol.GetAttributes().Single();
+        var arguments = method.AttributeLists.Single().Attributes.Single().ArgumentList!.Arguments;
+        var messageArgument = arguments.Single(argument => argument.NameColon?.Name.Identifier.ValueText == "message");
+        var errorArgument = arguments.Single(argument => argument.NameColon?.Name.Identifier.ValueText == "error");
+
+        var messageLocation = KnownAttributes.GetArgumentLocation(attribute, 0, default, method.GetLocation());
+        var errorLocation = KnownAttributes.GetArgumentLocation(attribute, 1, default, method.GetLocation());
+
+        Assert.Equal(messageArgument.Span, messageLocation.SourceSpan);
+        Assert.Equal(errorArgument.Span, errorLocation.SourceSpan);
     }
 
     [Fact]

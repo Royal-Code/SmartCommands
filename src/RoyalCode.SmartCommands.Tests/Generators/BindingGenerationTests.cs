@@ -204,6 +204,87 @@ public class BindingGenerationTests
         Assert.Contains(GeneratedSources(output), source => source.Contains("\"get-bindable\""));
     }
 
+    [Theory]
+    [InlineData("public static bool TryParse(string? value, out GetParsable result) { result = new(); return true; }")]
+    [InlineData("public static bool TryParse(string? value, IFormatProvider? provider, out GetParsable result) { result = new(); return true; }")]
+    public void GET_com_TryParse_valido_nao_produz_RCCMD036(string bindingMethod)
+    {
+        var code = Usings +
+            $$"""
+            [MapGet("/", "get-parsable")]
+            public class GetParsable
+            {
+                public string? Nome { get; set; }
+
+                {{bindingMethod}}
+
+                [Command]
+                public Result Execute() => Result.Ok();
+            }
+            """ + Host;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id == "RCCMD036");
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(GeneratedSources(output), source => source.Contains("\"get-parsable\""));
+    }
+
+    [Theory]
+    [InlineData("public static void BindAsync() { }")]
+    [InlineData("public static ValueTask<GetInvalid?> BindAsync(string value) => ValueTask.FromResult<GetInvalid?>(new());")]
+    [InlineData("public static bool TryParse(string? value) => true;")]
+    [InlineData("public static int TryParse(string? value, out GetInvalid result) { result = new(); return 1; }")]
+    public void GET_com_metodo_de_binding_de_assinatura_invalida_produz_RCCMD036(string bindingMethod)
+    {
+        var code = Usings +
+            $$"""
+            [MapGet("/", "get-invalid-binding")]
+            public class GetInvalid
+            {
+                public string? Nome { get; set; }
+
+                {{bindingMethod}}
+
+                [Command]
+                public Result Execute() => Result.Ok();
+            }
+            """ + Host;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "RCCMD036");
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id == "CS8785");
+        Assert.DoesNotContain(output.SyntaxTrees.Skip(1), tree => tree.ToString().Contains("get-invalid-binding"));
+    }
+
+    [Fact]
+    public void BindAsync_valido_no_comando_nao_conflita_com_FromBody_explicito()
+    {
+        var code = Usings +
+            """
+            public class Payload { public string? Valor { get; set; } }
+
+            [MapPost("/", "custom-command-and-body")]
+            public class CustomCommand
+            {
+                public string? Nome { get; set; }
+
+                public static ValueTask<CustomCommand?> BindAsync(HttpContext context)
+                    => ValueTask.FromResult<CustomCommand?>(new CustomCommand());
+
+                [Command]
+                public Result Execute([WithParameter, FromBody] Payload payload) => Result.Ok();
+            }
+            """ + Host;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id == "RCCMD037");
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(GeneratedSources(output), source => source.Contains("\"custom-command-and-body\""));
+    }
+
     [Fact]
     public void FromBody_em_WithParameter_conflita_com_o_body_do_comando_RCCMD037()
     {
@@ -270,6 +351,47 @@ public class BindingGenerationTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
         Assert.Contains(GeneratedSources(output), source => source.Contains("[FromBody]"));
+    }
+
+    [Fact]
+    public void FromForm_unico_em_comando_sem_body_e_copiado_para_o_delegate()
+    {
+        var code = Usings +
+            """
+            [MapPost("/form", "do-form")]
+            public class DoForm
+            {
+                [Command]
+                public Result Execute([WithParameter, FromForm(Name = "campo")] string valor) => Result.Ok();
+            }
+            """ + Host;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        var endpoint = GeneratedSources(output).First(source => source.Contains("\"do-form\""));
+        Assert.Contains("[FromForm(Name = \"campo\")]", endpoint);
+        Assert.Contains("string valor", endpoint);
+    }
+
+    [Fact]
+    public void Special_type_do_Minimal_API_e_preservado_como_parametro_externo()
+    {
+        var code = Usings +
+            """
+            [MapPost("/special", "do-special")]
+            public class DoSpecial
+            {
+                [Command]
+                public Result Execute([WithParameter] HttpContext context) => Result.Ok();
+            }
+            """ + Host;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        var endpoint = GeneratedSources(output).First(source => source.Contains("\"do-special\""));
+        Assert.Contains("HttpContext context", endpoint);
     }
 
     [Fact]

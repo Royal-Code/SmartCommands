@@ -272,6 +272,9 @@ Regras (DF13):
   duplicatas), `[WithParameter]` (entra na assinatura do handler e no delegate HTTP, com bindings copiados)
   e `CancellationToken` (somente em validators assíncronos). Entidades, contextos e acessores não estão
   disponíveis nesta etapa (a validação roda antes de qualquer carregamento) — RCCMD039.
+- O mesmo nome representa um único parâmetro lógico: deve manter o mesmo tipo e o mesmo papel em todos os
+  métodos. Misturar dependência de DI e `[WithParameter]` para o mesmo nome é RCCMD042. Bindings explícitos
+  idênticos são deduplicados; fontes diferentes para o mesmo nome são RCCMD033.
 - Executam após `HasProblems`, antes de UoW/decorators/retry, **uma única vez** mesmo quando o comando é
   reexecutado por conflito de concorrência; o primeiro `Result` com problemas encerra o handler.
 - `[ProduceProblems]` declarados nos validators são agregados à metadata HTTP do endpoint, sem duplicatas.

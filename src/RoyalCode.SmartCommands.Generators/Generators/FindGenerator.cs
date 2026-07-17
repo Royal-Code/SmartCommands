@@ -99,24 +99,27 @@ internal static class FindGenerator
         string? groupName = null;
 
         // tenta obter a description
-        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithDescription, out var descAttr) &&
-            descAttr!.ConstructorArguments.Length == 1)
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithDescription, out var descAttr))
         {
-            description = KnownAttributes.GetString(descAttr.ConstructorArguments[0]);
+            if (!TryReadRequiredString(descAttr!, "WithDescription", "a non-null description", classLocation,
+                    cancellationToken, out description, out var diagnostic))
+                return diagnostic is null ? null : new FindInformation(diagnostic);
         }
 
         // tenta obter o summary
-        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithSummary, out var summaryAttr) &&
-            summaryAttr!.ConstructorArguments.Length == 1)
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithSummary, out var summaryAttr))
         {
-            summary = KnownAttributes.GetString(summaryAttr.ConstructorArguments[0]);
+            if (!TryReadRequiredString(summaryAttr!, "WithSummary", "a non-null summary", classLocation,
+                    cancellationToken, out summary, out var diagnostic))
+                return diagnostic is null ? null : new FindInformation(diagnostic);
         }
 
         // tenta obter o MapGroup attribute
-        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.MapGroup, out var groupAttr) &&
-            groupAttr!.ConstructorArguments.Length == 1)
+        if (KnownAttributes.TryGet(classSymbol, KnownAttributes.MapGroup, out var groupAttr))
         {
-            groupName = KnownAttributes.GetString(groupAttr.ConstructorArguments[0]);
+            if (!TryReadRequiredString(groupAttr!, "MapGroup", "a non-null route prefix", classLocation,
+                    cancellationToken, out groupName, out var diagnostic))
+                return diagnostic is null ? null : new FindInformation(diagnostic);
         }
         // NOTA (Fase 9): a obrigatoriedade de MapGroup para Find será decidida e diagnosticada lá;
         // hoje o grupo ausente segue nulo, comportamento preservado.
@@ -128,9 +131,15 @@ internal static class FindGenerator
         // se tiver o attribute WithPolicy, deve obter o(s) nome(s) da(s) política(s) — aceita params e array explícito
         if (KnownAttributes.TryGet(classSymbol, KnownAttributes.WithPolicy, out var policyAttr))
         {
-            var policies = policyAttr!.ConstructorArguments.Length > 0
-                ? KnownAttributes.GetStrings(policyAttr.ConstructorArguments[0]).ToArray()
-                : [];
+            if (policyAttr!.ConstructorArguments.Length != 1 ||
+                policyAttr.ConstructorArguments[0].Kind == TypedConstantKind.Error)
+                return null;
+            if (!KnownAttributes.TryGetStrings(policyAttr.ConstructorArguments[0], out var policies))
+            {
+                return new FindInformation(CreateInvalidEndpointMetadataDiagnostic(
+                    policyAttr, "WithPolicy", "a non-null array of policy names", classLocation,
+                    cancellationToken));
+            }
             authorizationPolicies = policies.Length > 0 ? policies : authorizationPolicies ?? [];
         }
 
@@ -162,6 +171,42 @@ internal static class FindGenerator
                 mapFindAttribute, 1, cancellationToken, classLocation),
         };
     }
+
+    private static bool TryReadRequiredString(
+        AttributeData attribute,
+        string attributeName,
+        string requirement,
+        Location fallback,
+        CancellationToken cancellationToken,
+        out string? value,
+        out DiagnosticInfo? diagnostic)
+    {
+        value = null;
+        diagnostic = null;
+        if (attribute.ConstructorArguments.Length != 1 ||
+            attribute.ConstructorArguments[0].Kind == TypedConstantKind.Error)
+            return false;
+
+        value = KnownAttributes.GetString(attribute.ConstructorArguments[0]);
+        if (value is not null)
+            return true;
+
+        diagnostic = CreateInvalidEndpointMetadataDiagnostic(
+            attribute, attributeName, requirement, fallback, cancellationToken);
+        return false;
+    }
+
+    private static DiagnosticInfo CreateInvalidEndpointMetadataDiagnostic(
+        AttributeData attribute,
+        string attributeName,
+        string requirement,
+        Location fallback,
+        CancellationToken cancellationToken) =>
+        DiagnosticInfo.Create(
+            CmdDiagnostics.InvalidEndpointMetadataArgument,
+            KnownAttributes.GetLocation(attribute, cancellationToken, fallback),
+            attributeName,
+            requirement);
 
     private static bool TryGetEntityReferenceArguments(
         AttributeData attribute,

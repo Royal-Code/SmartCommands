@@ -1,6 +1,10 @@
 using System;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using RoyalCode.SmartCommands.WorkContext.Options;
+using RoyalCode.SmartProblems;
+using RoyalCode.UnitOfWork;
+using RoyalCode.WorkContext;
 using Xunit;
 
 namespace RoyalCode.SmartCommands.Tests.Generators;
@@ -572,6 +576,148 @@ public class CommandValidationTests
         Assert.DoesNotContain("FromHeader", handlerInterface);
     }
 
+    [Fact]
+    public void Binding_explicito_identico_compartilhado_e_deduplicado()
+    {
+        const string code = Usings +
+            """
+            [MapPost("/", "do-shared-bound")]
+            public class DoSharedBound
+            {
+                public string? Nome { get; set; }
+
+                [CommandValidation]
+                internal Result Validar([WithParameter, Microsoft.AspNetCore.Mvc.FromQuery(Name = "source")] string origem) => Result.Ok();
+
+                [Command]
+                public Result Executar([WithParameter, Microsoft.AspNetCore.Mvc.FromQuery(Name = "source")] string origem) => Result.Ok();
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+        AssertNoErrors(output, diagnostics);
+
+        var endpoint = output.SyntaxTrees.Skip(1).Select(tree => tree.ToString())
+            .First(source => source.Contains("do-shared-bound"));
+        Assert.Equal(1, CountOccurrences(endpoint, "[FromQuery(Name = \"source\")]"));
+        Assert.Equal(1, CountOccurrences(endpoint, "string origem"));
+    }
+
+    [Fact]
+    public void Bindings_diferentes_no_mesmo_parametro_logico_produzem_RCCMD033_sem_CS8785()
+    {
+        const string code = Usings +
+            """
+            [MapPost("/", "do-conflicting-bound")]
+            public class DoConflictingBound
+            {
+                public string? Nome { get; set; }
+
+                [CommandValidation]
+                internal Result Validar([WithParameter, Microsoft.AspNetCore.Mvc.FromHeader(Name = "x-source")] string origem) => Result.Ok();
+
+                [Command]
+                public Result Executar([WithParameter, Microsoft.AspNetCore.Mvc.FromQuery(Name = "source")] string origem) => Result.Ok();
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "RCCMD033");
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id == "CS8785");
+        Assert.DoesNotContain(output.SyntaxTrees.Skip(1), tree => tree.ToString().Contains("do-conflicting-bound"));
+    }
+
+    [Fact]
+    public void Mesmo_nome_e_tipo_com_papeis_diferentes_produz_RCCMD042()
+    {
+        const string code = Usings +
+            """
+            public interface IClock { }
+
+            public class DoRoleConflict
+            {
+                [CommandValidation]
+                internal Result Validar([WithParameter] IClock clock) => Result.Ok();
+
+                [Command]
+                public Result Executar(IClock clock) => Result.Ok();
+            }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        var conflicts = diagnostics.Where(diagnostic => diagnostic.Id == "RCCMD042").ToArray();
+        Assert.Single(conflicts);
+        Assert.Contains("clock", conflicts[0].GetMessage(), StringComparison.Ordinal);
+        Assert.Contains("dependency injection", conflicts[0].GetMessage(), StringComparison.Ordinal);
+        Assert.Contains("WithParameter", conflicts[0].GetMessage(), StringComparison.Ordinal);
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id == "CS8785");
+        Assert.DoesNotContain(output.SyntaxTrees.Skip(1), tree => tree.ToString().Contains("DoRoleConflictHandler"));
+    }
+
+    [Fact]
+    public void ProduceProblems_nulo_no_validator_produz_RCCMD041_sem_CS8785()
+    {
+        const string code = Usings +
+            """
+            public class DoNullProblems
+            {
+                [CommandValidation, ProduceProblems((ProblemCategory[])null)]
+                internal Result Validar() => Result.Ok();
+
+                [Command]
+                public Result Executar() => Result.Ok();
+            }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "RCCMD041" &&
+            diagnostic.GetMessage().Contains("ProduceProblems", StringComparison.Ordinal));
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id == "CS8785");
+        Assert.DoesNotContain(output.SyntaxTrees.Skip(1), tree => tree.ToString().Contains("DoNullProblemsHandler"));
+    }
+
+    [Fact]
+    public async Task Validator_roda_uma_vez_quando_o_corpo_sofre_retry_em_runtime()
+    {
+        var unitOfWork = new RetryProbeUnitOfWork();
+        var validationCount = 0;
+        var attemptCount = 0;
+
+        async Task<Result> HandleAsync()
+        {
+            validationCount++;
+            var validationResult = Result.Ok();
+            if (validationResult.HasProblems(out var validationProblems))
+                return validationProblems;
+
+            return await unitOfWork.RetryOnConcurrencyAsync(
+                () =>
+                {
+                    attemptCount++;
+                    if (attemptCount < 3)
+                        throw new ConcurrencyException("conflict", new Exception());
+                    return Task.FromResult(Result.Ok());
+                },
+                new RetryOnConcurrencyOptions { MaxAttempts = 3 });
+        }
+
+        var result = await HandleAsync();
+
+        Assert.False(result.HasProblems(out _));
+        Assert.Equal(1, validationCount);
+        Assert.Equal(3, attemptCount);
+        Assert.Equal(2, unitOfWork.CleanUpCount);
+    }
+
     private static int CountOccurrences(string source, string value)
     {
         var count = 0;
@@ -583,5 +729,23 @@ public class CommandValidationTests
         }
 
         return count;
+    }
+
+    private sealed class RetryProbeUnitOfWork : IUnitOfWork
+    {
+        public int CleanUpCount { get; private set; }
+
+        public void CleanUp(bool force = true) => CleanUpCount++;
+
+        public ITransaction? GetCurrentTransaction() => null;
+
+        public SaveResult Save() => throw new NotSupportedException();
+
+        public Task<SaveResult> SaveAsync(CancellationToken token = default) => throw new NotSupportedException();
+
+        public ITransaction BeginTransaction() => throw new NotSupportedException();
+
+        public Task<ITransaction> BeginTransactionAsync(CancellationToken token = default) =>
+            throw new NotSupportedException();
     }
 }

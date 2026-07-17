@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using RoyalCode.SmartCommands.Generators.Commands;
 using RoyalCode.SmartCommands.Generators.Models;
 using RoyalCode.Extensions.SourceGenerator.Generation;
+using RoyalCode.Extensions.SourceGenerator.Collections;
 using RoyalCode.Extensions.SourceGenerator.Descriptors.Snapshots;
 using RoyalCode.Extensions.SourceGenerator.Diagnostics;
 using System.Reflection;
@@ -165,7 +166,8 @@ internal static class CommandHandlerGenerator
 
         // verifica se existe problemas no método do comando
         if (KnownAttributes.TryGet(methodSymbol, KnownAttributes.ProduceProblems, out var produceProblemsAttr))
-            AddProduceProblems(produceProblemsAttr!, produceProblems);
+            AddProduceProblems(
+                produceProblemsAttr!, produceProblems, errors, method.Identifier.GetLocation(), cancellationToken);
 
         IMethodSymbol? hasProblemsMethod = null;
         DiagnosticInfo? error = null;
@@ -191,7 +193,12 @@ internal static class CommandHandlerGenerator
             if (KnownAttributes.TryGet(hasProblemsMethod, KnownAttributes.ProduceProblems, out produceProblemsAttr))
             {
                 // se tem o attribute, extrai os parâmetros
-                AddProduceProblems(produceProblemsAttr!, produceProblems);
+                AddProduceProblems(
+                    produceProblemsAttr!,
+                    produceProblems,
+                    errors,
+                    hasProblemsMethod.Locations.FirstOrDefault(location => location.IsInSource) ?? method.Identifier.GetLocation(),
+                    cancellationToken);
             }
             else
             {
@@ -438,7 +445,11 @@ internal static class CommandHandlerGenerator
             var parameterSymbol = paramIndex < parameterSymbols.Length ? parameterSymbols[paramIndex] : null;
 
             // cria o descritor
-            var paramDescriptor = ParameterDescriptor.Create(p, context.SemanticModel);
+            var paramDescriptor = parameterSymbol is null
+                ? ParameterDescriptor.Create(p, context.SemanticModel)
+                : new ParameterDescriptor(
+                    SemanticTypes.CreateDescriptor(parameterSymbol.Type),
+                    parameterSymbol.Name);
 
             // valida CancellationToken (decisão semântica), só pode haver caso o método seja assíncrono
             var isCancellationTokenParameter = parameterSymbol is not null
@@ -581,6 +592,10 @@ internal static class CommandHandlerGenerator
             method.Identifier.GetLocation(),
             cancellationToken);
 
+        // Um nome representa um único parâmetro lógico no handler/endpoint. Declarações repetidas com o mesmo
+        // binding são deduplicadas; fontes distintas são preservadas para RCCMD033, sem chaves duplicadas no DTO.
+        var normalizedCapturedBindings = NormalizeCapturedBindings(capturedBindings);
+
         // obtém informações para geração do WasValidated, caso seja possível
         List<string> notNullProperties;
         if (classDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword)
@@ -632,7 +647,7 @@ internal static class CommandHandlerGenerator
         // DF3: bindings explícitos só têm efeito (e são validados) quando o comando é mapeado
         if (mapInformation is not null)
         {
-            foreach (var (parameterName, parameterLocation, captured) in capturedBindings)
+            foreach (var (parameterName, parameterLocation, captured) in normalizedCapturedBindings)
             {
                 BindingAttributes.Validate(
                     captured,
@@ -720,10 +735,11 @@ internal static class CommandHandlerGenerator
         var hasRequestBody = HasRequestBodyShape(classDeclaration, context.SemanticModel);
 
         // GET/DELETE não podem inferir body: o ASP.NET Core lança na inicialização do app.
-        // Comandos com BindAsync/TryParse estáticos próprios usam binding customizado e não inferem body.
+        // Comandos com BindAsync/TryParse válidos usam binding customizado e não inferem body.
+        var commandUsesCustomBinding = HasValidCustomBindingMethod(commandType);
         if (mapInformation is not null && hasRequestBody &&
             mapInformation.HttpMethod is "Get" or "Delete" &&
-            !HasCustomBindingMethod(commandType))
+            !commandUsesCustomBinding)
         {
             errors.Add(DiagnosticInfo.Create(
                 CmdDiagnostics.ImplicitBodyNotAllowed,
@@ -743,7 +759,8 @@ internal static class CommandHandlerGenerator
                 .Where(captured => captured.Captured.Bindings.Any(binding => binding.Attribute == "FromForm"))
                 .ToList();
 
-            var jsonBodySources = fromBodyParameters.Count + (hasRequestBody ? 1 : 0);
+            var commandUsesJsonBody = hasRequestBody && !commandUsesCustomBinding;
+            var jsonBodySources = fromBodyParameters.Count + (commandUsesJsonBody ? 1 : 0);
 
             if (jsonBodySources > 1)
             {
@@ -791,8 +808,8 @@ internal static class CommandHandlerGenerator
             RetryMaxAttempts = retryMaxAttempts,
             RetryOperation = retryOperation,
             HasBodyProperties = hasRequestBody,
-            ParameterBindings = capturedBindings.Count > 0
-                ? capturedBindings.ToDictionary(
+            ParameterBindings = normalizedCapturedBindings.Count > 0
+                ? normalizedCapturedBindings.ToDictionary(
                     captured => captured.Name,
                     captured => captured.Captured.Bindings,
                     StringComparer.Ordinal)
@@ -882,9 +899,9 @@ internal static class CommandHandlerGenerator
 
         // mesmo nome de parâmetro entre comando e validators compartilha uma única dependência: o tipo deve
         // ser o mesmo (RCCMD040)
-        var parameterTypesByName = new Dictionary<string, TypeDescriptor>(StringComparer.Ordinal);
+        var parametersByName = new Dictionary<string, (TypeDescriptor Type, ParameterRole Role)>(StringComparer.Ordinal);
         foreach (var commandParameter in commandParameters)
-            parameterTypesByName[commandParameter.Name] = commandParameter.Type;
+            parametersByName[commandParameter.Name] = (commandParameter.Type, GetParameterRole(commandParameter));
 
         foreach (var candidate in commandType.GetMembers().OfType<IMethodSymbol>())
         {
@@ -939,9 +956,9 @@ internal static class CommandHandlerGenerator
                     ? semanticModel
                     : semanticModel.Compilation.GetSemanticModel(parameterSyntax.SyntaxTree);
 
-                var descriptor = parameterSyntax is not null
-                    ? ParameterDescriptor.Create(parameterSyntax, parameterModel)
-                    : new ParameterDescriptor(SemanticTypes.CreateDescriptor(parameterSymbol.Type), parameterSymbol.Name);
+                var descriptor = new ParameterDescriptor(
+                    SemanticTypes.CreateDescriptor(parameterSymbol.Type),
+                    parameterSymbol.Name);
 
                 var parameterLocation = parameterSyntax?.Identifier.GetLocation() ?? methodLocation;
 
@@ -975,19 +992,29 @@ internal static class CommandHandlerGenerator
                     }
 
                     // mesmo nome exige o mesmo tipo (dependência/parâmetro compartilhado no handler)
-                    if (parameterTypesByName.TryGetValue(descriptor.Name, out var existingType))
+                    var role = GetParameterRole(descriptor);
+                    if (parametersByName.TryGetValue(descriptor.Name, out var existing))
                     {
-                        if (!existingType.Equals(descriptor.Type))
+                        if (!existing.Type.Equals(descriptor.Type))
                         {
                             errors.Add(DiagnosticInfo.Create(
                                 CmdDiagnostics.ConflictingParameterTypes,
                                 parameterLocation,
                                 descriptor.Name));
                         }
+                        else if (existing.Role != role)
+                        {
+                            errors.Add(DiagnosticInfo.Create(
+                                CmdDiagnostics.ConflictingParameterRoles,
+                                parameterLocation,
+                                descriptor.Name,
+                                FormatParameterRole(existing.Role),
+                                FormatParameterRole(role)));
+                        }
                     }
                     else
                     {
-                        parameterTypesByName[descriptor.Name] = descriptor.Type;
+                        parametersByName[descriptor.Name] = (descriptor.Type, role);
                     }
                 }
 
@@ -997,7 +1024,8 @@ internal static class CommandHandlerGenerator
 
             // agrega os ProduceProblems declarados no validator à metadata do endpoint
             if (KnownAttributes.TryGet(candidate, KnownAttributes.ProduceProblems, out var validatorProduceProblems))
-                AddProduceProblems(validatorProduceProblems!, produceProblems);
+                AddProduceProblems(
+                    validatorProduceProblems!, produceProblems, errors, methodLocation, cancellationToken);
 
             var order = validationAttr!.NamedArguments
                 .Where(argument => argument.Key == "Order")
@@ -1035,6 +1063,64 @@ internal static class CommandHandlerGenerator
         }
 
         return false;
+    }
+
+    private enum ParameterRole
+    {
+        Dependency,
+        External,
+        CancellationToken,
+        Context,
+        Entity,
+    }
+
+    private static ParameterRole GetParameterRole(ParameterDescriptor parameter)
+    {
+        if (parameter.Type.IsCancellationToken)
+            return ParameterRole.CancellationToken;
+        if (parameter.Type.IsHandlerParameter)
+            return ParameterRole.External;
+        if (parameter.Type.IsContext)
+            return ParameterRole.Context;
+        if (parameter.Type.IsEntity || parameter.Type.IsCollectionOfEntities)
+            return ParameterRole.Entity;
+        return ParameterRole.Dependency;
+    }
+
+    private static string FormatParameterRole(ParameterRole role) => role switch
+    {
+        ParameterRole.Dependency => "dependency injection",
+        ParameterRole.External => "WithParameter",
+        ParameterRole.CancellationToken => "CancellationToken",
+        ParameterRole.Context => "context",
+        ParameterRole.Entity => "entity",
+        _ => role.ToString(),
+    };
+
+    private static List<(string Name, Location Location, CapturedBindings Captured)> NormalizeCapturedBindings(
+        List<(string Name, Location Location, CapturedBindings Captured)> capturedBindings)
+    {
+        var normalized = new List<(string Name, Location Location, CapturedBindings Captured)>();
+
+        foreach (var group in capturedBindings.GroupBy(binding => binding.Name, StringComparer.Ordinal))
+        {
+            var bindings = group
+                .SelectMany(binding => binding.Captured.Bindings)
+                .Distinct()
+                .ToArray();
+            var hasAsParameters = group.Any(binding => binding.Captured.HasAsParameters);
+            var first = group.First();
+
+            normalized.Add((
+                group.Key,
+                first.Location,
+                new CapturedBindings(
+                    new EquatableArray<ParameterBindingModel>(bindings),
+                    bindings.Length,
+                    hasAsParameters)));
+        }
+
+        return normalized;
     }
 
     /// <summary>
@@ -1099,18 +1185,23 @@ internal static class CommandHandlerGenerator
 
         if (explicitRouteParameterName is not null)
         {
-            resolved = routeParameters.FirstOrDefault(parameter =>
-                string.Equals(parameter.Name, explicitRouteParameterName, StringComparison.OrdinalIgnoreCase));
+            var matches = routeParameters.Where(parameter =>
+                string.Equals(parameter.Name, explicitRouteParameterName, StringComparison.OrdinalIgnoreCase)).ToArray();
 
-            if (resolved is null)
+            if (matches.Length != 1)
             {
+                var reason = matches.Length == 0
+                    ? $"the route parameter '{explicitRouteParameterName}' specified in RouteParameterName does not exist in the template"
+                    : $"the route parameter '{explicitRouteParameterName}' specified in RouteParameterName occurs more than once in the template";
                 errors.Add(DiagnosticInfo.Create(
                     CmdDiagnostics.EditEntityRouteParameterNotResolved,
                     location,
                     template,
-                    $"the route parameter '{explicitRouteParameterName}' specified in RouteParameterName does not exist in the template"));
+                    reason));
                 return null;
             }
+
+            resolved = matches[0];
         }
         else if (routeParameters.Count == 0)
         {
@@ -1125,20 +1216,30 @@ internal static class CommandHandlerGenerator
         else
         {
             var entityParameterName = editType.Parameter!.Name;
-            resolved = routeParameters.FirstOrDefault(parameter =>
-                    string.Equals(parameter.Name, $"{entityParameterName}Id", StringComparison.OrdinalIgnoreCase))
-                ?? routeParameters.FirstOrDefault(parameter =>
-                    string.Equals(parameter.Name, entityParameterName, StringComparison.OrdinalIgnoreCase));
-
-            if (resolved is null)
+            var conventionalName = $"{entityParameterName}Id";
+            var matches = routeParameters.Where(parameter =>
+                string.Equals(parameter.Name, conventionalName, StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (matches.Length == 0)
             {
+                conventionalName = entityParameterName;
+                matches = routeParameters.Where(parameter =>
+                    string.Equals(parameter.Name, conventionalName, StringComparison.OrdinalIgnoreCase)).ToArray();
+            }
+
+            if (matches.Length != 1)
+            {
+                var reason = matches.Length == 0
+                    ? $"the template has multiple route parameters and none matches '{entityParameterName}Id' or '{entityParameterName}'; specify RouteParameterName on EditEntityAttribute"
+                    : $"the route parameter '{conventionalName}' occurs more than once in the template; specify a unique RouteParameterName on EditEntityAttribute";
                 errors.Add(DiagnosticInfo.Create(
                     CmdDiagnostics.EditEntityRouteParameterNotResolved,
                     location,
                     template,
-                    $"the template has multiple route parameters and none matches '{entityParameterName}Id' or '{entityParameterName}'; specify RouteParameterName on EditEntityAttribute"));
+                    reason));
                 return null;
             }
+
+            resolved = matches[0];
         }
 
         ValidateEditRouteParameter(resolved, editType, location, errors);
@@ -1224,15 +1325,62 @@ internal static class CommandHandlerGenerator
     }
 
     /// <summary>
-    /// Um tipo com <c>BindAsync</c> ou <c>TryParse</c> públicos e estáticos usa o binding customizado do
-    /// próprio tipo no Minimal API (o body não é inferido).
+    /// Determina se o tipo possui uma das assinaturas de binding customizado reconhecidas pelo Minimal API:
+    /// <c>BindAsync(HttpContext[, ParameterInfo])</c>, retornando <c>ValueTask&lt;T&gt;</c>, ou
+    /// <c>TryParse(string[, IFormatProvider], out T)</c>, retornando <c>bool</c>.
     /// </summary>
-    private static bool HasCustomBindingMethod(INamedTypeSymbol commandType) =>
+    private static bool HasValidCustomBindingMethod(INamedTypeSymbol commandType) =>
         commandType.GetMembers()
             .OfType<IMethodSymbol>()
-            .Any(candidate => candidate.IsStatic &&
-                candidate.DeclaredAccessibility == Accessibility.Public &&
-                candidate.Name is "BindAsync" or "TryParse");
+            .Any(candidate => IsValidBindAsync(candidate, commandType) || IsValidTryParse(candidate, commandType));
+
+    private static bool IsValidBindAsync(IMethodSymbol method, INamedTypeSymbol targetType)
+    {
+        if (!IsPublicStaticOrdinaryMethod(method, "BindAsync") ||
+            method.ReturnType is not INamedTypeSymbol returnType ||
+            !IsType(returnType, "System.Threading.Tasks", "ValueTask`1") ||
+            returnType.TypeArguments.Length != 1 ||
+            !SymbolEqualityComparer.Default.Equals(returnType.TypeArguments[0], targetType))
+        {
+            return false;
+        }
+
+        return method.Parameters.Length is 1 or 2 &&
+            IsType(method.Parameters[0].Type, "Microsoft.AspNetCore.Http", "HttpContext") &&
+            (method.Parameters.Length == 1 ||
+             IsType(method.Parameters[1].Type, "System.Reflection", "ParameterInfo")) &&
+            method.Parameters.All(parameter => parameter.RefKind == RefKind.None);
+    }
+
+    private static bool IsValidTryParse(IMethodSymbol method, INamedTypeSymbol targetType)
+    {
+        if (!IsPublicStaticOrdinaryMethod(method, "TryParse") ||
+            method.ReturnType.SpecialType != SpecialType.System_Boolean ||
+            method.Parameters.Length is not (2 or 3) ||
+            method.Parameters[0].Type.SpecialType != SpecialType.System_String ||
+            method.Parameters[0].RefKind != RefKind.None)
+        {
+            return false;
+        }
+
+        var result = method.Parameters[method.Parameters.Length - 1];
+        if (result.RefKind != RefKind.Out ||
+            !SymbolEqualityComparer.Default.Equals(result.Type, targetType))
+        {
+            return false;
+        }
+
+        return method.Parameters.Length == 2 ||
+            (method.Parameters[1].RefKind == RefKind.None &&
+             IsType(method.Parameters[1].Type, "System", "IFormatProvider"));
+    }
+
+    private static bool IsPublicStaticOrdinaryMethod(IMethodSymbol method, string name) =>
+        method.Name == name &&
+        method.IsStatic &&
+        method.MethodKind == MethodKind.Ordinary &&
+        method.DeclaredAccessibility == Accessibility.Public &&
+        !method.IsGenericMethod;
 
     private static bool HasRequestBodyShape(ClassDeclarationSyntax classDeclaration, SemanticModel semanticModel)
     {
@@ -1318,12 +1466,37 @@ internal static class CommandHandlerGenerator
     /// Extrai os valores de <c>ProduceProblems(params ProblemCategory[])</c> como <c>ProblemCategory.Membro</c>,
     /// aceitando <c>params</c> expandido e array explícito; valores não constantes são ignorados.
     /// </summary>
-    private static void AddProduceProblems(AttributeData attribute, List<string> produceProblems)
+    private static void AddProduceProblems(
+        AttributeData attribute,
+        List<string> produceProblems,
+        List<DiagnosticInfo> errors,
+        Location fallbackLocation,
+        CancellationToken cancellationToken)
     {
         foreach (var argument in attribute.ConstructorArguments)
         {
+            if (argument.IsNull)
+            {
+                errors.Add(DiagnosticInfo.Create(
+                    CmdDiagnostics.InvalidEndpointMetadataArgument,
+                    KnownAttributes.GetLocation(attribute, cancellationToken, fallbackLocation),
+                    "ProduceProblems",
+                    "a non-null collection of problem categories"));
+                continue;
+            }
+
             if (argument.Kind == TypedConstantKind.Array)
             {
+                if (argument.Values.IsDefault)
+                {
+                    errors.Add(DiagnosticInfo.Create(
+                        CmdDiagnostics.InvalidEndpointMetadataArgument,
+                        KnownAttributes.GetLocation(attribute, cancellationToken, fallbackLocation),
+                        "ProduceProblems",
+                        "a non-null collection of problem categories"));
+                    continue;
+                }
+
                 foreach (var item in argument.Values)
                 {
                     if (KnownAttributes.FormatEnumMember(item) is { } value)
@@ -1490,17 +1663,19 @@ internal static class CommandHandlerGenerator
         }
 
         // tenta obter a descrição
-        if (KnownAttributes.TryGet(commandType, KnownAttributes.WithDescription, out var descAttr) &&
-            descAttr!.ConstructorArguments.Length == 1)
+        if (KnownAttributes.TryGet(commandType, KnownAttributes.WithDescription, out var descAttr))
         {
-            description = KnownAttributes.GetString(descAttr.ConstructorArguments[0]);
+            if (!TryReadRequiredString(descAttr!, "WithDescription", "a non-null description", method, errors,
+                    cancellationToken, out description))
+                return null;
         }
 
         // tenta obter o summary
-        if (KnownAttributes.TryGet(commandType, KnownAttributes.WithSummary, out var summaryAttr) &&
-            summaryAttr!.ConstructorArguments.Length == 1)
+        if (KnownAttributes.TryGet(commandType, KnownAttributes.WithSummary, out var summaryAttr))
         {
-            summary = KnownAttributes.GetString(summaryAttr.ConstructorArguments[0]);
+            if (!TryReadRequiredString(summaryAttr!, "WithSummary", "a non-null summary", method, errors,
+                    cancellationToken, out summary))
+                return null;
         }
 
         // tenta obter o authorization
@@ -1510,27 +1685,56 @@ internal static class CommandHandlerGenerator
         // se tiver o attribute WithPolicy, deve obter o(s) nome(s) da(s) política(s) — aceita params e array explícito
         if (KnownAttributes.TryGet(commandType, KnownAttributes.WithPolicy, out var policyAttr))
         {
-            var policies = policyAttr!.ConstructorArguments.Length > 0
-                ? KnownAttributes.GetStrings(policyAttr.ConstructorArguments[0]).ToArray()
-                : [];
+            if (policyAttr!.ConstructorArguments.Length != 1 ||
+                policyAttr.ConstructorArguments[0].Kind == TypedConstantKind.Error)
+                return null;
+
+            if (!KnownAttributes.TryGetStrings(policyAttr.ConstructorArguments[0], out var policies))
+            {
+                AddInvalidEndpointMetadataDiagnostic(
+                    policyAttr, "WithPolicy", "a non-null array of policy names", method, errors, cancellationToken);
+                return null;
+            }
             authorizationPolicies = policies.Length > 0 ? policies : authorizationPolicies ?? [];
         }
 
         // tenta obter o MapGroup attribute
-        if (KnownAttributes.TryGet(commandType, KnownAttributes.MapGroup, out var groupAttr) &&
-            groupAttr!.ConstructorArguments.Length == 1)
+        if (KnownAttributes.TryGet(commandType, KnownAttributes.MapGroup, out var groupAttr))
         {
-            groupName = KnownAttributes.GetString(groupAttr.ConstructorArguments[0]);
+            if (!TryReadRequiredString(groupAttr!, "MapGroup", "a non-null route prefix", method, errors,
+                    cancellationToken, out groupName))
+                return null;
         }
 
         // tenta obter MapCreatedRoute — (route pattern, params nomes de propriedades)
-        if (KnownAttributes.TryGet(commandType, KnownAttributes.MapCreatedRoute, out var createdRouteAttr) &&
-            createdRouteAttr!.ConstructorArguments.Length > 0 &&
-            KnownAttributes.GetString(createdRouteAttr.ConstructorArguments[0]) is { } createdRoutePattern)
+        if (KnownAttributes.TryGet(commandType, KnownAttributes.MapCreatedRoute, out var createdRouteAttr))
         {
-            var propertiesNames = createdRouteAttr.ConstructorArguments.Length > 1
-                ? KnownAttributes.GetStrings(createdRouteAttr.ConstructorArguments[1]).ToArray()
-                : [];
+            if (createdRouteAttr!.ConstructorArguments.Length == 0 ||
+                createdRouteAttr.ConstructorArguments[0].Kind == TypedConstantKind.Error)
+                return null;
+
+            var createdRoutePattern = KnownAttributes.GetString(createdRouteAttr.ConstructorArguments[0]);
+            if (createdRoutePattern is null)
+            {
+                AddInvalidEndpointMetadataDiagnostic(
+                    createdRouteAttr, "MapCreatedRoute", "a non-null route pattern", method, errors, cancellationToken);
+                return null;
+            }
+
+            string[] propertiesNames = [];
+            if (createdRouteAttr.ConstructorArguments.Length > 1)
+            {
+                var propertiesArgument = createdRouteAttr.ConstructorArguments[1];
+                if (propertiesArgument.Kind == TypedConstantKind.Error)
+                    return null;
+                if (!KnownAttributes.TryGetStrings(propertiesArgument, out propertiesNames))
+                {
+                    AddInvalidEndpointMetadataDiagnostic(
+                        createdRouteAttr, "MapCreatedRoute", "a non-null array of property names", method, errors,
+                        cancellationToken);
+                    return null;
+                }
+            }
 
             createdInformation = new MapCreatedInformation(createdRoutePattern, propertiesNames);
         }
@@ -1560,9 +1764,17 @@ internal static class CommandHandlerGenerator
         // tenta obter MapResponseValues e seus parâmetros
         if (KnownAttributes.TryGet(commandType, KnownAttributes.MapResponseValues, out var resultValueAttr))
         {
-            var propertiesNames = resultValueAttr!.ConstructorArguments.Length > 0
-                ? KnownAttributes.GetStrings(resultValueAttr.ConstructorArguments[0]).ToArray()
-                : [];
+            if (resultValueAttr!.ConstructorArguments.Length == 0 ||
+                resultValueAttr.ConstructorArguments[0].Kind == TypedConstantKind.Error)
+                return null;
+
+            if (!KnownAttributes.TryGetStrings(resultValueAttr.ConstructorArguments[0], out var propertiesNames))
+            {
+                AddInvalidEndpointMetadataDiagnostic(
+                    resultValueAttr, "MapResponseValues", "a non-null array of property names", method, errors,
+                    cancellationToken);
+                return null;
+            }
 
             if (propertiesNames.Length > 0)
             {
@@ -1624,6 +1836,44 @@ internal static class CommandHandlerGenerator
             ResponseValues = responseValues,
             AuthorizationPolicies = authorizationPolicies
         };
+    }
+
+    private static bool TryReadRequiredString(
+        AttributeData attribute,
+        string attributeName,
+        string requirement,
+        MethodDeclarationSyntax method,
+        List<DiagnosticInfo> errors,
+        CancellationToken cancellationToken,
+        out string? value)
+    {
+        value = null;
+        if (attribute.ConstructorArguments.Length != 1 ||
+            attribute.ConstructorArguments[0].Kind == TypedConstantKind.Error)
+            return false;
+
+        value = KnownAttributes.GetString(attribute.ConstructorArguments[0]);
+        if (value is not null)
+            return true;
+
+        AddInvalidEndpointMetadataDiagnostic(
+            attribute, attributeName, requirement, method, errors, cancellationToken);
+        return false;
+    }
+
+    private static void AddInvalidEndpointMetadataDiagnostic(
+        AttributeData attribute,
+        string attributeName,
+        string requirement,
+        MethodDeclarationSyntax method,
+        List<DiagnosticInfo> errors,
+        CancellationToken cancellationToken)
+    {
+        errors.Add(DiagnosticInfo.Create(
+            CmdDiagnostics.InvalidEndpointMetadataArgument,
+            KnownAttributes.GetLocation(attribute, cancellationToken, method.Identifier.GetLocation()),
+            attributeName,
+            requirement));
     }
 
     internal static ClassGenerator GenerateInterface(CommandHandlerInformation i)
