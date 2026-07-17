@@ -226,6 +226,7 @@ textual por ocorrência com `rg -o` + `Measure-Object -Line`; os números não r
 - **DF17 — `MapCreatedRoute` usa placeholders nomeados:** remover o contrato posicional `"{0}"`; casar placeholders como `"{id}"`, sem diferenciar maiúsculas, com propriedades declaradas por `nameof`, diagnosticando em compilação quantidade, nome, duplicação e propriedade incompatível. Fonte: Q6=A e definição do mantenedor.
 - **DF18 — Tipo estrutural separado do uso:** `TypeSnapshot` contém apenas identidade, nulabilidade e forma semântica equatável. Papéis contextuais (`Entity`, `Context`, `HandlerParameter`, `CollectionOfEntities`) pertencem a `TypeUsageSnapshot`, usado pelos snapshots de parâmetro/serviço. Políticas como Task/ValueTask, Result, CancellationToken e wrapping são derivadas no SmartCommands, não armazenadas como decisões no snapshot estrutural. Fonte: definição do mantenedor a partir da revisão arquitetural.
 - **DF19 — `EquatableArray<T>` normaliza ausência:** `default(EquatableArray<T>)` e coleção vazia representam a mesma sequência sem itens, com igualdade e hash idênticos; ausência com significado de domínio deve ser modelada explicitamente fora da coleção. Fonte: definição do mantenedor a partir da revisão arquitetural.
+- **DF21 — Transação por comando (`[WithTransaction]`):** novo atributo opcional no método de comando exige transação para aquele comando, independentemente da opção global `BeginTransactions`. `IUnitOfWorkAccessor<T>.BeginAsync` ganha a assinatura `BeginAsync(bool requireTransaction, CancellationToken ct)`: com `options.BeginTransactions = true` a transação é sempre criada (como hoje); com a opção desligada, criada somente quando `requireTransaction = true`. Somente opt-in — não há modo de desligar por comando. O atributo exige UoW (`WithUnitOfWork`/`WithDbContext`/`WithWorkContext`); uso sem UoW produz diagnóstico (RCCMD041). A mudança de interface é breaking direta (DF1), sem default interface method, e vale para os dois accessors (EF e WorkContext). Implementação na Fase 8. Fonte: proposta do mantenedor em 2026-07-16, motivada por retry com escritas intermediárias.
 - **DF20 — Hint names legíveis, curtos e determinísticos:** todo arquivo emitido pelo generator usa o formato `{nomeLegívelLimitado}.{hash}.g.cs`, mantendo o nome do tipo/artefato na frente para facilitar localização. `nomeLegívelLimitado` é sanitizado e limitado a 32 caracteres; `hash` possui exatamente 8 caracteres Base32 (`A-Z2-7`) e codifica os primeiros 40 bits do SHA-256 da identidade completa do artefato, incluindo namespace e papel gerado. O sufixo é sempre emitido, não representa erro nem workaround transitório: ele evita colisões entre tipos homônimos e mantém os caminhos materializados abaixo dos limites comuns do Windows/Git. Não usar o metadata name completo no nome físico, não mover o hash para prefixo e não reduzir a identidade abaixo de 40 bits sem nova decisão. Fonte: definição do mantenedor após validação do limite de caminhos e da usabilidade dos arquivos gerados.
 
 ---
@@ -250,6 +251,7 @@ textual por ocorrência com `rg -o` + `Measure-Object -Line`; os números não r
 - `EditEntityAttribute<TEntity,TId>.RouteParameterName`: propriedade nomeada opcional para desambiguação; valor inexistente, duplicado ou incompatível produz RCCMD.
 - `CommandValidationAttribute`: marcador de método de instância com `Order` opcional, padrão `10`, conforme DF13; contrato detalhado na Fase 6, sem acesso implícito a entidade/UoW antes do carregamento.
 - `IUnitOfWorkAccessor<T>.CompleteAsync`: mantém `Task<Result>` nesta entrega; falhas inesperadas são limpas e relançadas conforme DF14.
+- `IUnitOfWorkAccessor<T>.BeginAsync(bool requireTransaction, CancellationToken ct)` e `[WithTransaction]`: transação exigível por comando conforme DF21 (Fase 8).
 - Diagnósticos: RCCMD000-RCCMD025 mantêm IDs; novos IDs começam em RCCMD026; texto pode ser corrigido diretamente, e cada ID recebe documentação no repositório.
 - Hint names: seguir o formato legível, limitado e determinístico definido em DF20; colisões são detectadas antes de `AddSource`.
 
@@ -1205,7 +1207,7 @@ usando `Context` sem segunda referência ao contexto.
 
 ## Fase 8 - Runtime de decorators, WorkContext e retry
 
-**Depende de:** Fases 4 e 6 para ordem do pipeline; DF5.
+**Depende de:** Fases 4 e 6 para ordem do pipeline; DF5 e DF21.
 
 **Escopo:** `Mediator`, geração de decorators, `ConcurrencyRetryExtensions`, factory/options/DI e testes WorkContext.
 
@@ -1219,6 +1221,7 @@ usando `Context` sem segunda referência ao contexto.
 - [ ] Fazer `ExhaustedProblemTypeId` e `ExhaustedProblemDetail` valerem mesmo quando `[WithRetryOnConcurrency]` não informa `Operation`.
 - [ ] Definir chave estável default de operação para factory/registro sem usar texto localizado.
 - [ ] Preservar validação fora do retry e Begin/find/command/Complete dentro dele.
+- [ ] Implementar DF21: atributo `[WithTransaction]`, assinatura `BeginAsync(bool requireTransaction, CancellationToken ct)` nos dois accessors (EF e WorkContext), emissão do generator com `requireTransaction: true` quando o atributo estiver presente, diagnóstico RCCMD041 para uso sem UoW, testes (incluindo retry com transação exigida pelo comando) e documentação (`commands.md`, `entity-framework.md`, `AnalyzerReleases`).
 - [ ] Testar rollback/cleanup entre tentativas, budget `1`, opções default, custom factory por command/operação e cancelamento durante rollback.
 - [ ] Avaliar logging/métrica de tentativa e backoff como design; manter fora da implementação salvo nova decisão humana.
 
