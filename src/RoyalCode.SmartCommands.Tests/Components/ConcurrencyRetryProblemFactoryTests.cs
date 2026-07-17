@@ -89,6 +89,55 @@ public class ConcurrencyRetryProblemFactoryTests
         Assert.Equal("configured.concurrency", problem.TypeId);
     }
 
+    [Fact]
+    public void Create_Must_UseRegistrationByDefaultKey_WhenRegisteredWithoutOperation()
+    {
+        // Fase 8: sem Operation no atributo, o handler gerado usa a chave default
+        // ({namespace}.{Comando}); o registro sem operation usa a mesma chave.
+        var services = NewServices()
+            .AddConcurrencyRetryProblem<ChangePassword>(
+                static (command, context) => Problems.InvalidState(
+                    $"conflict:{command.UserId}:{context.Operation}",
+                    typeId: "account.concurrency"))
+            .BuildServiceProvider();
+
+        var factory = services.GetRequiredService<IConcurrencyRetryProblemFactory>();
+        var defaultKey = ConcurrencyRetryOperations.DefaultFor<ChangePassword>();
+
+        var problem = factory.Create(new ChangePassword("u1"), defaultKey);
+
+        Assert.Equal($"conflict:u1:{defaultKey}", problem.Detail);
+        Assert.Equal("account.concurrency", problem.TypeId);
+    }
+
+    [Fact]
+    public void Create_Must_UseConfiguredFallback_ForDefaultKey_WhenNoRegistrationExists()
+    {
+        // garante que ExhaustedProblemDetail/TypeId valem também no caminho sem Operation
+        var services = NewServices();
+        services.AddConcurrencyRetryProblems();
+        services.Configure<RetryOnConcurrencyOptions>(options =>
+        {
+            options.ExhaustedProblemDetail = "configured detail";
+            options.ExhaustedProblemTypeId = "configured.concurrency";
+        });
+
+        var factory = services.BuildServiceProvider()
+            .GetRequiredService<IConcurrencyRetryProblemFactory>();
+
+        var problem = factory.Create(new ChangePassword("u1"), ConcurrencyRetryOperations.DefaultFor<ChangePassword>());
+
+        Assert.Equal("configured detail", problem.Detail);
+        Assert.Equal("configured.concurrency", problem.TypeId);
+    }
+
+    [Fact]
+    public void DefaultFor_Must_BeTheQualifiedTypeName_NotLocalizedText()
+    {
+        Assert.Equal(typeof(ChangePassword).FullName, ConcurrencyRetryOperations.DefaultFor<ChangePassword>());
+        Assert.Equal(typeof(ChangePassword).FullName, ConcurrencyRetryOperations.DefaultFor(typeof(ChangePassword)));
+    }
+
     private sealed record ChangePassword(string UserId);
 
     private sealed record MessageSource(string Message);

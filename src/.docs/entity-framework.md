@@ -25,11 +25,11 @@ problemas explicitamente conhecidos**; todo o resto atravessa a borda como exce�
 
 | Situação | Comportamento |
 |---|---|
-| Save + commit bem-sucedidos | `Result.Ok()`; a transação é commitada **uma única vez** |
+| Save + commit bem-sucedidos | `Result.Ok()`; a transação é commitada **uma única vez** e descartada pelo adapter |
 | `DbUpdateConcurrencyException` (conflito otimista) | **Problema conhecido**: rollback (se o adapter iniciou a transação) e `Result` com problema `InvalidState` (409) de detalhe genérico — a mensagem do provider/EF não vaza ao chamador |
 | `OperationCanceledException` | Rollback com **token próprio** (não cancelado) e **relançamento**: cancelamento permanece cancelamento, nunca vira `Result`, problema ou 500 |
 | Qualquer outra exceção (`DbUpdateException`, exceções de provider, mapeamento etc.) | Rollback com token próprio e **relançamento da exceção original** (mesma instância, stack preservado) |
-| Falha primária **e** falha no rollback | `AggregateException` com as duas: a primeira inner é a falha do save/commit, a segunda é a falha do rollback |
+| Falha primária **e** falha na limpeza da transação | `AggregateException` com as duas: a primeira inner é a falha do save/commit, a segunda é a falha do rollback ou do descarte |
 
 Regras adicionais:
 
@@ -39,6 +39,9 @@ Regras adicionais:
   adapter, mesmo com `BeginTransactions = true`.
 - O rollback usa `CancellationToken.None`: o token do handler pode já estar cancelado e a
   limpeza não pode ser abortada antes de tentar.
+- Depois de commit ou rollback bem-sucedido, o adapter descarta explicitamente a transação que
+  criou. O descarte também faz parte da limpeza: se falhar enquanto outra exceção já está em
+  propagação, ambas são preservadas em `AggregateException`.
 - A regra da falha dupla **sobrepõe** as linhas de concorrência e cancelamento: se o rollback
   falhar, o chamador recebe `AggregateException` (com a `DbUpdateConcurrencyException` ou a
   `OperationCanceledException` como primeira inner) em vez do problema conhecido/cancelamento.
@@ -73,7 +76,8 @@ reexecutar o comando, se fizer sentido.
 ## 5. Testes
 
 `RoyalCode.SmartCommands.EntityFramework.Tests` cobre o contrato com SQLite in-memory real
-(sem mocks de `DbContext`) e interceptors de falha para save/commit/rollback:
+(sem mocks de `DbContext`) e interceptors de falha para save/commit/rollback e observação da
+transação física descartada:
 
 - `DbContextAccessorTests`: sucesso/commit único, falha inesperada relançada após rollback,
   falha no commit, falha no rollback (`AggregateException` com as duas), cancelamento
@@ -81,6 +85,6 @@ reexecutar o comando, se fizer sentido.
 - `RepositoryAdapterTests`: find e projeção usando o `Context` tipado herdado.
 - `GeneratedHandlerTests`: o generator roda como analyzer sobre o projeto de teste; o handler
   gerado real é consumido direto do DI (uso fora de HTTP).
-- `HttpBoundaryTests`: minimal API com TestServer; 201 para sucesso, 409 pelo `Result` para
+- `HttpBoundaryTests`: Minimal API **gerada** por `MapApiHandlers`, com TestServer; 201 para sucesso, 409 pelo `Result` para
   conflito e 500 `ProblemDetails` pelo `UseExceptionHandler` para exceção inesperada, sem
   vazar o detalhe interno.

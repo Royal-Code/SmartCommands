@@ -53,7 +53,10 @@ public static class ConcurrencyRetryExtensions
     ///     Optional factory for the <see cref="Problem"/> returned when the retry budget is exhausted.
     ///     When <c>null</c>, a generic <see cref="Problems.InvalidState(string, string?, string?)"/> (409) problem is returned.
     /// </param>
-    /// <param name="ct">The cancellation token used to roll back the transaction between attempts.</param>
+    /// <param name="ct">
+    ///     Used only to stop retrying (after the cleanup) when cancellation is requested; the between-attempts
+    ///     rollback runs on its own token so the cleanup is never aborted before it runs.
+    /// </param>
     /// <returns>The result of <paramref name="body"/>, or a conflict problem when the attempts are exhausted.</returns>
     public static async Task<Result> RetryOnConcurrencyAsync(
         this IUnitOfWork unitOfWork,
@@ -77,15 +80,20 @@ public static class ConcurrencyRetryExtensions
 
                 // Revert any partial work from the failed attempt before reloading: the save threw before the
                 // unit of work could roll back, so an open transaction would otherwise re-apply already-sent commands.
+                // The rollback runs on its own token: the handler token may already be cancelled, and the cleanup
+                // must not be aborted before it runs.
                 var transaction = unitOfWork.GetCurrentTransaction();
                 if (transaction is not null)
-                    await transaction.RollbackAsync(ct);
+                    await transaction.RollbackAsync(CancellationToken.None);
 
                 // Detach tracked entities so the next attempt reloads fresh state from the store.
                 unitOfWork.CleanUp();
 
                 if (attempt >= maxAttempts)
                     return onExhausted?.Invoke() ?? Problems.InvalidState(ConcurrencyConflictDetail);
+
+                // cancellation stays cancellation: after the cleanup, do not start a new attempt
+                ct.ThrowIfCancellationRequested();
             }
         }
     }
@@ -112,7 +120,10 @@ public static class ConcurrencyRetryExtensions
     ///     Optional factory for the <see cref="Problem"/> returned when the retry budget is exhausted.
     ///     When <c>null</c>, a generic <see cref="Problems.InvalidState(string, string?, string?)"/> (409) problem is returned.
     /// </param>
-    /// <param name="ct">The cancellation token used to roll back the transaction between attempts.</param>
+    /// <param name="ct">
+    ///     Used only to stop retrying (after the cleanup) when cancellation is requested; the between-attempts
+    ///     rollback runs on its own token so the cleanup is never aborted before it runs.
+    /// </param>
     /// <returns>The result of <paramref name="body"/>, or a conflict problem when the attempts are exhausted.</returns>
     public static async Task<Result<T>> RetryOnConcurrencyAsync<T>(
         this IUnitOfWork unitOfWork,
@@ -136,15 +147,20 @@ public static class ConcurrencyRetryExtensions
 
                 // Revert any partial work from the failed attempt before reloading: the save threw before the
                 // unit of work could roll back, so an open transaction would otherwise re-apply already-sent commands.
+                // The rollback runs on its own token: the handler token may already be cancelled, and the cleanup
+                // must not be aborted before it runs.
                 var transaction = unitOfWork.GetCurrentTransaction();
                 if (transaction is not null)
-                    await transaction.RollbackAsync(ct);
+                    await transaction.RollbackAsync(CancellationToken.None);
 
                 // Detach tracked entities so the next attempt reloads fresh state from the store.
                 unitOfWork.CleanUp();
 
                 if (attempt >= maxAttempts)
                     return onExhausted?.Invoke() ?? Problems.InvalidState(ConcurrencyConflictDetail);
+
+                // cancellation stays cancellation: after the cleanup, do not start a new attempt
+                ct.ThrowIfCancellationRequested();
             }
         }
     }

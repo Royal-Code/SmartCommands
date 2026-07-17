@@ -25,7 +25,7 @@ public class CriarProduto2Handler : ICriarProduto2Handler
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         return await command.Execute(db, ct)
             .ContinueAsync(this.accessor, static async (e, a, ct) => await a.AddEntityAsync(e, ct), ct)

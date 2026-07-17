@@ -36,7 +36,7 @@ public class CriarPedidoHandler<TContext> : ICriarPedidoHandler
         return await this.accessor.Context.RetryOnConcurrencyAsync<Pedido>(
             async () =>
             {
-                await this.accessor.BeginAsync(ct);
+                await this.accessor.BeginAsync(requireTransaction: false, ct);
 
                 return await command.Execute(db, ct)
                     .ContinueAsync(this.accessor, static async (e, a, ct) => await a.AddEntityAsync(e, ct), ct)

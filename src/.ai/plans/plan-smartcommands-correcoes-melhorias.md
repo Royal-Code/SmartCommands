@@ -1141,11 +1141,11 @@ Executada em 2026-07-16, após as correções da revisão do mantenedor sobre as
 
 O projeto usa SQLite in-memory **real** (conexão compartilhada; sem mock de `DbContext`), doubles por
 interceptors (`SaveChangesInterceptor` para falha de save; `DbTransactionInterceptor` para falha/contagem de
-commit/rollback) e referencia o **generator como analyzer** (padrão do `Tests.Models`), de modo que os
+commit/rollback e observação do descarte da transação física) e referencia o **generator como analyzer** (padrão do `Tests.Models`), de modo que os
 handlers gerados reais (`CriarGadget`/`RenomearGadget` com `WithUnitOfWork<TestDbContext>`) são consumidos
 do DI:
 
-- `DbContextAccessorTests` (9): sucesso com/sem transação (commit único), falha de save/commit relançada com
+- `DbContextAccessorTests` (10): sucesso com/sem transação (commit único e descarte da transação própria), falha de save/commit relançada com
   a mesma instância após rollback, falha sem transação do adapter não tenta rollback, transação aberta pelo
   usuário não é commitada nem revertida pelo adapter, rollback falho preserva as duas exceções, cancelamento
   atravessa com cleanup em token próprio, conflito otimista real (dois contextos, token `Versao`) com e sem
@@ -1154,7 +1154,7 @@ do DI:
 - `GeneratedHandlerTests` (4, fora de HTTP): sucesso persiste; exceção inesperada atravessa o handler gerado
   (mesma instância); cancelamento disparado entre find e save atravessa como OCE com rollback; conflito
   otimista real intercalado pelo hook do comando chega como problema ao chamador.
-- `HttpBoundaryTests` (3, borda HTTP com TestServer): 201 sucesso; exceção inesperada → 500
+- `HttpBoundaryTests` (3, borda HTTP gerada por `MapApiHandlers`, com TestServer): 201 sucesso; exceção inesperada → 500
   `application/problem+json` pelo `UseExceptionHandler`+`AddProblemDetails` **sem vazar a mensagem interna**;
   conflito → 409 pelo `Result` sem passar pelo middleware de exceção.
 

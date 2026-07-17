@@ -140,6 +140,48 @@ public static class CommandsWorkContextExtensions
     }
 
     /// <summary>
+    /// <para>
+    ///     Registers a retry-exhausted problem factory for a command that uses the default operation key
+    ///     (<c>[WithRetryOnConcurrency]</c> without <c>Operation</c>).
+    /// </para>
+    /// <para>
+    ///     The default key is <see cref="ConcurrencyRetryOperations.DefaultFor{TCommand}()"/> — the
+    ///     namespace-qualified name of the command type.
+    /// </para>
+    /// </summary>
+    /// <typeparam name="TCommand">The command type.</typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <param name="factory">The problem factory.</param>
+    /// <returns>The same <paramref name="services"/> for chaining.</returns>
+    public static IServiceCollection AddConcurrencyRetryProblem<TCommand>(
+        this IServiceCollection services,
+        ConcurrencyRetryProblemDelegate<TCommand> factory)
+    {
+        return services.AddConcurrencyRetryProblem(ConcurrencyRetryOperations.DefaultFor<TCommand>(), factory);
+    }
+
+    /// <summary>
+    /// <para>
+    ///     Registers a retry-exhausted problem factory, with access to DI, for a command that uses the default
+    ///     operation key (<c>[WithRetryOnConcurrency]</c> without <c>Operation</c>).
+    /// </para>
+    /// <para>
+    ///     The default key is <see cref="ConcurrencyRetryOperations.DefaultFor{TCommand}()"/> — the
+    ///     namespace-qualified name of the command type.
+    /// </para>
+    /// </summary>
+    /// <typeparam name="TCommand">The command type.</typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <param name="factory">The problem factory.</param>
+    /// <returns>The same <paramref name="services"/> for chaining.</returns>
+    public static IServiceCollection AddConcurrencyRetryProblem<TCommand>(
+        this IServiceCollection services,
+        ConcurrencyRetryProblemServiceDelegate<TCommand> factory)
+    {
+        return services.AddConcurrencyRetryProblem(ConcurrencyRetryOperations.DefaultFor<TCommand>(), factory);
+    }
+
+    /// <summary>
     /// Registers a retry-exhausted problem factory for a command operation.
     /// </summary>
     /// <typeparam name="TCommand">The command type.</typeparam>

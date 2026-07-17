@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using RoyalCode.SmartCommands;
 using RoyalCode.SmartCommands.Demo.Commands.Produtos;
 using RoyalCode.SmartCommands.Demo.Domain;
+using RoyalCode.SmartCommands.WorkContext;
 using RoyalCode.SmartCommands.WorkContext.Options;
 using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext;
@@ -16,11 +17,13 @@ public class DesativarProdutoHandler<TContext> : IDesativarProdutoHandler
 {
     private readonly IUnitOfWorkAccessor<TContext> accessor;
     private readonly IOptions<RetryOnConcurrencyOptions> retryOptions;
+    private readonly IConcurrencyRetryProblemFactory retryProblemFactory;
 
-    public DesativarProdutoHandler(IUnitOfWorkAccessor<TContext> accessor, IOptions<RetryOnConcurrencyOptions> retryOptions)
+    public DesativarProdutoHandler(IUnitOfWorkAccessor<TContext> accessor, IOptions<RetryOnConcurrencyOptions> retryOptions, IConcurrencyRetryProblemFactory retryProblemFactory)
     {
         this.accessor = accessor;
         this.retryOptions = retryOptions;
+        this.retryProblemFactory = retryProblemFactory;
     }
 
     public async Task<Result> HandleAsync(Guid produtoId, DesativarProduto command, CancellationToken ct)
@@ -28,7 +31,7 @@ public class DesativarProdutoHandler<TContext> : IDesativarProdutoHandler
         return await this.accessor.Context.RetryOnConcurrencyAsync(
             async () =>
             {
-                await this.accessor.BeginAsync(ct);
+                await this.accessor.BeginAsync(requireTransaction: false, ct);
 
                 Problem? notFoundProblem;
 
@@ -40,6 +43,7 @@ public class DesativarProdutoHandler<TContext> : IDesativarProdutoHandler
                 return await command.Execute(produto).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
             },
             this.retryOptions.Value,
+            onExhausted: () => this.retryProblemFactory.Create(command, "RoyalCode.SmartCommands.Demo.Commands.Produtos.DesativarProduto"),
             ct: ct);
     }
 }

@@ -38,6 +38,13 @@ internal sealed class CommandHandlerInformation : TransformationGeneratorBase, I
     public string HandlerImplementationName { get; internal set; }
     public List<string> NotNullProperties { get; internal set; }
     public bool HasWithUnitOfWork { get; internal set; }
+
+    /// <summary>
+    /// DF21: whether the command requires a transaction (<c>[WithTransaction]</c>), regardless of the
+    /// adapter's <c>BeginTransactions</c> option. Emitted as <c>BeginAsync(requireTransaction: true, ct)</c>.
+    /// </summary>
+    public bool RequiresTransaction { get; internal set; }
+
     public bool HasWithFindEntities { get; internal set; }
     public List<IdPropertyBoundToEntityParameter> IdPropertiesBindings { get; internal set; }
     public List<string> ProduceProblems { get; internal set; }
@@ -130,6 +137,7 @@ internal sealed class CommandHandlerInformation : TransformationGeneratorBase, I
                HandlerMustBeAsync == other.HandlerMustBeAsync &&
                NotNullProperties.SequenceEqual(other.NotNullProperties) &&
                HasWithUnitOfWork == other.HasWithUnitOfWork &&
+               RequiresTransaction == other.RequiresTransaction &&
                HasWithFindEntities == other.HasWithFindEntities &&
                Equals(ContextAccessorType, other.ContextAccessorType) &&
                ContextAccessorMode == other.ContextAccessorMode &&
@@ -168,6 +176,7 @@ internal sealed class CommandHandlerInformation : TransformationGeneratorBase, I
         hashCode = hashCode * -1521134295 + IdPropertiesBindings.GetHashCode();
         hashCode = hashCode * -1521134295 + ProduceProblems.GetHashCode();
         hashCode = hashCode * -1521134295 + HasWithUnitOfWork.GetHashCode();
+        hashCode = hashCode * -1521134295 + RequiresTransaction.GetHashCode();
         hashCode = hashCode * -1521134295 + HasWithFindEntities.GetHashCode();
         hashCode = hashCode * -1521134295 + ContextAccessorType?.GetHashCode() ?? 0;
         hashCode = hashCode * -1521134295 + ContextAccessorMode.GetHashCode();

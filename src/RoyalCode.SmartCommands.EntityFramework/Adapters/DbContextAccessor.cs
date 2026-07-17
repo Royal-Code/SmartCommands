@@ -60,9 +60,10 @@ public sealed class DbContextAccessor<TContext> : IUnitOfWorkAccessor<TContext>
     }
 
     /// <inheritdoc />
-    public async ValueTask BeginAsync(CancellationToken ct)
+    public async ValueTask BeginAsync(bool requireTransaction, CancellationToken ct)
     {
-        if (options.BeginTransactions)
+        // DF21: o comando pode exigir transação ([WithTransaction]) mesmo com a opção global desligada
+        if (options.BeginTransactions || requireTransaction)
             transaction = await db.Database.BeginTransactionAsync(ct);
     }
 
@@ -99,8 +100,10 @@ public sealed class DbContextAccessor<TContext> : IUnitOfWorkAccessor<TContext>
 
             if (AdapterOwnsCurrentTransaction())
             {
-                await transaction!.CommitAsync(ct);
+                var ownedTransaction = transaction!;
+                await ownedTransaction.CommitAsync(ct);
                 transaction = null;
+                await ownedTransaction.DisposeAsync();
             }
 
             return Result.Ok();
@@ -126,19 +129,42 @@ public sealed class DbContextAccessor<TContext> : IUnitOfWorkAccessor<TContext>
         if (!AdapterOwnsCurrentTransaction())
             return;
 
+        var ownedTransaction = transaction!;
+        Exception? cleanupFailure = null;
+
         try
         {
             // the handler token may already be cancelled at this point; the cleanup uses its own token
             // so the rollback attempt is not aborted before it runs.
-            await transaction!.RollbackAsync(CancellationToken.None);
-            transaction = null;
+            await ownedTransaction.RollbackAsync(CancellationToken.None);
         }
         catch (Exception rollbackEx)
         {
+            cleanupFailure = rollbackEx;
+        }
+
+        transaction = null;
+
+        try
+        {
+            await ownedTransaction.DisposeAsync();
+        }
+        catch (Exception disposeEx)
+        {
+            cleanupFailure = cleanupFailure is null
+                ? disposeEx
+                : new AggregateException(
+                    "The transaction rollback and disposal both failed.",
+                    cleanupFailure,
+                    disposeEx);
+        }
+
+        if (cleanupFailure is not null)
+        {
             throw new AggregateException(
-                "The unit of work could not be completed and the transaction rollback also failed. " +
-                "The first inner exception is the save/commit failure and the second is the rollback failure.",
-                cause, rollbackEx);
+                "The unit of work could not be completed and the transaction cleanup also failed. " +
+                "The first inner exception is the save/commit failure and the second is the rollback/dispose failure.",
+                cause, cleanupFailure);
         }
     }
 

@@ -18,13 +18,15 @@ public class DbContextAccessorTests
         using var db = database.CreateContext();
         var accessor = database.CreateAccessor(db, beginTransactions: true);
 
-        await accessor.BeginAsync(CancellationToken.None);
+        await accessor.BeginAsync(requireTransaction: false, CancellationToken.None);
         await accessor.AddEntityAsync(new Gadget { Id = Guid.NewGuid(), Nome = "g1" }, CancellationToken.None);
         var result = await accessor.CompleteAsync(CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(1, database.TransactionInterceptor.CommitCount);
         Assert.Equal(0, database.TransactionInterceptor.RollbackCount);
+        Assert.NotNull(database.TransactionInterceptor.LastStartedTransaction);
+        Assert.Null(database.TransactionInterceptor.LastStartedTransaction.Connection);
         Assert.Null(db.Database.CurrentTransaction);
         Assert.Equal(1, database.CountGadgets());
     }
@@ -36,7 +38,7 @@ public class DbContextAccessorTests
         using var db = database.CreateContext();
         var accessor = database.CreateAccessor(db, beginTransactions: false);
 
-        await accessor.BeginAsync(CancellationToken.None);
+        await accessor.BeginAsync(requireTransaction: false, CancellationToken.None);
         await accessor.AddEntityAsync(new Gadget { Id = Guid.NewGuid(), Nome = "g1" }, CancellationToken.None);
         var result = await accessor.CompleteAsync(CancellationToken.None);
 
@@ -52,7 +54,7 @@ public class DbContextAccessorTests
         using var db = database.CreateContext();
         var accessor = database.CreateAccessor(db, beginTransactions: true);
 
-        await accessor.BeginAsync(CancellationToken.None);
+        await accessor.BeginAsync(requireTransaction: false, CancellationToken.None);
         await accessor.AddEntityAsync(new Gadget { Id = Guid.NewGuid(), Nome = "g1" }, CancellationToken.None);
 
         var saveFailure = new InvalidOperationException("save boom");
@@ -65,6 +67,8 @@ public class DbContextAccessorTests
         Assert.Same(saveFailure, thrown);
         Assert.Equal(1, database.TransactionInterceptor.RollbackCount);
         Assert.Equal(0, database.TransactionInterceptor.CommitCount);
+        Assert.NotNull(database.TransactionInterceptor.LastStartedTransaction);
+        Assert.Null(database.TransactionInterceptor.LastStartedTransaction.Connection);
 
         database.SaveInterceptor.Throw = null;
         Assert.Equal(0, database.CountGadgets());
@@ -123,7 +127,7 @@ public class DbContextAccessorTests
         using var db = database.CreateContext();
         var accessor = database.CreateAccessor(db, beginTransactions: true);
 
-        await accessor.BeginAsync(CancellationToken.None);
+        await accessor.BeginAsync(requireTransaction: false, CancellationToken.None);
         await accessor.AddEntityAsync(new Gadget { Id = Guid.NewGuid(), Nome = "g1" }, CancellationToken.None);
 
         var commitFailure = new IOException("commit boom");
@@ -146,7 +150,7 @@ public class DbContextAccessorTests
         using var db = database.CreateContext();
         var accessor = database.CreateAccessor(db, beginTransactions: true);
 
-        await accessor.BeginAsync(CancellationToken.None);
+        await accessor.BeginAsync(requireTransaction: false, CancellationToken.None);
         await accessor.AddEntityAsync(new Gadget { Id = Guid.NewGuid(), Nome = "g1" }, CancellationToken.None);
 
         var saveFailure = new InvalidOperationException("save boom");
@@ -170,7 +174,7 @@ public class DbContextAccessorTests
         using var db = database.CreateContext();
         var accessor = database.CreateAccessor(db, beginTransactions: true);
 
-        await accessor.BeginAsync(CancellationToken.None);
+        await accessor.BeginAsync(requireTransaction: false, CancellationToken.None);
         await accessor.AddEntityAsync(new Gadget { Id = Guid.NewGuid(), Nome = "g1" }, CancellationToken.None);
 
         using var cts = new CancellationTokenSource();
@@ -182,6 +186,8 @@ public class DbContextAccessorTests
 
         // o cleanup rodou mesmo com o token do handler já cancelado (token próprio do rollback)
         Assert.Equal(1, database.TransactionInterceptor.RollbackCount);
+        Assert.NotNull(database.TransactionInterceptor.LastStartedTransaction);
+        Assert.Null(database.TransactionInterceptor.LastStartedTransaction.Connection);
         Assert.Equal(0, database.CountGadgets());
     }
 
@@ -220,7 +226,7 @@ public class DbContextAccessorTests
         // então a escrita rival não pode ocorrer enquanto a transação do adapter está aberta
         var gadget = db.Gadgets.Single(g => g.Id == id);
         database.UpdateGadgetByRival(id);
-        await accessor.BeginAsync(CancellationToken.None);
+        await accessor.BeginAsync(requireTransaction: false, CancellationToken.None);
 
         gadget.Nome = "alterado";
         gadget.Versao++;
@@ -230,6 +236,8 @@ public class DbContextAccessorTests
         var problem = Assert.Single(problems!);
         Assert.Equal(ProblemCategory.InvalidState, problem.Category);
         Assert.Equal(1, database.TransactionInterceptor.RollbackCount);
+        Assert.NotNull(database.TransactionInterceptor.LastStartedTransaction);
+        Assert.Null(database.TransactionInterceptor.LastStartedTransaction.Connection);
         Assert.Null(db.Database.CurrentTransaction);
     }
 }

@@ -65,6 +65,7 @@ internal static class KnownAttributes
     internal static readonly AttributeSpec WithDbContext = new(CommandsNamespace, "WithDbContext");
     internal static readonly AttributeSpec WithWorkContext = new(CommandsNamespace, "WithWorkContext");
     internal static readonly AttributeSpec WithRetryOnConcurrency = new(CommandsNamespace, "WithRetryOnConcurrency");
+    internal static readonly AttributeSpec WithTransaction = new(CommandsNamespace, "WithTransaction");
     internal static readonly AttributeSpec WithFindEntities = new(CommandsNamespace, "WithFindEntities", 1);
     internal static readonly AttributeSpec ProduceNewEntity = new(CommandsNamespace, "ProduceNewEntity");
     internal static readonly AttributeSpec EditEntity = new(CommandsNamespace, "EditEntity", 2);

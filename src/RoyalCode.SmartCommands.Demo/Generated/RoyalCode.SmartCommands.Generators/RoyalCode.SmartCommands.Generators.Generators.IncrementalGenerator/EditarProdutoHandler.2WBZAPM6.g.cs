@@ -34,7 +34,7 @@ public class EditarProdutoHandler<TContext> : IEditarProdutoHandler
         return await this.accessor.Context.RetryOnConcurrencyAsync(
             async () =>
             {
-                await this.accessor.BeginAsync(ct);
+                await this.accessor.BeginAsync(requireTransaction: false, ct);
 
                 Problem? notFoundProblem;
 

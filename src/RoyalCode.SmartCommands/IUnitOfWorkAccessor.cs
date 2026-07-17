@@ -13,10 +13,19 @@ namespace RoyalCode.SmartCommands;
 public interface IUnitOfWorkAccessor<out T> : IRepositoriesAccessor<T>
 {
     /// <summary>
-    /// Invoked when the unit of work is about to begin.
+    /// <para>
+    ///     Invoked when the unit of work is about to begin.
+    /// </para>
+    /// <para>
+    ///     A transaction is started when the adapter option enables transactions or when
+    ///     <paramref name="requireTransaction"/> is <c>true</c> (DF21: the generated handler passes
+    ///     <c>true</c> for commands annotated with <c>[WithTransaction]</c>). The adapter owns only the
+    ///     transaction it started here; transactions opened directly by the user belong to the user.
+    /// </para>
     /// </summary>
-    /// <returns></returns>
-    public ValueTask BeginAsync(CancellationToken ct);
+    /// <param name="requireTransaction">When <c>true</c>, a transaction is always started, regardless of the adapter option.</param>
+    /// <param name="ct">Cancellation token.</param>
+    public ValueTask BeginAsync(bool requireTransaction, CancellationToken ct);
 
     /// <summary>
     /// <para>

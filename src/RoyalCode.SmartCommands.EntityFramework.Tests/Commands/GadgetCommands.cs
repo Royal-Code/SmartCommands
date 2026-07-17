@@ -7,6 +7,9 @@ namespace RoyalCode.SmartCommands.EntityFramework.Tests.Commands;
 /// Comando real processado pelo generator (referenciado como analyzer): cria um gadget
 /// via unit of work do adapter EF (<c>DbContextAccessor&lt;TestDbContext&gt;</c>).
 /// </summary>
+[MapGroup("gadgets")]
+[MapPost("/", "create-gadget")]
+[MapCreatedRoute("/{0}", nameof(Gadget.Id))]
 public partial class CriarGadget
 {
     public string? Nome { get; set; }
@@ -41,5 +44,5 @@ public partial class RenomearGadget
 /// <summary>
 /// Host do registro de DI gerado (<c>AddGadgetHandlersServices</c>).
 /// </summary>
-[AddHandlersServices("Gadget")]
+[MapApiHandlers, AddHandlersServices("Gadget")]
 public static partial class GadgetServices;

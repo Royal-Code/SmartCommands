@@ -26,7 +26,7 @@ public class RegistrarEstoqueInicialHandler<TContext> : IRegistrarEstoqueInicial
         if (command.HasProblems(out var validationProblems))
             return validationProblems;
 
-        await this.accessor.BeginAsync(ct);
+        await this.accessor.BeginAsync(requireTransaction: false, ct);
 
         Problem? notFoundProblem;
 

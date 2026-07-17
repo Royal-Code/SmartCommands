@@ -116,6 +116,7 @@ public class ChangePassword
 """
 using Microsoft.Extensions.Options;
 using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.WorkContext;
 using RoyalCode.SmartCommands.WorkContext.Options;
 using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext;
@@ -128,11 +129,13 @@ public class ChangePasswordHandler<TContext> : IChangePasswordHandler
 {
     private readonly IUnitOfWorkAccessor<TContext> accessor;
     private readonly IOptions<RetryOnConcurrencyOptions> retryOptions;
+    private readonly IConcurrencyRetryProblemFactory retryProblemFactory;
 
-    public ChangePasswordHandler(IUnitOfWorkAccessor<TContext> accessor, IOptions<RetryOnConcurrencyOptions> retryOptions)
+    public ChangePasswordHandler(IUnitOfWorkAccessor<TContext> accessor, IOptions<RetryOnConcurrencyOptions> retryOptions, IConcurrencyRetryProblemFactory retryProblemFactory)
     {
         this.accessor = accessor;
         this.retryOptions = retryOptions;
+        this.retryProblemFactory = retryProblemFactory;
     }
 
     public async Task<Result> HandleAsync(ChangePassword command, CancellationToken ct)
@@ -140,11 +143,12 @@ public class ChangePasswordHandler<TContext> : IChangePasswordHandler
         return await this.accessor.Context.RetryOnConcurrencyAsync(
             async () =>
             {
-                await this.accessor.BeginAsync(ct);
+                await this.accessor.BeginAsync(requireTransaction: false, ct);
 
                 return await command.Execute(this.accessor.Context, ct).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
             },
             this.retryOptions.Value,
+            onExhausted: () => this.retryProblemFactory.Create(command, "Tests.Scenarios.Retry.ChangePassword"),
             ct: ct);
     }
 }
@@ -177,6 +181,7 @@ public class ChangePassword
     public const string HandlerWithValue =
 """
 using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.WorkContext;
 using RoyalCode.SmartCommands.WorkContext.Options;
 using RoyalCode.SmartProblems;
 using RoyalCode.WorkContext;
@@ -188,10 +193,12 @@ public class ChangePasswordHandler<TContext> : IChangePasswordHandler
     where TContext : IWorkContext
 {
     private readonly IUnitOfWorkAccessor<TContext> accessor;
+    private readonly IConcurrencyRetryProblemFactory retryProblemFactory;
 
-    public ChangePasswordHandler(IUnitOfWorkAccessor<TContext> accessor)
+    public ChangePasswordHandler(IUnitOfWorkAccessor<TContext> accessor, IConcurrencyRetryProblemFactory retryProblemFactory)
     {
         this.accessor = accessor;
+        this.retryProblemFactory = retryProblemFactory;
     }
 
     public async Task<Result> HandleAsync(ChangePassword command, CancellationToken ct)
@@ -199,11 +206,12 @@ public class ChangePasswordHandler<TContext> : IChangePasswordHandler
         return await this.accessor.Context.RetryOnConcurrencyAsync(
             async () =>
             {
-                await this.accessor.BeginAsync(ct);
+                await this.accessor.BeginAsync(requireTransaction: false, ct);
 
                 return await command.Execute(this.accessor.Context, ct).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
             },
             new RetryOnConcurrencyOptions { MaxAttempts = 5 },
+            onExhausted: () => this.retryProblemFactory.Create(command, "Tests.Scenarios.Retry.ChangePassword"),
             ct: ct);
     }
 }
@@ -264,7 +272,7 @@ public class ChangePasswordHandler<TContext> : IChangePasswordHandler
         return await this.accessor.Context.RetryOnConcurrencyAsync(
             async () =>
             {
-                await this.accessor.BeginAsync(ct);
+                await this.accessor.BeginAsync(requireTransaction: false, ct);
 
                 return await command.Execute(this.accessor.Context, ct).ContinueAsync(this.accessor, static async (a, ct) => await a.CompleteAsync(ct), ct);
             },

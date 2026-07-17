@@ -311,6 +311,18 @@ internal static class CommandHandlerGenerator
             }
         }
 
+        // DF21: verifica se tem WithTransaction (transação exigida pelo comando, independente das options)
+        var requiresTransaction = KnownAttributes.Has(methodSymbol, KnownAttributes.WithTransaction);
+        if (requiresTransaction && !hasUow)
+        {
+            // a transação é iniciada pelo BeginAsync do accessor; sem UoW não há accessor
+            error = DiagnosticInfo.Create(
+                CmdDiagnostics.WithTransactionRequiresUnitOfWork,
+                location: method.Identifier.GetLocation());
+            errors.Add(error);
+            requiresTransaction = false;
+        }
+
         // verifica se tem WithFindEntities (se tiver hasUow, não precisa verificar)
         var hasFindEntities = false;
         if (!hasUow)
@@ -794,6 +806,7 @@ internal static class CommandHandlerGenerator
             HandlerImplementationName = $"{modelName}Handler",
             NotNullProperties = notNullProperties,
             HasWithUnitOfWork = hasUow,
+            RequiresTransaction = requiresTransaction,
             HasWithFindEntities = hasFindEntities,
             ContextAccessorType = accessorType,
             ContextAccessorMode = contextAccessorMode,
@@ -863,7 +876,7 @@ internal static class CommandHandlerGenerator
         }
         if (hasRetryOnConcurrency && retryMaxAttempts is null)
             reserved.Add(RetryOptionsVarName);
-        if (hasRetryOnConcurrency && retryOperation is not null)
+        if (hasRetryOnConcurrency)
             reserved.Add(RetryProblemFactoryVarName);
 
         return reserved;
@@ -1981,8 +1994,10 @@ internal static class CommandHandlerGenerator
             // adiciona comando de atribuição
             ctorGen.Commands.Add(AssignValueCommand.CreateParameterAssignField(RetryOptionsVarName));
         }
-        if (i.HasRetryOnConcurrency && i.RetryOperation is not null)
+        if (i.HasRetryOnConcurrency)
         {
+            // a factory é sempre injetada: sem Operation explícita, o handler usa a chave default
+            // ({namespace}.{Comando}), e as options ExhaustedProblemDetail/TypeId valem em todos os caminhos
             var problemFactoryType = new TypeDescriptor(
                 "IConcurrencyRetryProblemFactory",
                 ["RoyalCode.SmartCommands.WorkContext"]);
@@ -2091,7 +2106,7 @@ internal static class CommandHandlerGenerator
 
         // comando unit of work begin
         if (i.HasWithUnitOfWork)
-            bodyTarget.Add(new BeginUnitOfWorkCommand(AccessorVarName));
+            bodyTarget.Add(new BeginUnitOfWorkCommand(AccessorVarName, i.RequiresTransaction));
 
         // se tem entidades com Id, então cria variável de notFound
         if (i.IdPropertiesBindings.Count > 0 || i.EditType is not null)
@@ -2251,9 +2266,11 @@ internal static class CommandHandlerGenerator
                 ? $"new RetryOnConcurrencyOptions {{ MaxAttempts = {maxAttempts} }}"
                 : $"this.{RetryOptionsVarName}.Value";
 
-            var onExhaustedArgument = i.RetryOperation is not null
-                ? $"this.{RetryProblemFactoryVarName}.Create({ModelVarName}, {SymbolDisplay.FormatLiteral(i.RetryOperation, quote: true)})"
-                : null;
+            // sem Operation explícita, a chave default é o nome qualificado do comando — estável,
+            // não localizada, e utilizável em AddConcurrencyRetryProblem para registro por comando
+            var retryOperation = i.RetryOperation ?? $"{i.Namespace}.{i.ModelType.Name}";
+            var onExhaustedArgument =
+                $"this.{RetryProblemFactoryVarName}.Create({ModelVarName}, {SymbolDisplay.FormatLiteral(retryOperation, quote: true)})";
 
             // Quando o comando produz uma nova entidade (ProduceNewEntity), o corpo do retry devolve Result<T>
             // e a chamada precisa do overload generico RetryOnConcurrencyAsync<T>; caso contrario e Result (sem valor).

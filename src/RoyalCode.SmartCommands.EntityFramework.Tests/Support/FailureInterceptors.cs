@@ -24,8 +24,8 @@ public sealed class SaveFailureInterceptor : SaveChangesInterceptor
 }
 
 /// <summary>
-/// Double de falha e contagem de transações: injeta falhas em commit/rollback e conta
-/// commits/rollbacks efetivados para os critérios "commita uma vez" e "tenta rollback".
+/// Double de falha e observação de transações: injeta falhas em commit/rollback, conta as
+/// operações efetivadas e preserva a última transação física para verificar seu descarte.
 /// </summary>
 public sealed class TransactionFailureInterceptor : DbTransactionInterceptor
 {
@@ -37,10 +37,32 @@ public sealed class TransactionFailureInterceptor : DbTransactionInterceptor
 
     public int RollbackCount { get; private set; }
 
+    public DbTransaction? LastStartedTransaction { get; private set; }
+
     public void ResetCounters()
     {
         CommitCount = 0;
         RollbackCount = 0;
+        LastStartedTransaction = null;
+    }
+
+    public override DbTransaction TransactionStarted(
+        DbConnection connection,
+        TransactionEndEventData eventData,
+        DbTransaction result)
+    {
+        LastStartedTransaction = result;
+        return result;
+    }
+
+    public override ValueTask<DbTransaction> TransactionStartedAsync(
+        DbConnection connection,
+        TransactionEndEventData eventData,
+        DbTransaction result,
+        CancellationToken cancellationToken = default)
+    {
+        LastStartedTransaction = result;
+        return ValueTask.FromResult(result);
     }
 
     public override ValueTask<InterceptionResult> TransactionCommittingAsync(

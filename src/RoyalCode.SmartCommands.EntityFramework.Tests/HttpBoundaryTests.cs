@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,15 +42,7 @@ public class HttpBoundaryTests
         // o tratamento de exceção pertence à borda do app, não ao adapter
         app.UseExceptionHandler();
 
-        app.MapPost("/gadgets", static async (CriarGadget command, ICriarGadgetHandler handler, CancellationToken ct) =>
-        {
-            var result = await handler.HandleAsync(command, ct);
-            return result.HasProblems(out var problems)
-                ? Results.Json(
-                    problems.Select(p => new { category = p.Category.ToString(), detail = p.Detail }),
-                    statusCode: StatusCodes.Status409Conflict)
-                : Results.StatusCode(StatusCodes.Status201Created);
-        });
+        app.MapGadgetsGroup();
 
         await app.StartAsync();
         return app;

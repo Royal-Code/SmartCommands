@@ -351,6 +351,14 @@ internal static class CmdDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor WithTransactionRequiresUnitOfWork = new(
+        id: "RCCMD043",
+        title: "WithTransaction requires a unit of work",
+        messageFormat: "The WithTransaction attribute requires a unit of work; add WithUnitOfWork<TContext>, WithDbContext or WithWorkContext to the command method",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> Descriptors =
         new[]
         {
@@ -397,6 +405,7 @@ internal static class CmdDiagnostics
             ConflictingParameterTypes,
             InvalidEndpointMetadataArgument,
             ConflictingParameterRoles,
+            WithTransactionRequiresUnitOfWork,
         }
         .ToDictionary(descriptor => descriptor.Id, StringComparer.Ordinal);
 
