@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
 using RoyalCode.SmartCommands.EntityFramework.Options;
 using RoyalCode.SmartProblems;
@@ -17,6 +18,10 @@ public sealed class DbContextAccessor<TContext> : IUnitOfWorkAccessor<TContext>
 {
     private readonly TContext db;
     private readonly DbContextAdapterOptions options;
+
+    // transação iniciada por BeginAsync; o adapter só commita/reverte a transação que ele mesmo abriu,
+    // nunca uma transação criada pelo usuário diretamente no contexto.
+    private IDbContextTransaction? transaction;
 
     /// <summary>
     /// Creates a new instance of <see cref="DbContextAccessor{TContext}"/>.
@@ -58,41 +63,89 @@ public sealed class DbContextAccessor<TContext> : IUnitOfWorkAccessor<TContext>
     public async ValueTask BeginAsync(CancellationToken ct)
     {
         if (options.BeginTransactions)
-            await db.Database.BeginTransactionAsync(ct);
+            transaction = await db.Database.BeginTransactionAsync(ct);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// <para>
+    ///     Generic detail used when the save fails with an optimistic-concurrency conflict.
+    /// </para>
+    /// <para>
+    ///     A fixed, generic message is used on purpose: the original <see cref="DbUpdateConcurrencyException"/>
+    ///     message carries provider/EF detail that should not leak to callers.
+    /// </para>
+    /// </summary>
+    public const string ConcurrencyConflictDetail =
+        "The operation could not be completed because the resource was modified by another process.";
+
+    /// <summary>
+    /// <para>
+    ///     Saves the changes and, when the adapter began a transaction, commits it.
+    /// </para>
+    /// <para>
+    ///     The returned <see cref="Result"/> represents only success or explicitly known problems:
+    ///     an optimistic-concurrency conflict (<see cref="DbUpdateConcurrencyException"/>) becomes an
+    ///     invalid-state problem with a generic detail. Any other exception — including
+    ///     <see cref="OperationCanceledException"/> — is caught only to attempt the transactional
+    ///     cleanup and is then rethrown, so cancellation stays cancellation and unexpected failures
+    ///     reach the caller's exception handling (e.g. the app's HTTP exception middleware).
+    /// </para>
+    /// </summary>
     public async Task<Result> CompleteAsync(CancellationToken ct)
     {
         try
         {
             await db.SaveChangesAsync(ct);
 
-            if (db.Database.CurrentTransaction is not null && options.BeginTransactions)
+            if (AdapterOwnsCurrentTransaction())
             {
-                await db.Database.CommitTransactionAsync(ct);
+                await transaction!.CommitAsync(ct);
+                transaction = null;
             }
 
             return Result.Ok();
         }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            await RollbackAsync(ex);
+            return Problems.InvalidState(ConcurrencyConflictDetail);
+        }
         catch (Exception ex)
         {
-
-            if (db.Database.CurrentTransaction is not null && options.BeginTransactions)
-            {
-                try
-                {
-                    await db.Database.RollbackTransactionAsync(ct);
-                }
-                catch (Exception rollbackEx)
-                {
-                    return new AggregateException(
-                        $"Multiple exceptions occurred while completing the transaction: {ex.Message}, {rollbackEx.Message}",
-                        ex, rollbackEx);
-                }
-            }
-
-            return ex;
+            await RollbackAsync(ex);
+            throw;
         }
     }
+
+    /// <summary>
+    /// Attempts to roll back the transaction begun by the adapter after <paramref name="cause"/> interrupted
+    /// the save/commit. Transactions not begun by the adapter are left to their owner.
+    /// </summary>
+    private async Task RollbackAsync(Exception cause)
+    {
+        if (!AdapterOwnsCurrentTransaction())
+            return;
+
+        try
+        {
+            // the handler token may already be cancelled at this point; the cleanup uses its own token
+            // so the rollback attempt is not aborted before it runs.
+            await transaction!.RollbackAsync(CancellationToken.None);
+            transaction = null;
+        }
+        catch (Exception rollbackEx)
+        {
+            throw new AggregateException(
+                "The unit of work could not be completed and the transaction rollback also failed. " +
+                "The first inner exception is the save/commit failure and the second is the rollback failure.",
+                cause, rollbackEx);
+        }
+    }
+
+    /// <summary>
+    /// The adapter commits/rolls back only the transaction instance that <see cref="BeginAsync"/> created
+    /// and that is still the context's current transaction.
+    /// </summary>
+    private bool AdapterOwnsCurrentTransaction() =>
+        transaction is not null && ReferenceEquals(db.Database.CurrentTransaction, transaction);
 }

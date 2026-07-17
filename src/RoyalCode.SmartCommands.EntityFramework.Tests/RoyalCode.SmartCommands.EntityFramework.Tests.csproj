@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>$(TestFrwkVer)</TargetFramework>
+		<IsPackable>false</IsPackable>
+		<IsTestProject>true</IsTestProject>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="coverlet.collector" Version="10.0.1" />
+		<PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+		<!-- Promote the transitive SQLitePCLRaw native bundle past the 2.1.11 advisory (NU1903). -->
+		<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+		<PackageReference Include="xunit" Version="2.9.3" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="RoyalCode.Extensions.SourceGenerator" Version="$(ExSrcGenVer)" ReferenceOutputAssembly="false" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\RoyalCode.SmartCommands\RoyalCode.SmartCommands.csproj" />
+		<ProjectReference Include="..\RoyalCode.SmartCommands.EntityFramework\RoyalCode.SmartCommands.EntityFramework.csproj" />
+		<ProjectReference Include="..\RoyalCode.SmartCommands.Generators\RoyalCode.SmartCommands.Generators.csproj"
+						  OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+		<Analyzer Include="$(NuGetPackageRoot)royalcode.extensions.sourcegenerator\$(ExSrcGenVer)\lib\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="Xunit" />
+	</ItemGroup>
+
+</Project>

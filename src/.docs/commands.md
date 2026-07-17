@@ -54,7 +54,7 @@ Benefícios principais:
 - Método de Comando: implementa a lógica de domínio/aplicação; pode ser síncrono ou assíncrono. Pode retornar `void`, `Task`, `Result`, `Result<T>` ou `T`.
 - Validação: método `HasProblems(out Problems?)` opcional na classe, integrado via atributo `WithValidateModel` (no método de comando) e gerando `WasValidated` quando aplicável.
 - Validações adicionais: métodos de instância anotados com `CommandValidation` (com `Order` opcional, padrão `10`) que retornam `Result`, `Task<Result>` ou `ValueTask<Result>`; executam após `HasProblems` e antes da unidade de trabalho/retry, encerrando o handler no primeiro `Result` com problemas.
-- Unit of Work / Repositórios: habilitado via `WithUnitOfWork<TContext>` (ou `WithDbContext`/`WithWorkContext`), expondo a infraestrutura por `IUnitOfWorkAccessor<T>` e `IRepositoriesAccessor<T>`.
+- Unit of Work / Repositórios: habilitado via `WithUnitOfWork<TContext>` (ou `WithDbContext`/`WithWorkContext`), expondo a infraestrutura por `IUnitOfWorkAccessor<T>` e `IRepositoriesAccessor<T>`. O contrato de exceções do adapter EF (`CompleteAsync`: sucesso/problema conhecido vs. exceção relançada, cancelamento preservado) está em `.docs/entity-framework.md`.
 - Find Entities: vincula parâmetros de entidade/coleção às propriedades de ID da classe para carregamento automático antes do comando (`WithFindEntities<TContext>` ou implicitamente via UoW/Repo Accessor).
 - Edit Entity: edita uma entidade existente informada pelo primeiro parâmetro do método e o ID passado ao handler (`EditEntity(entityType)`), com validação do tipo e binding.
 - Produce New Entity: comando que cria uma nova entidade retornando `Result<T>`/`T` (o gerador valida tipos e retorna corretamente).

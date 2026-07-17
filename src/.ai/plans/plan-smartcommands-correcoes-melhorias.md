@@ -4,7 +4,7 @@
 
 ## Progresso
 
-`██████░░░░░░` **50%** - 6 de 12 fases concluídas
+`███████░░░░░` **58%** - 7 de 12 fases concluídas
 
 | Fase | Estado |
 |---|---|
@@ -14,7 +14,7 @@
 | Fase 4 - Leitura semântica e emissão determinística | Concluida |
 | Fase 5 - Binding de `WithParameter` e resolução de `EditEntity` | Concluida |
 | Fase 6 - Validações adicionais do comando | Concluida |
-| Fase 7 - Confiabilidade do adapter Entity Framework | Pendente |
+| Fase 7 - Confiabilidade do adapter Entity Framework | Concluida |
 | Fase 8 - Runtime de decorators, WorkContext e retry | Pendente |
 | Fase 9 - Completude dos mapeamentos Minimal API existentes | Pendente |
 | Fase 10 - Novas capacidades de mapeamento Minimal API | Bloqueada por Q4 |
@@ -1097,14 +1097,14 @@ Verificações após os ajustes: solução Release **0 erros / 9 NU5104 aceitos*
 
 **Tarefas:**
 
-- [ ] Implementar DF14 em `DbContextAccessor.CompleteAsync`: capturar somente para cleanup e relançar a exceção inesperada sem esconder a causa original.
-- [ ] Tentar rollback quando save/commit falhar e existir transação iniciada pelo adapter; definir token de cleanup que não seja cancelado antes da tentativa.
-- [ ] Preservar as duas falhas quando rollback também falhar, sem perder stack/causa da falha primária.
-- [ ] Garantir que `OperationCanceledException` permaneça cancelamento e não seja convertido em `Result`/500 interno pelo adapter.
-- [ ] Alterar `RepositoryAdapter<TEntity,TContext>` para disponibilizar `protected TContext Context` e usar o tipo concreto internamente.
-- [ ] Criar projeto/suite de testes EF se necessário, com SQLite in-memory e doubles para save/commit/rollback.
-- [ ] Testar uso direto do handler fora de HTTP e uso HTTP com o filtro/middleware do Demo, sem duplicar tratamento dentro do adapter.
-- [ ] Documentar quais exceções são problemas esperados e quais atravessam a borda.
+- [x] Implementar DF14 em `DbContextAccessor.CompleteAsync`: capturar somente para cleanup e relançar a exceção inesperada sem esconder a causa original. (Relançamento por `throw;` — mesma instância, stack preservado; único problema conhecido: `DbUpdateConcurrencyException` → `Problems.InvalidState` com detalhe genérico, alinhado ao texto do retry do WorkContext.)
+- [x] Tentar rollback quando save/commit falhar e existir transação iniciada pelo adapter; definir token de cleanup que não seja cancelado antes da tentativa. (Rollback só quando `BeginTransactions` e `CurrentTransaction` presente — transação do usuário pertence a ele; cleanup usa `CancellationToken.None`.)
+- [x] Preservar as duas falhas quando rollback também falhar, sem perder stack/causa da falha primária. (`AggregateException` com inners na ordem [primária, rollback]; testado com doubles.)
+- [x] Garantir que `OperationCanceledException` permaneça cancelamento e não seja convertido em `Result`/500 interno pelo adapter. (OCE cai no catch geral: rollback com token próprio + `throw;`; testado no adapter e através do handler gerado.)
+- [x] Alterar `RepositoryAdapter<TEntity,TContext>` para disponibilizar `protected TContext Context` e usar o tipo concreto internamente. (Campo privado `DbContext` substituído por `protected TContext Context { get; }`; find base usa `Context`.)
+- [x] Criar projeto/suite de testes EF se necessário, com SQLite in-memory e doubles para save/commit/rollback. (Novo `RoyalCode.SmartCommands.EntityFramework.Tests` na solução: SQLite in-memory real por conexão compartilhada, `SaveChangesInterceptor`/`DbTransactionInterceptor` como doubles de falha e contadores de commit/rollback; 22 testes.)
+- [x] Testar uso direto do handler fora de HTTP e uso HTTP com o filtro/middleware do Demo, sem duplicar tratamento dentro do adapter. (O Demo consome o accessor do WorkContext, não este adapter — a integração HTTP foi feita no próprio projeto de testes EF com minimal API + TestServer espelhando a borda do Demo: `UseExceptionHandler` + `AddProblemDetails` → 500 sem vazar detalhe; conflito → 409 pelo `Result`; o generator roda como analyzer no projeto e os handlers gerados reais são usados no DI, fora e dentro de HTTP.)
+- [x] Documentar quais exceções são problemas esperados e quais atravessam a borda. (Novo `.docs/entity-framework.md` com a tabela do contrato DF14; ponteiro em `.docs/commands.md` seção 3.)
 
 **Critérios de aceite:** sucesso salva e faz commit uma vez; falha tenta rollback e é relançada; cancelamento não vira sucesso/problema; DF14 é observável tanto fora quanto dentro de HTTP; subclasses projetam usando `Context` sem guardar o mesmo contexto novamente.
 
@@ -1112,7 +1112,94 @@ Verificações após os ajustes: solução Release **0 erros / 9 NU5104 aceitos*
 
 ### Resultado da Fase 7
 
-*a preencher*
+Executada em 2026-07-16, após as correções da revisão do mantenedor sobre as Fases 4-6 (commits `f0aa859`,
+`1c8ee5f` e relacionados).
+
+#### Implementação (DF14)
+
+- **`DbContextAccessor<TContext>.CompleteAsync`** reescrito:
+  - Sucesso: save + commit (quando `BeginTransactions`) e `Result.Ok()`; commit ocorre **uma única vez**.
+  - **Problema conhecido (único):** `DbUpdateConcurrencyException` → rollback (se a transação é do adapter)
+    e `Problems.InvalidState` com a constante pública `ConcurrencyConflictDetail` — detalhe genérico, mesmo
+    texto do retry do WorkContext; a mensagem do provider/EF não vaza.
+  - **Qualquer outra exceção** (incluindo `OperationCanceledException`): rollback de cleanup e `throw;` —
+    mesma instância, stack preservado; cancelamento permanece cancelamento.
+  - **Rollback:** somente para transação iniciada pelo adapter (`BeginTransactions` + `CurrentTransaction`);
+    usa `CancellationToken.None` para não ser abortado por token já cancelado. Se o rollback também falhar,
+    `AggregateException` com [falha primária, falha do rollback].
+  - A conversão implícita `Exception -> Result` e a `AggregateException` *retornada* (não lançada) do código
+    anterior foram removidas.
+- **`RepositoryAdapter<TEntity,TContext>`**: campo privado `DbContext db` substituído por
+  `protected TContext Context { get; }`; o find base usa `Context`, e subclasses projetam com o contexto
+  tipado sem guardar segunda referência.
+- **Docs:** novo `.docs/entity-framework.md` (contrato de exceções, uso fora/dentro de HTTP, ausência de
+  retry neste adapter) e ponteiro em `.docs/commands.md`.
+
+#### Testes (novo projeto `RoyalCode.SmartCommands.EntityFramework.Tests`, 22 testes)
+
+O projeto usa SQLite in-memory **real** (conexão compartilhada; sem mock de `DbContext`), doubles por
+interceptors (`SaveChangesInterceptor` para falha de save; `DbTransactionInterceptor` para falha/contagem de
+commit/rollback) e referencia o **generator como analyzer** (padrão do `Tests.Models`), de modo que os
+handlers gerados reais (`CriarGadget`/`RenomearGadget` com `WithUnitOfWork<TestDbContext>`) são consumidos
+do DI:
+
+- `DbContextAccessorTests` (9): sucesso com/sem transação (commit único), falha de save/commit relançada com
+  a mesma instância após rollback, falha sem transação do adapter não tenta rollback, transação aberta pelo
+  usuário não é commitada nem revertida pelo adapter, rollback falho preserva as duas exceções, cancelamento
+  atravessa com cleanup em token próprio, conflito otimista real (dois contextos, token `Versao`) com e sem
+  transação retorna o problema conhecido.
+- `RepositoryAdapterTests` (5): find/projeção pelo `Context` tipado, `NotFound` e guarda de nulo.
+- `GeneratedHandlerTests` (4, fora de HTTP): sucesso persiste; exceção inesperada atravessa o handler gerado
+  (mesma instância); cancelamento disparado entre find e save atravessa como OCE com rollback; conflito
+  otimista real intercalado pelo hook do comando chega como problema ao chamador.
+- `HttpBoundaryTests` (3, borda HTTP com TestServer): 201 sucesso; exceção inesperada → 500
+  `application/problem+json` pelo `UseExceptionHandler`+`AddProblemDetails` **sem vazar a mensagem interna**;
+  conflito → 409 pelo `Result` sem passar pelo middleware de exceção.
+
+**Desvio documentado:** a tarefa citava "uso HTTP com o filtro/middleware do Demo", mas o Demo consome o
+accessor do **WorkContext** (`AddWorkContext<DemoDbContext>().AddUnitOfWorkAccessor()`), não este adapter —
+o `UnitOfWorkAccessor` do WorkContext (que hoje ainda faz `result += ex` no commit/rollback) pertence à
+Fase 8. A integração HTTP do adapter EF foi coberta no próprio projeto de testes com a mesma borda que o
+Demo usaria (`ProblemDetails` + exception handler), sem alterar o Demo.
+
+#### Revisão por subagente (2026-07-16)
+
+Revisão executada por subagente sobre todos os arquivos da fase (rodou build e suíte por conta própria).
+Nenhum achado de gravidade alta ou média; cinco achados baixos, tratados assim:
+
+1. **Ownership da transação por heurística** — corrigido: `BeginAsync` agora guarda a instância
+   `IDbContextTransaction` criada e `CompleteAsync`/rollback só atuam quando essa instância ainda é a
+   `CurrentTransaction` (`AdapterOwnsCurrentTransaction`). Transação aberta pelo usuário nunca é
+   commitada/revertida pelo adapter, mesmo com `BeginTransactions = true`. Teste novo:
+   `Transacao_do_usuario_nao_e_commitada_nem_revertida_pelo_adapter`.
+2. **Falha de commit pós-commit físico é estado ambíguo** — documentado em `.docs/entity-framework.md`
+   (tratar falha de commit como estado indeterminado, não como garantia de rollback).
+3. **Falha dupla sobrepõe concorrência/cancelamento** (`AggregateException` em vez do problema/OCE) —
+   comportamento intencional da regra DF14, agora explícito na documentação.
+4. **Teste HTTP de 409 usa conflito injetado** — aceito e registrado: o conflito otimista real (UPDATE com
+   0 linhas via token `Versao`) é coberto pelos testes do accessor e do handler gerado.
+5. **`dotnet sln add` introduziu plataformas x64/x86 na solução** — revertido; a solução mantém somente
+   `Any CPU`.
+
+Demais pontos verificados OK pela revisão: ordem dos catches, preservação de stack por identidade,
+cancelamento nunca vira `Result`, rollback com token próprio, commit único, ordem das inners na
+`AggregateException`, texto do detalhe idêntico ao do retry do WorkContext, conflito real genuíno,
+contadores dos doubles não contaminados por seed/`EnsureCreated`, mudança do `RepositoryAdapter` não
+quebra fonte/binário, coerência da documentação e DF10 (0 warnings novos).
+
+#### Verificação (reexecutada em 2026-07-16, após as correções da revisão)
+
+| Verificação | Resultado |
+|---|---|
+| `dotnet build SmartCommands.sln -c Release` | **êxito** — 0 erros, somente NU5104 aceitos (DF10) |
+| `RoyalCode.SmartCommands.Tests` | **245/245** aprovados |
+| `RoyalCode.SmartCommands.Demo.Tests` | **71/71** aprovados |
+| `RoyalCode.SmartCommands.EntityFramework.Tests` (novo) | **22/22** aprovados |
+
+Critérios de aceite conferidos: sucesso salva e commita uma vez (contador do interceptor); falha tenta
+rollback e é relançada (identidade da exceção verificada); cancelamento não vira sucesso/problema; DF14
+observável fora de HTTP (handler direto) e dentro de HTTP (TestServer); subclasses de repository projetam
+usando `Context` sem segunda referência ao contexto.
 
 ---
 

@@ -14,9 +14,15 @@ public abstract class RepositoryAdapter<TEntity, TContext> : IRepositoryAccessor
     where TContext : DbContext
 {
     /// <summary>
-    /// The underlying Entity Framework Core context used to access the database.
+    /// <para>
+    ///     The concrete Entity Framework Core context used to access the database.
+    /// </para>
+    /// <para>
+    ///     Exposed to subclasses so projections (<see cref="FindEntityAsync{TDto, TId}(Id{TEntity, TId}, CancellationToken)"/>)
+    ///     can be implemented against the typed context without storing a second reference to it.
+    /// </para>
     /// </summary>
-    private readonly DbContext db;
+    protected TContext Context { get; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RepositoryAdapter{TEntity, TContext}"/> class.
@@ -25,7 +31,7 @@ public abstract class RepositoryAdapter<TEntity, TContext> : IRepositoryAccessor
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="db"/> is null.</exception>
     protected RepositoryAdapter(TContext db)
     {
-        this.db = db ?? throw new ArgumentNullException(nameof(db));
+        Context = db ?? throw new ArgumentNullException(nameof(db));
     }
 
     /// <summary>
@@ -39,7 +45,7 @@ public abstract class RepositoryAdapter<TEntity, TContext> : IRepositoryAccessor
     /// </returns>
     public async Task<FindResult<TEntity, TId>> FindEntityAsync<TId>(Id<TEntity, TId> id, CancellationToken ct)
     {
-        return await db.Set<TEntity>().TryFindAsync(id, ct);
+        return await Context.Set<TEntity>().TryFindAsync(id, ct);
     }
 
     /// <summary>
