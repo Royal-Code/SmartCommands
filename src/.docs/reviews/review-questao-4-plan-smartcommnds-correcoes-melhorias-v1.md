@@ -37,6 +37,14 @@ Contrato esperado:
 
 Isso permite idempotência, auditoria, tenant, feature flags e validações estritamente HTTP sem contaminar handlers.
 
+---
+
+Direcionamento Humano:
+
+Essa é uma funcionalidade interessante.
+
+---
+
 ### 2. Política explícita de resultado/status
 
 Hoje parte da resposta é inferida:
@@ -72,6 +80,15 @@ Exemplos de erros:
 
 Eu evitaria criar atributos independentes como `MapOk`, `MapCreated`, `MapNoContent` se um único contrato tipado puder representar todas as escolhas.
 
+---
+
+Direcionamento Humano:
+
+Eu acho que um `[WithResultStatus(ResultStatus.Ok)]` seria um nomenclatura melhor. Que achas?
+Também acho que `NoContent` em comando que retorna `Result<T>` deveria ser permitido.
+
+---
+
 ### 3. Metadata completa e uniforme
 
 A Fase 9 já corrigiu boa parte da metadata. Na Fase 10, a novidade seria tornar a metadata parte do modelo compartilhado da política de resposta:
@@ -91,6 +108,18 @@ Eu também avaliaria incluir metadata simples que falta na superfície atual, pr
 ```
 
 Mas evitaria reproduzir toda a API de metadata do ASP.NET Core por atributos RoyalCode. O usuário ainda pode configurar o `RouteGroupBuilder` externamente.
+
+---
+
+Direcionamento Humano:
+
+Não sei se vale a pena `WithTags`. Não é complicado adicionar mais isso, poderia ser feito.
+Teria que avaliar o que os commands propões e padronizam e as customizações.
+O objetivo é ter algo padronizado, feito de forma mais simples (menos arquivos e lugares para mexer), mais fácil de trabalhar, mais automátizado, mais rápido de desenvolver.
+Altas customizações podem ficar com minimal API direto.
+Seria ruim não ter uma funcionalidade que é muito usada e limitaria o uso dos commands.
+
+---
 
 ### Resultado prático da Opção A
 
@@ -133,6 +162,23 @@ Precisaria definir:
 
 É uma extensão pequena em código, mas exige um contrato público bem definido para não transformar `Accepted` apenas em “outro número de status”.
 
+---
+
+Direcionamento Humano:
+
+É até útil ter algo assim.
+Pense num comando que é valido e colocado em alguma fila, seja no banco ou em sistema de mensageria.
+Depois o status do processamento pode ser consultado.
+Acho que `MapAcceptedRoute` segue o fio do `MapCreatedRoute`, deveria ter algo similar.
+
+Quanto ao tipo retornado, eu não acho que deveria forçar algo.
+Na especificação do HTTP o STATUS CODE 202 não define algo rígido no retorno.
+Então penso que aqui não seria necessário um retorno rígido.
+
+Até poderia existir um `OperationReference` que quando usado tem uma integração melhor com o gerador de código e api's internas se existirem, mas precisaria pensar bem sobre isso, elaborar um design bem útil.
+
+---
+
 ### 2. Find por chave alternativa ou composta
 
 Hoje `MapFind` está ligado ao `Id<TEntity,TId>`. A opção ampliada permitiria casos como:
@@ -170,6 +216,17 @@ Isso exigiria muito mais que novos atributos:
 - diagnósticos para propriedade inexistente ou não consultável.
 
 É a parte mais arquitetural da Opção B, porque amplia contratos de persistência, não apenas a camada HTTP.
+
+---
+
+Direcionamento Humano:
+
+No `SmartProblems` há integração com EFCore.
+Tem um TryFindBy lá.
+Teria que avaliar se é possível usar aquilo, ou o `ICriteria` do SmartSearch.
+Primeiro teria que avaliar a viabilidade de usar algo componentizado, depois poderia pensar como solucionar a arquitetura da funcionalidade.
+
+---
 
 ### 3. Formulários, arquivos e streams
 
@@ -218,6 +275,14 @@ Saída ainda exigiria decisões sobre:
 - descarte do stream;
 - cancelamento durante envio;
 - representação OpenAPI.
+
+---
+
+Direcionamento Humano:
+
+Este tipo de funcionalidade é muito específica, é melhor usar minimal api diretamente.
+
+---
 
 ### Resultado prático da Opção B
 
