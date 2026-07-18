@@ -43,9 +43,11 @@ RoyalCode.SmartCommands.WorkContext -------┴--> RoyalCode.SmartCommands
 Antes de tarefas que envolvam arquitetura, comportamento ou uso das bibliotecas, leia o que for pertinente:
 
 - [`src/README.md`](src/README.md) — visão geral e uso público.
-- [`src/.docs/commands.md`](src/.docs/commands.md) — documentação completa de SmartCommands: atributos, handlers, pipeline, adapters e Minimal APIs.
+- [`src/.docs/references/smart-commands.ai-rules.md`](src/.docs/references/smart-commands.ai-rules.md) — regras operacionais concisas para gerar código com SmartCommands.
+- [`src/.docs/references/smart-commands.md`](src/.docs/references/smart-commands.md) — guia completo de SmartCommands: atributos, handlers, pipeline, adapters e Minimal APIs.
+- [`src/.docs/commands.md`](src/.docs/commands.md) — índice curto mantido para compatibilidade com links existentes.
 - [`src/.docs/feature-slice-architecture.md`](src/.docs/feature-slice-architecture.md) — padrão arquitetural atual para novos módulos: DDD modular, Features verticais e lentes Explícita/Gritante.
-- [`src/.docs/archtecture.md`](src/.docs/archtecture.md) — arquitetura anterior baseada em `Contracts` + `Application`, útil para compreender soluções existentes e migrações. Em conflito para código novo, `feature-slice-architecture.md` prevalece.
+- [`src/.docs/legacy-architecture.md`](src/.docs/legacy-architecture.md) — arquitetura anterior baseada em `Contracts` + `Application`, apenas para compreender soluções existentes e migrações.
 
 Em `src/.docs/references/`, os arquivos `*.ai-rules.md` são regras operacionais concisas; os arquivos `*.md` correspondentes são os guias conceituais completos, com contexto, exemplos e referência de API:
 
@@ -55,6 +57,7 @@ Em `src/.docs/references/`, os arquivos `*.ai-rules.md` são regras operacionais
 - Problemas e resultados — [regras para IA](src/.docs/references/problems.ai-rules.md) | [guia completo](src/.docs/references/problems.md): `Problem`, `Problems`, `Result` e `FindResult`.
 - Projeções — [regras para IA](src/.docs/references/selector.ai-rules.md) | [guia completo](src/.docs/references/selector.md): SmartSelector e seu source generator.
 - Buscas — [regras para IA](src/.docs/references/smartsearch.ai-rules.md) | [guia completo](src/.docs/references/smartsearch.md): SmartSearch, critérios, filtros, ordenação e paginação.
+- Comandos — [regras para IA](src/.docs/references/smart-commands.ai-rules.md) | [guia completo](src/.docs/references/smart-commands.md): handlers, pipeline, persistência e Minimal APIs.
 
 Os documentos em `src/.docs/references/` são a documentação das bibliotecas consumidas: use-os para orientar o código, mas não os edite sem pedido explícito.
 

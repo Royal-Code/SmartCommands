@@ -1,5 +1,12 @@
 # Revisão: erros de compilação após atualização das libs RoyalCode (2026-07-13)
 
+> **Errata — 2026-07-18:** a hipótese de `async void` apresentada originalmente na §4 foi rejeitada após
+> inspeção das APIs. Os extension methods continuam retornando `Task`; parâmetros `Action<>` existentes não
+> tornam o extension method `async void`. A quebra confirmada foi a mudança das assinaturas assíncronas com
+> `TParam`: o delegate passou a receber `CancellationToken`, e o token da extensão passou a ser o último
+> argumento. A correção válida usa lambdas `static` com `TParam` e token explícitos. As afirmações originais
+> sobre fire-and-forget não devem ser usadas como diagnóstico atual.
+
 ## 1. Contexto
 
 O `Directory.Build.props` atualizou as dependências RoyalCode:
@@ -60,30 +67,29 @@ sobre `Task<Result>` / `Task<Result<T>>` / `FindResult<>`.
 A sobrecarga `MapAsync(Task<Result>, T valor)` usada em `CompleteAsync(ct).MapAsync(commandResult)`
 **continua existindo** — esse padrão não precisa mudar.
 
-## 4. Problema crítico e silencioso: ligação com `Action<>` (async void)
+## 4. Hipótese rejeitada: ligação com `Action<>` (`async void`)
 
-Este é o achado mais importante da revisão. Só **7 ocorrências** dão erro de compilação, mas
-existem **51 ocorrências** do padrão antigo na solução. As demais **compilam silenciosamente
-erradas**:
+Na versão inicial desta revisão, as ocorrências que ainda compilavam foram classificadas como `async void`.
+Essa interpretação estava errada. O fato verificável era a existência de chamadas na forma antiga e de sete
+erros `CS1593`; a correção deveria alinhar todas as chamadas ao novo contrato, mas não havia evidência de que
+os extension methods tivessem se tornado fire-and-forget.
 
 - Quando o receptor é `Result`/`Result<T>` (método de instância, comando síncrono sem decorators),
   não há sobrecarga compatível → **erro CS1593** (os 7 casos acima).
-- Quando o receptor é `Task<Result>`/`Task<Result<T>>` (comando assíncrono ou com decorators),
-  as extensões possuem sobrecargas `Action<TParam>` / `Action<T, TParam>`. Com a sobrecarga
-  `Func<..., Task>` removida, o lambda `async (a) => await a.CompleteAsync(ct)` converte-se para
-  `Action<>` como **async void** — compila sem erro nem warning, mas o `CompleteAsync`
-  (SaveChanges/commit) vira **fire-and-forget**: o handler retorna sucesso antes do commit
-  concluir, e exceções do commit derrubam o processo.
+- As ocorrências restantes também precisavam ser migradas para a assinatura nova, mesmo quando outra
+  sobrecarga ainda permitia compilação. Isso é uma questão de contrato e consistência, não prova de
+  `async void` no extension method.
 
-Arquivos gerados no Demo que hoje compilam com esse bug de runtime (9 arquivos, 11 ocorrências):
+Arquivos gerados no Demo que ainda continham a forma antiga (9 arquivos, 11 ocorrências):
 `CriarPedidoHandler`, `CriarProduto2Handler`, `CancelarPedidoHandler`, `ReservarEstoqueHandler`,
 `RegistrarEstoqueInicialHandler`, `LiberarReservaEstoqueHandler`, `AdicionarEntradaEstoqueHandler`
 (+ os 2 que dão erro). O mesmo acontece nos cenários assíncronos/decorated dos testes
 (`DoSomethingAsync*`, `DoSomethingWithDecorators*`, `CreateSomeAsyncWithResult`,
 `CreateSomeWithDecorators*WithResult`).
 
-> Conclusão: mesmo que os 7 erros fossem "corrigidos" pontualmente, a solução ficaria quebrada
-> em runtime. A correção precisa ser no **gerador** + regeneração/atualização de tudo.
+> Conclusão corrigida: a mudança deve ser aplicada na fonte do **gerador** e os artefatos/cenários devem ser
+> regenerados para usar uniformemente a assinatura nova. A alegação de quebra silenciosa em runtime foi
+> retirada.
 
 ## 5. O que precisa ser atualizado
 
@@ -152,8 +158,8 @@ apenas commitar.
 
 1. `dotnet build SmartCommands.sln` sem erros.
 2. `dotnet test` — os testes de snapshot/string do gerador confirmarão a nova emissão.
-3. Testes de integração do Demo (SoftDeleteTests, concorrência etc.) validam o commit real
-   do UoW — importante por causa do bug async void descrito na §4.
+3. Testes de integração do Demo (SoftDeleteTests, concorrência etc.) validam que o fluxo assíncrono aguarda
+   o commit real do UoW com a assinatura nova.
 
 ## 6. Avaliação das demais libs (docs em `.docs/references/`)
 
@@ -184,11 +190,9 @@ apenas commitar.
    `[GeneratedCode("...", "...")]` nos tipos ajuda analyzers adicionais); o `#nullable enable`
    apenas declara o contexto de anotações — não obriga a anotar nada — e é a correção que o
    próprio CS8669 pede. Fica para uma rodada separada, pois altera todos os snapshots de teste.
-3. **Na própria lib SmartProblems** (mantida por você): as sobrecargas `Action<TParam>` capturam
-   lambdas `async` como async void silenciosamente — foi exatamente o que mascarou o problema
-   aqui. Vale considerar mitigação na lib (ex.: sobrecarga `Func<TParam, Task>` marcada
-   `[Obsolete(error: true)]`, ou `[OverloadResolutionPriority]` nas formas com token) para que
-   consumidores antigos recebam erro claro em vez de async void.
+3. **Na própria lib SmartProblems** (mantida por você): manter as sobrecargas e XML docs inequívocos para
+   que consumidores migrem diretamente para as formas com `TParam` e `CancellationToken`. A hipótese
+   original de captura silenciosa como `async void` foi rejeitada pela errata deste documento.
 
 ## 8. Decisões tomadas e status
 

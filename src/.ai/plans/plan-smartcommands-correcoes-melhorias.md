@@ -1,10 +1,10 @@
 # Plan: Correções, endurecimento e evolução do SmartCommands (`smartcommands-correcoes-melhorias`)
 
-## Status: EM ANDAMENTO - Fases 1-10 concluídas; restam qualidade/distribuição (11) e release (12)
+## Status: EM ANDAMENTO - Fases 1-11 concluídas; resta preparação de release (12)
 
 ## Progresso
 
-`██████████░░` **83%** - 10 de 12 fases concluídas
+`███████████░` **92%** - 11 de 12 fases concluídas
 
 | Fase | Estado |
 |---|---|
@@ -18,7 +18,7 @@
 | Fase 8 - Runtime de decorators, WorkContext e retry | Concluida |
 | Fase 9 - Completude dos mapeamentos Minimal API existentes | Concluida |
 | Fase 10 - Novas capacidades de mapeamento Minimal API | Concluida |
-| Fase 11 - Qualidade transversal, pacote e documentação | Pendente |
+| Fase 11 - Qualidade transversal, pacote e documentação | Concluida |
 | Fase 12 - Compatibilidade, regressão e preparação de release | Pendente |
 
 > **Manutenção deste plano:** ao concluir as tarefas de uma fase, marque cada tarefa com `- [x]`,
@@ -1602,36 +1602,36 @@ Actions permanece inalterado conforme DF16.
 
 **Tarefas:**
 
-- [ ] Corrigir os metadados dos quatro pacotes: trocar o `RepositoryUrl` incorreto
+- [x] Corrigir os metadados dos quatro pacotes: trocar o `RepositoryUrl` incorreto
   (`Royal-Code/EnterpisePatterns`) por `Royal-Code/SmartCommands`, adicionar descrição específica por pacote e
   validar no artefato os campos README, ícone, licença, repository e versão.
-- [ ] Criar uma verificação automatizada de layout dos `.nupkg`, executada depois do pack e sem depender de
+- [x] Criar uma verificação automatizada de layout dos `.nupkg`, executada depois do pack e sem depender de
   inspeção manual. Para o generator, exigir `RoyalCode.SmartCommands.Generators.dll` e
   `RoyalCode.Extensions.SourceGenerator.dll` em `analyzers/dotnet/cs`, os arquivos `build` esperados e ausência
   de assemblies runtime indevidos; para os outros três pacotes, validar assemblies por TFM e dependências.
-- [ ] Criar um consumer-smoke automatizado e repetível que use uma pasta temporária e feed local dos `.nupkg`,
+- [x] Criar um consumer-smoke automatizado e repetível que use uma pasta temporária e feed local dos `.nupkg`,
   restaure e compile um command/map válido em `net8.0`, `net9.0` e `net10.0`, e confirme o RCCMD esperado em
   uma entrada inválida. Incluir cenário com SmartCommands e a versão pinada do SmartSelector no mesmo
   consumer para detectar `CS8032`, `CS8785`, `AD0001` e conflito de carga da base compartilhada. O harness
   deve poder ser reexecutado a qualquer momento após o pack e limpar somente sua própria pasta temporária.
-- [ ] Auditar `README.md`, `.docs/commands.md` e exemplos arquiteturais contra a API final, incluindo sintaxe
+- [x] Auditar `README.md`, `.docs/commands.md` e exemplos arquiteturais contra a API final, incluindo sintaxe
   genérica atual de `EditEntity`, `CommandValidation`, ordem do pipeline, binding/`WithParameter`, Find/Search,
   adapters e extensibilidade HTTP.
-- [ ] Criar `.docs/references/smart-commands.md` como guia conceitual completo e
+- [x] Criar `.docs/references/smart-commands.md` como guia conceitual completo e
   `.docs/references/smart-commands.ai-rules.md` como contrato operacional conciso para IA, no padrão das demais
   bibliotecas RoyalCode. Evitar três fontes canônicas: migrar o conteúdo útil e transformar
   `.docs/commands.md` em resumo/índice com links para o novo par.
-- [ ] Adicionar errata à revisão de 2026-07-13 conforme DF6, sem manter a conclusão falsa de `async void` como fato atual.
-- [ ] Renomear `.docs/archtecture.md` para `.docs/legacy-architecture.md`, incluir aviso de documento superado
+- [x] Adicionar errata à revisão de 2026-07-13 conforme DF6, sem manter a conclusão falsa de `async void` como fato atual.
+- [x] Renomear `.docs/archtecture.md` para `.docs/legacy-architecture.md`, incluir aviso de documento superado
   e atualizar `SmartCommands.sln`, `AGENTS.md`, `.docs/instructions.md` e demais links. A arquitetura atual
   continua sendo `.docs/feature-slice-architecture.md`; não criar `.docs/architecture.md` ambíguo.
-- [ ] Executar busca detalhada e revisada de typos conhecidos, encoding inválido, links quebrados, APIs antigas
+- [x] Executar busca detalhada e revisada de typos conhecidos, encoding inválido, links quebrados, APIs antigas
   e XML docs da API nova/alterada; corrigir a fonte dos artefatos gerados e não fazer substituição global cega
   em registros históricos ou documentação importada de outras bibliotecas.
-- [ ] Não criar nem modificar `.github/workflows`; registrar e executar localmente os comandos reproduzíveis
+- [x] Não criar nem modificar `.github/workflows`; registrar e executar localmente os comandos reproduzíveis
   de restore/build/test/pack, verificação dos pacotes e consumer-smoke conforme DF16, com diretório,
   configuração, flags e resultado.
-- [ ] Manter allowlist somente de NU5104 e falhar em qualquer outro warning novo.
+- [x] Manter allowlist somente de NU5104 e falhar em qualquer outro warning novo.
 
 **Critérios de aceite:** package metadata aponta para o remote correto e descreve cada pacote; a verificação
 automatizada comprova o layout dos quatro `.nupkg`; consumer-smoke carrega generator/analyzer e compila em
@@ -1645,7 +1645,48 @@ padrão no ambiente local, sem alteração de GitHub Actions.
 
 ### Resultado da Fase 11
 
-*a preencher*
+**Concluída em 2026-07-18.**
+
+#### Distribuição e metadados
+
+- `pack.targets` aponta para `https://github.com/Royal-Code/SmartCommands`, empacota o `src/README.md` auditado
+  e mantém ícone/licença comuns; cada um dos quatro projetos declara uma descrição específica.
+- O primeiro gate revelou um defeito real: `dotnet pack` podia produzir
+  `RoyalCode.SmartCommands.Generators.nupkg` sem as DLLs do analyzer, pois os itens eram criados apenas em
+  `BeforeTargets="Build"`. O csproj agora declara os itens de pack diretamente; o pacote contém as DLLs de
+  SmartCommands e `Extensions.SourceGenerator` em `analyzers/dotnet/cs`, além do `.props` em `build`, sem
+  expor o generator como assembly runtime.
+- `eng/verify-package-layout.ps1` valida nuspec/metadados, README, ícone, dependências, assemblies runtime nos
+  três TFMs e o layout exato do analyzer. `eng/consumer-smoke.ps1` cria e remove consumers temporários;
+  `eng/verify-distribution.ps1` restaura, empacota tudo e orquestra os gates com allowlist exclusiva NU5104.
+
+#### Documentação e higiene
+
+- Criados `references/smart-commands.md` (guia canônico completo) e
+  `references/smart-commands.ai-rules.md` (regras operacionais); `commands.md` virou índice compatível.
+- README, exemplos Feature Slice e instruções foram alinhados à forma genérica
+  `EditEntity<TEntity,TId>`, validações adicionais, binding, adapters, Find/Search e extensibilidade HTTP.
+- `archtecture.md` foi renomeado para `legacy-architecture.md`, com aviso de superação; solution items e
+  `AGENTS.md` apontam a arquitetura Feature Slice como atual e a anterior como legado.
+- A revisão de 2026-07-13 possui errata e não apresenta mais `async void`/fire-and-forget como conclusão
+  válida. A varredura dos typos conhecidos (`Enterpise`, `SmartProbelms`, `archtecture`, APIs antigas e links
+  obsoletos) retornou zero fora dos registros deliberadamente históricos do plano.
+- `eng/verify-documentation.ps1` verificou **27 arquivos Markdown** sem links locais quebrados. Nenhum workflow
+  foi criado ou alterado.
+
+#### Verificações reproduzíveis
+
+| Verificação | Resultado |
+|---|---|
+| `./eng/verify-distribution.ps1` | **aprovado** — quatro packs, layouts/metadados, net8/net9/net10, RCCMD026 esperado, SmartCommands + SmartSelector e links |
+| `dotnet build SmartCommands.sln -c Release --no-restore` | **aprovado** — 0 erros, 9 NU5104 aceitos |
+| `RoyalCode.SmartCommands.Tests` | **333/333** aprovados |
+| `RoyalCode.SmartCommands.EntityFramework.Tests` | **24/24** aprovados |
+| `RoyalCode.SmartCommands.Demo.Tests` | **83/83** aprovados |
+
+**Critérios de aceite — situação:** metadados/layout dos quatro pacotes ✔; consumers reais nos três TFMs
+e com SmartSelector ✔; diagnóstico inválido sem crash do generator ✔; documentação canônica e arquitetura
+atual/legada inequívocas ✔; typos/links conhecidos ✔; Actions intactas ✔; somente NU5104 na allowlist ✔.
 
 ---
 

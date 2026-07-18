@@ -4,6 +4,7 @@
 	
 	<PropertyGroup>
 		<TargetFrameworks>$(LibFrwkVer)</TargetFrameworks>
+		<Description>Entity Framework Core adapters for SmartCommands unit of work and repository access contracts.</Description>
 	</PropertyGroup>
 
 	<ItemGroup>

@@ -8,7 +8,7 @@
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<Authors>Royal Code</Authors>
 		<Copyright>Royal Code Copyright © $([System.DateTime]::UtcNow.ToString("yyyy"))</Copyright>
-		<RepositoryUrl>https://github.com/Royal-Code/EnterpisePatterns</RepositoryUrl>
+		<RepositoryUrl>https://github.com/Royal-Code/SmartCommands</RepositoryUrl>
 		<RepositoryType>Git</RepositoryType>
 		<Configurations>Debug;Release</Configurations>
 		<PackageIcon>icon2.png</PackageIcon>
@@ -24,6 +24,6 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<None Include="../icon2.png" Pack="true" PackagePath="/"/>
-		<None Include="../../README.md" Pack="true" PackagePath="/"/>
+		<None Include="../README.md" Pack="true" PackagePath="/"/>
 	</ItemGroup>
 </Project>

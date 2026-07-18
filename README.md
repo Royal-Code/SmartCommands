@@ -14,9 +14,11 @@ Projects target .NET 8, .NET 9, and .NET 10. The analyzer/generator targets .NET
 - Validation integration via `HasProblems(out Problems?)` and `WithValidateModel`.
 - Additional validations via `CommandValidation` instance methods (optional `Order`, default `10`) returning `Result`/`Task<Result>`/`ValueTask<Result>`, executed after `HasProblems` and before the unit of work/retry, short-circuiting on the first failure.
 - Unit of Work and repositories via `WithUnitOfWork<TContext>` / `WithDbContext` / `WithWorkContext`.
-- Entity loading and editing with `WithFindEntities<TContext>` and `EditEntity(typeof(Entity))`.
+- Entity loading and editing with `WithFindEntities<TContext>` and `EditEntity<TEntity,TId>`.
 - Decorators pipeline with `WithDecorators` and `IDecorator<TCommand, TResult>`.
-- Minimal APIs mapping using `MapPost/Put/Patch/Delete/Get`, metadata (`WithSummary`, `WithDescription`, `WithAuthorization`, `WithPolicy`), created location (`MapCreatedRoute`), and response composition (`MapIdResultValue`, `MapResponseValues`).
+- Minimal APIs mapping using `MapPost/Put/Patch/Delete/Get`, Find/Search, metadata (`WithSummary`,
+  `WithDescription`, `WithAuthorization`, `WithPolicy`, `WithTags`), endpoint filters, created location
+  (`MapCreatedRoute`), response composition and explicit success status.
 - Consistent results and problems modeling via SmartProblems (`Result`, `Result<T>`, `Problems`).
 
 ## Compatibility
@@ -89,7 +91,7 @@ public partial class CreateProduct { /* ... */ }
 - Prefer returning `Result`/`Result<T>`; avoid exceptions for expected flows.
 - Use partial classes to enable `WasValidated` generation for null-state.
 - Do not mix `WithUnitOfWork` with `WithDbContext`/`WithWorkContext` on the same command.
-- `EditEntity` requires UoW and first method parameter typed as the edited entity.
+- `EditEntity<TEntity,TId>` requires UoW and the first method parameter typed as `TEntity`.
 - `CancellationToken` only in async methods.
 
 ## Tests

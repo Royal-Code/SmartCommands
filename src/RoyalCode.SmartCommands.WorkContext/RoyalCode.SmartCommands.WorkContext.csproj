@@ -4,6 +4,7 @@
 	
 	<PropertyGroup>
 		<TargetFrameworks>$(LibFrwkVer)</TargetFrameworks>
+		<Description>WorkContext adapters and optimistic-concurrency retry integration for SmartCommands.</Description>
 	</PropertyGroup>
 
 	<ItemGroup>

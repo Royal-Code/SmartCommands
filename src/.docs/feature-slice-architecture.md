@@ -478,7 +478,7 @@ Prefira nomes que expressem o papel real do tipo. **Evite** sufixos reflexivos c
 
 ## 8. Comandos com SmartCommands (escrita)
 
-Features de escrita usam `RoyalCode.SmartCommands`. Uma classe **parcial** declara o modelo de entrada e um método `[Command]`; o Source Generator gera `I{Comando}Handler` e `{Comando}Handler` com validação, Unit of Work, carregamento de entidades, decorators e mapeamento HTTP. Detalhes em `.ai/references/external-libraries/commands.md`.
+Features de escrita usam `RoyalCode.SmartCommands`. Uma classe **parcial** declara o modelo de entrada e um método `[Command]`; o Source Generator gera `I{Comando}Handler` e `{Comando}Handler` com validação, Unit of Work, carregamento de entidades, decorators e mapeamento HTTP. Detalhes em [`references/smart-commands.md`](references/smart-commands.md).
 
 ### 8.1 Criação (produz nova entidade)
 
@@ -534,7 +534,7 @@ public partial class ChangeProductPrice
             .GreaterThanOrEqual(Price, 0)
             .HasProblems(out problems);
 
-    [Command, WithValidateModel, WithWorkContext, EditEntity(typeof(Product))]
+    [Command, WithValidateModel, WithWorkContext, EditEntity<Product, Guid>]
     public Result Execute(Product product)
     {
         WasValidated();

@@ -12,8 +12,10 @@ Projects target .NET 8, .NET 9, and .NET 10. The analyzer/generator targets .NET
 ## Features
 - Attribute-driven commands with generated handlers (`I{Command}Handler`, `{Command}Handler`).
 - Validation integration via `HasProblems(out Problems?)` and `WithValidateModel`.
+- Additional validation methods with `CommandValidation` (`Order` defaults to `10`) and
+  `Result`/`Task<Result>`/`ValueTask<Result>` short-circuiting.
 - Unit of Work and repositories via `WithUnitOfWork<TContext>` / `WithDbContext` / `WithWorkContext`.
-- Entity loading and editing with `WithFindEntities<TContext>` and `EditEntity(typeof(Entity))`.
+- Entity loading and editing with `WithFindEntities<TContext>` and `EditEntity<TEntity,TId>`.
 - Decorators pipeline with `WithDecorators` and `IDecorator<TCommand, TResult>`.
 - Minimal APIs mapping using `MapPost/Put/Patch/Delete/Get`, metadata (`WithSummary`, `WithDescription`, `WithAuthorization`, `WithPolicy`, `WithTags`), created location (`MapCreatedRoute`), response composition (`MapIdResultValue`, `MapResponseValues`), explicit success status (`WithResultStatus`: `Ok`/`Created`/`NoContent`), and repeatable endpoint filters (`WithEndpointFilter<TFilter>`).
 - Consistent results and problems modeling via SmartProblems (`Result`, `Result<T>`, `Problems`).
@@ -88,13 +90,21 @@ public partial class CreateProduct { /* ... */ }
 - Prefer returning `Result`/`Result<T>`; avoid exceptions for expected flows.
 - Use partial classes to enable `WasValidated` generation for null-state.
 - Do not mix `WithUnitOfWork` with `WithDbContext`/`WithWorkContext` on the same command.
-- `EditEntity` requires UoW and first method parameter typed as the edited entity.
+- `EditEntity<TEntity,TId>` requires UoW and the first method parameter typed as `TEntity`.
 - `CancellationToken` only in async methods.
+
+## Documentation
+
+- [Complete guide](.docs/references/smart-commands.md)
+- [Operational rules for AI](.docs/references/smart-commands.ai-rules.md)
+- [RCCMD diagnostics](.docs/diagnostics.md)
 
 ## Tests
 See `RoyalCode.SmartCommands.Tests` for scenarios covering:
 - Validation-first pipeline (`WithValidateModel`).
+- Additional validation ordering, DI, cancellation and short-circuiting.
 - Decorators sync/async with and without results.
 - Find entities and collections, edit flows, and NotFound problems.
 - Created responses with `MapCreatedRoute`, `MapIdResultValue`, and `MapResponseValues`.
+- HTTP status selection, tags, endpoint filters, Find/Search and OpenAPI metadata.
 

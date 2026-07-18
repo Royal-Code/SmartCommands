@@ -4,6 +4,7 @@
 	
 	<PropertyGroup>
 		<TargetFramework>$(GenFrwkVer)</TargetFramework>
+		<Description>Incremental source generator and diagnostics for SmartCommands handlers, dependency injection and Minimal API endpoints.</Description>
 
 		<IncludeBuildOutput>false</IncludeBuildOutput>
 		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
@@ -32,14 +33,11 @@
 <!--		<ProjectReference Include="..\..\..\utils\RoyalCode.Utils\RoyalCode.Extensions.SourceGenerator\RoyalCode.Extensions.SourceGenerator.csproj" />-->
 	</ItemGroup>
 
-	<Target BeforeTargets="Build" Name="Generator">
-		<!-- Package items -->
-		<ItemGroup>
-			<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-			<Analyzer Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
-			<None Include="$(NuGetPackageRoot)royalcode.extensions.sourcegenerator\$(ExSrcGenVer)\lib\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-		</ItemGroup>
-	</Target>
+	<ItemGroup>
+		<!-- IncludeBuildOutput=false: analyzer assemblies must be placed explicitly in the NuGet analyzer folder. -->
+		<None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+		<None Include="$(NuGetPackageRoot)royalcode.extensions.sourcegenerator\$(ExSrcGenVer)\lib\netstandard2.0\RoyalCode.Extensions.SourceGenerator.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<!-- Package items -->

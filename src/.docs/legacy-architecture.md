@@ -1,4 +1,8 @@
-# Definição da arquitetura de Solulções e Projetos .Net
+# Arquitetura legada de soluções e projetos .NET
+
+> **Documento legado.** Esta organização baseada em `Contracts` + `Application` foi superada por
+> [`feature-slice-architecture.md`](feature-slice-architecture.md), que é a referência para código novo.
+> Mantenha este documento apenas para compreender soluções existentes e orientar migrações.
 
 Este documento descreve a arquitetura adotada para o desenvolvimento de soluções e projetos utilizando a plataforma .Net.
 

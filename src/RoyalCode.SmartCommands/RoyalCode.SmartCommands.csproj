@@ -4,6 +4,7 @@
 	
 	<PropertyGroup>
 		<TargetFrameworks>$(LibFrwkVer)</TargetFrameworks>
+		<Description>Runtime contracts and attributes for generated command handlers, validation pipelines, persistence access and Minimal API mapping.</Description>
 	</PropertyGroup>
 
 	<ItemGroup>

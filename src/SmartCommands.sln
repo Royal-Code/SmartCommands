@@ -57,15 +57,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoyalCode.SmartCommands.Dem
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{FA111863-16CD-4C29-9723-E3F569FD5F09}"
 	ProjectSection(SolutionItems) = preProject
-		.docs\archtecture.md = .docs\archtecture.md
+		.docs\legacy-architecture.md = .docs\legacy-architecture.md
 		.docs\commands.md = .docs\commands.md
-		.docs\domain.md = .docs\domain.md
+		.docs\diagnostics.md = .docs\diagnostics.md
+		.docs\entity-framework.md = .docs\entity-framework.md
+		.docs\feature-slice-architecture.md = .docs\feature-slice-architecture.md
 		.docs\instructions.md = .docs\instructions.md
-		.docs\problems.md = .docs\problems.md
-		.docs\search.md = .docs\search.md
-		.docs\selector.md = .docs\selector.md
-		.docs\validations.md = .docs\validations.md
-		.docs\workcontext.md = .docs\workcontext.md
+		.docs\references\smart-commands.ai-rules.md = .docs\references\smart-commands.ai-rules.md
+		.docs\references\smart-commands.md = .docs\references\smart-commands.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoyalCode.SmartCommands.Demo.Tests", "RoyalCode.SmartCommands.Demo.Tests\RoyalCode.SmartCommands.Demo.Tests.csproj", "{9504ACE5-8135-49A2-8BEF-CC15B66AB96A}"
