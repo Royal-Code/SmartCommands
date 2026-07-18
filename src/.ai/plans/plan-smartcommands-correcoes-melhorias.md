@@ -18,7 +18,7 @@
 | Fase 8 - Runtime de decorators, WorkContext e retry | Concluida |
 | Fase 9 - Completude dos mapeamentos Minimal API existentes | Concluida |
 | Fase 10 - Novas capacidades de mapeamento Minimal API | Concluida |
-| Fase 11 - Qualidade transversal, pacote, documentação e CI | Pendente |
+| Fase 11 - Qualidade transversal, pacote e documentação | Pendente |
 | Fase 12 - Compatibilidade, regressão e preparação de release | Pendente |
 
 > **Manutenção deste plano:** ao concluir as tarefas de uma fase, marque cada tarefa com `- [x]`,
@@ -46,7 +46,8 @@
 - `RoyalCode.SmartCommands/Mediator.cs` — mantém um enumerador mutável, não o descarta e altera o restante do pipeline quando `next` é chamado mais de uma vez.
 - `RoyalCode.SmartCommands.WorkContext/DefaultConcurrencyRetryProblemFactory.cs` e geração de retry — opções de detalhe/tipo do problema esgotado só passam pela factory quando existe uma operação explícita.
 - `RoyalCode.SmartCommands.Tests/Util.cs` — cria um driver novo por compilação, não verifica incrementalidade entre execuções e normaliza snapshots para CRLF.
-- `AnalyzerReleases.Shipped.md` e `AnalyzerReleases.Unshipped.md` — registram RCCMD000-RCCMD025; os links dos diagnósticos publicados ainda apontam para `google.com`.
+- `AnalyzerReleases.Shipped.md` e `AnalyzerReleases.Unshipped.md` — registram RCCMD000-RCCMD053; os IDs
+  adicionados depois da última release permanecem em `Unshipped` até a versão final ser definida na Fase 12.
 - `pack.targets`, `README.md`, `.docs/instructions.md` e `.docs/commands.md` — possuem metadados/documentação desatualizados e typos verificados.
 - [Binding de parâmetros em Minimal APIs](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/parameter-binding?view=aspnetcore-10.0) — rota, query, header, body, form, DI e binding customizado podem ser explícitos ou inferidos; nome presente no template determina rota para tipos parseáveis.
 - [Respostas de Minimal APIs](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/responses?view=aspnetcore-10.0) e [metadados OpenAPI](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/include-metadata?view=aspnetcore-10.0) — `TypedResults` e unions tipadas expõem metadados de resposta; `ProducesProblem`/`ProducesValidationProblem` documentam problemas.
@@ -220,6 +221,12 @@ textual por ocorrência com `rg -o` + `Measure-Object -Line`; os números não r
 - **DF20 — Hint names legíveis, curtos e determinísticos:** todo arquivo emitido pelo generator usa o formato `{nomeLegívelLimitado}.{hash}.g.cs`, mantendo o nome do tipo/artefato na frente para facilitar localização. `nomeLegívelLimitado` é sanitizado e limitado a 32 caracteres; `hash` possui exatamente 8 caracteres Base32 (`A-Z2-7`) e codifica os primeiros 40 bits do SHA-256 da identidade completa do artefato, incluindo namespace e papel gerado. O sufixo é sempre emitido, não representa erro nem workaround transitório: ele evita colisões entre tipos homônimos e mantém os caminhos materializados abaixo dos limites comuns do Windows/Git. Não usar o metadata name completo no nome físico, não mover o hash para prefixo e não reduzir a identidade abaixo de 40 bits sem nova decisão. Fonte: definição do mantenedor após validação do limite de caminhos e da usabilidade dos arquivos gerados.
 - **DF22 — Fronteira da validação de rotas:** validade sintática, precedência e seleção de endpoints pertencem ao roteamento do ASP.NET Core; o SmartCommands não mantém parser geral concorrente nem proíbe genericamente combinações iguais de verbo+template que o framework possa diferenciar por constraints ou metadata. O generator valida somente invariantes que ele próprio interpreta ou cria: nome derivável do grupo, binding obrigatório de `{id}` no `MapFind`, placeholders simples do `MapCreatedRoute`, colisões de nomes/tipos/métodos gerados e normalização da barra na junção `MapGroup` + `MapCreatedRoute`. Fonte: definição do mantenedor após revisão da Fase 9.
 - **DF23 — Q4 adota a opção A com extensibilidade HTTP comum:** a Fase 10 inclui `[WithEndpointFilter<T>]` repetível, na ordem declarada e resolvido pelo DI do ASP.NET Core; `[WithResultStatus(HttpResultStatus)]` para `Ok`, `Created` e `NoContent`; e `[WithTags(params string[])]`. Sem `WithResultStatus`, permanece a inferência atual. `NoContent` pode descartar explicitamente o valor de sucesso de `Result<T>`, preservando a resposta de problemas. `Created` é permitido sem `Location`; `MapCreatedRoute` continua sendo a forma de produzir `Location` e implica `Created`, sendo incompatível com seleção explícita de `Ok`/`NoContent`. Os atributos não introduzem dependência runtime do núcleo em ASP.NET Core: o generator valida semanticamente o filtro e emite a integração no consumidor. `Accepted`/202 e `TryFindBy` seguem para plano próprio; form/file/stream e customizações HTTP específicas ficam no mapeamento manual da Minimal API. Fonte: Q4, `.docs/reviews/review-questao-4-plan-smartcommands-correcoes-melhorias-v1.md` e definição do mantenedor em 2026-07-17.
+- **DF24 — Gates de pacote automatizados e separados da suíte unitária:** não depender de inspeção
+  manual pontual do `.nupkg`. O layout dos quatro pacotes e o consumo real por TFM serão verificados por
+  harnesses repetíveis executados depois do pack. Como invocam restore/build, feed local e processos `dotnet`,
+  são testes de integração do artefato com comando próprio, não unit tests executados implicitamente em
+  toda suíte. A Fase 12 apenas reexecuta os mesmos gates sobre os pacotes finais. Fonte: definição do
+  mantenedor para as tarefas 3 e 4 da Fase 11 em 2026-07-17.
 
 ---
 
@@ -1579,30 +1586,62 @@ plano próprio na documentação).
 
 ---
 
-## Fase 11 - Qualidade transversal, pacote, documentação e CI
+## Fase 11 - Qualidade transversal, pacote e documentação
 
-**Depende de:** Fases 3-10 e DF16.
+**Depende de:** Fases 3-10, DF16 e DF24.
 
-**Escopo:** estilo, docs, README, pack, analyzer package, smoke consumers e automação.
+**Escopo:** docs, README, metadados e conteúdo dos pacotes, analyzer package, smoke consumers e
+verificações locais automatizadas. Não será criado `.editorconfig`: não há divergência concreta de estilo
+que justifique introduzir regras ou provocar reformatação transversal nesta entrega.
 
-**O que/como:** corrigir typos/stale docs, alinhar package metadata, verificar conteúdo do `.nupkg`, adicionar testes por TFM e manter GitHub Actions inalterado conforme DF16.
+**O que/como:** corrigir typos e documentação obsoleta, alinhar os metadados dos quatro pacotes e criar
+verificações automatizadas e repetíveis do artefato empacotado e do consumo por TFM. Esses gates são testes
+de integração do pacote, executados por comando próprio depois de `dotnet pack`; não entram como testes
+unitários comuns nem executam `dotnet` recursivamente durante toda chamada ordiná de `dotnet test`. GitHub
+Actions permanece inalterado conforme DF16.
 
 **Tarefas:**
 
-- [ ] Adicionar `.editorconfig` mínimo alinhado ao estilo verificado, sem reformatar em massa arquivos fora do diff.
-- [ ] Corrigir `EnterpisePatterns` para `SmartCommands`, adicionar descrições reais por pacote e validar README/icon/license/repository no `.nupkg`.
-- [ ] Verificar que o package do generator contém `RoyalCode.SmartCommands.Generators.dll` e dependência necessária em `analyzers/dotnet/cs`, sem assembly runtime indevido.
-- [ ] Criar consumer-smoke que restaura os `.nupkg` locais e compila um command/map válido e um inválido em `net8.0`, `net9.0` e `net10.0`; incluir cenário que carrega SmartCommands e SmartSelector juntos para detectar conflito de versão da base/analyzer (`CS8032`, `CS8785`, `AD0001`).
-- [ ] Corrigir `README.md` e `.docs/commands.md`, inclusive sintaxe genérica atual de `EditEntity`, validation adicional, binding e maps.
+- [ ] Corrigir os metadados dos quatro pacotes: trocar o `RepositoryUrl` incorreto
+  (`Royal-Code/EnterpisePatterns`) por `Royal-Code/SmartCommands`, adicionar descrição específica por pacote e
+  validar no artefato os campos README, ícone, licença, repository e versão.
+- [ ] Criar uma verificação automatizada de layout dos `.nupkg`, executada depois do pack e sem depender de
+  inspeção manual. Para o generator, exigir `RoyalCode.SmartCommands.Generators.dll` e
+  `RoyalCode.Extensions.SourceGenerator.dll` em `analyzers/dotnet/cs`, os arquivos `build` esperados e ausência
+  de assemblies runtime indevidos; para os outros três pacotes, validar assemblies por TFM e dependências.
+- [ ] Criar um consumer-smoke automatizado e repetível que use uma pasta temporária e feed local dos `.nupkg`,
+  restaure e compile um command/map válido em `net8.0`, `net9.0` e `net10.0`, e confirme o RCCMD esperado em
+  uma entrada inválida. Incluir cenário com SmartCommands e a versão pinada do SmartSelector no mesmo
+  consumer para detectar `CS8032`, `CS8785`, `AD0001` e conflito de carga da base compartilhada. O harness
+  deve poder ser reexecutado a qualquer momento após o pack e limpar somente sua própria pasta temporária.
+- [ ] Auditar `README.md`, `.docs/commands.md` e exemplos arquiteturais contra a API final, incluindo sintaxe
+  genérica atual de `EditEntity`, `CommandValidation`, ordem do pipeline, binding/`WithParameter`, Find/Search,
+  adapters e extensibilidade HTTP.
+- [ ] Criar `.docs/references/smart-commands.md` como guia conceitual completo e
+  `.docs/references/smart-commands.ai-rules.md` como contrato operacional conciso para IA, no padrão das demais
+  bibliotecas RoyalCode. Evitar três fontes canônicas: migrar o conteúdo útil e transformar
+  `.docs/commands.md` em resumo/índice com links para o novo par.
 - [ ] Adicionar errata à revisão de 2026-07-13 conforme DF6, sem manter a conclusão falsa de `async void` como fato atual.
-- [ ] Renomear `.docs/archtecture.md` para `.docs/architecture.md` e atualizar `SmartCommands.sln`/links; corrigir `SmartProbelms` e textos com encoding inválido.
-- [ ] Executar busca de typos conhecidos e revisar XML docs de toda API nova/alterada.
-- [ ] Não criar nem modificar `.github/workflows`; registrar e executar localmente os comandos reproduzíveis de build/test/pack/consumer-smoke conforme DF16.
+- [ ] Renomear `.docs/archtecture.md` para `.docs/legacy-architecture.md`, incluir aviso de documento superado
+  e atualizar `SmartCommands.sln`, `AGENTS.md`, `.docs/instructions.md` e demais links. A arquitetura atual
+  continua sendo `.docs/feature-slice-architecture.md`; não criar `.docs/architecture.md` ambíguo.
+- [ ] Executar busca detalhada e revisada de typos conhecidos, encoding inválido, links quebrados, APIs antigas
+  e XML docs da API nova/alterada; corrigir a fonte dos artefatos gerados e não fazer substituição global cega
+  em registros históricos ou documentação importada de outras bibliotecas.
+- [ ] Não criar nem modificar `.github/workflows`; registrar e executar localmente os comandos reproduzíveis
+  de restore/build/test/pack, verificação dos pacotes e consumer-smoke conforme DF16, com diretório,
+  configuração, flags e resultado.
 - [ ] Manter allowlist somente de NU5104 e falhar em qualquer outro warning novo.
 
-**Critérios de aceite:** package metadata aponta para o remote correto; consumer-smoke carrega generator/analyzer e compila em três TFMs; documentação não usa APIs antigas; busca de typos conhecidos retorna zero; comandos locais reproduzem build/test/pack sem alterar Actions; somente NU5104 conhecido permanece.
+**Critérios de aceite:** package metadata aponta para o remote correto e descreve cada pacote; a verificação
+automatizada comprova o layout dos quatro `.nupkg`; consumer-smoke carrega generator/analyzer e compila em
+três TFMs, isolado e junto do SmartSelector; o novo par de referências é canônico e a documentação não usa
+APIs antigas; arquitetura atual/legada está inequívoca; busca de typos conhecidos retorna zero; comandos
+locais reproduzem build/test/pack/gates de pacote sem alterar Actions; somente NU5104 conhecido permanece.
 
-**Testes:** `dotnet pack` dos quatro pacotes em Release; inspeção do `.nupkg`; consumer-smoke net8/net9/net10, isolado e com SmartSelector; markdown/link check local; build/test padrão no ambiente local, sem alteração de GitHub Actions.
+**Testes:** `dotnet pack` dos quatro pacotes em Release; teste automatizado do conteúdo dos `.nupkg`;
+consumer-smoke automatizado net8/net9/net10, isolado e com SmartSelector; markdown/link check local; build/test
+padrão no ambiente local, sem alteração de GitHub Actions.
 
 ### Resultado da Fase 11
 
@@ -1621,11 +1660,15 @@ plano próprio na documentação).
 **Tarefas:**
 
 - [ ] Limpar somente `bin/obj` conhecidos após verificar caminhos; restaurar e executar build/test/pack do zero.
-- [ ] Executar testes incrementais repetidos e consumer-smoke com os `.nupkg` finais.
+- [ ] Reexecutar os testes incrementais e os gates automatizados de layout/consumer-smoke da Fase 11 com os
+  `.nupkg` finais; a Fase 12 não cria outro harness paralelo.
 - [ ] Revisar diff de API pública e registrar cada remoção/adição/quebra, incluindo exemplos de migração direta.
 - [ ] Revisar fontes geradas do Demo e snapshots; separar alterações esperadas de ruído.
 - [ ] Confirmar que não existe `async void`, `CS8785`, `AD0001`, fonte duplicada, erro de OpenAPI ou warning novo.
 - [ ] Registrar versão/release notes sem publicar; atualizar `SCmdVer` somente com autorização explícita do mantenedor.
+- [ ] Quando a versão de release estiver definida, mover RCCMD024-RCCMD053 de
+  `AnalyzerReleases.Unshipped.md` para a seção correspondente de `AnalyzerReleases.Shipped.md`, sem duplicar
+  IDs e mantendo em `Unshipped` somente alterações ainda não publicadas.
 - [ ] Preencher todos os `Resultado da Fase`, rastreabilidade, riscos e diferidos; marcar o plano concluído somente após critérios globais.
 
 **Critérios de aceite:** todos os comandos finais verdes; 100% das perguntas fechadas; todos os critérios globais satisfeitos; pacote local consumível nos três TFMs; diff final não toca alterações não relacionadas do usuário.
@@ -1648,7 +1691,7 @@ plano próprio na documentação).
 | Validações adicionais | 6 | DF2, DF5, DF13 | ordem/short-circuit/async/CT/DI definidos; `Order` padrão 10; empate sem precedência pública | snapshots + fakes + HTTP |
 | Runtime EF/WorkContext/decorators confiável | 7-8 | DF5, DF6, DF14 | cancelamento e exceção corretos; retry/decorators determinísticos | SQLite, retry e decorator tests |
 | Minimal API completa/evoluída | 9-10 | DF2-DF4, DF17, DF22-DF23 | maps atuais completos; placeholders nomeados; filtros/status/tags aprovados; itens diferidos ausentes | generator + HTTP matrix + OpenAPI |
-| Qualidade/distribuição/compatibilidade | 11-12 | DF1, DF6, DF7, DF10-DF12, DF16 | docs/pacotes/TFMs/verificações locais verdes; Actions intactas | pack, consumer-smoke, build/test final |
+| Qualidade/distribuição/compatibilidade | 11-12 | DF1, DF6, DF7, DF10-DF12, DF16, DF24 | docs/pacotes/TFMs/verificações locais verdes; Actions intactas | pack, verificação automatizada de layout, consumer-smoke, build/test final |
 
 ---
 
@@ -1726,7 +1769,8 @@ plano próprio na documentação).
 
 - `.docs/templates/template-ai-implementation-plan.md`.
 - `.docs/reviews/2026-07-13-atualizacao-libs-royalcode-breaking-continueasync.md`.
-- `.docs/commands.md`, `README.md` e `Directory.Build.props`.
+- `.docs/commands.md`, futuros `.docs/references/smart-commands.md` e
+  `.docs/references/smart-commands.ai-rules.md`, `README.md` e `Directory.Build.props`.
 - `RoyalCode.SmartCommands.Generators/Generators/IncrementalGenerator.cs`.
 - `RoyalCode.SmartCommands.Generators/Generators/CommandHandlerGenerator.cs`.
 - `RoyalCode.SmartCommands.Generators/Generators/SearchGenerator.cs` e `SearchInformation.cs`.
