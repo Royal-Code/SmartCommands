@@ -280,11 +280,12 @@ retornado. **Correção:** alinhe placeholders e propriedades, por exemplo
 `[MapCreatedRoute("{id}", nameof(Produto.Id))]`.
 
 ## RCCMD051
-**Tipo inválido em `WithEndpointFilter<T>` (DF23).** O filtro precisa ser uma classe top-level, não genérica,
-não abstrata, não file-local, acessível ao código gerado e implementando
+**Tipo inválido em `WithEndpointFilter<T>` (DF23).** O filtro precisa ser uma classe concreta, não file-local,
+acessível ao código gerado e implementando
 `Microsoft.AspNetCore.Http.IEndpointFilter` — o pacote runtime não referencia ASP.NET Core, então o contrato é
-validado semanticamente pelo generator. **Correção:** implemente `IEndpointFilter` em uma classe concreta
-pública/interna do próprio assembly (ou pública de um assembly referenciado).
+validado semanticamente pelo generator. Tipos construídos genéricos e tipos aninhados são válidos quando
+acessíveis. **Correção:** implemente `IEndpointFilter` em uma classe concreta acessível a partir do assembly
+consumidor.
 
 ## RCCMD052
 **Uso inválido de `WithResultStatus` (DF23).** O valor não é um `HttpResultStatus` conhecido (`Ok`, `Created`

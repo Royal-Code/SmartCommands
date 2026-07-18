@@ -28,6 +28,7 @@ public static partial class ProgramExtensions
         services.AddTransient<ICriarLojaHandler, CriarLojaHandler>();
         services.AddTransient<IExcluirLojaHandler, ExcluirLojaHandler>();
         services.AddTransient<IImportarLojaHandler, ImportarLojaHandler>();
+        services.AddTransient<IInvalidarCacheLojasHandler, InvalidarCacheLojasHandler>();
         services.AddTransient<IRelatorioLojasHandler, RelatorioLojasHandler>();
         services.AddTransient<IRenomearLojaHandler, RenomearLojaHandler>();
         services.AddTransient<IRegistrarVisualizacaoHandler, RegistrarVisualizacaoHandler>();

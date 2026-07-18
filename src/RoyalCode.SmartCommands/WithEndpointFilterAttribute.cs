@@ -8,10 +8,11 @@ namespace RoyalCode.SmartCommands;
 ///     application's dependency injection.
 /// </para>
 /// <para>
-///     <typeparamref name="TFilter"/> must be a non-abstract, non-generic, top-level class implementing
+///     <typeparamref name="TFilter"/> must be a concrete class implementing
 ///     <c>Microsoft.AspNetCore.Http.IEndpointFilter</c>. The contract is validated at compile time by the
-///     generator (RCCMD051); this package does not reference ASP.NET Core, so the constraint is semantic,
-///     not declared on the attribute.
+///     generator (RCCMD051), including accessibility from the generated code. Constructed generic and nested
+///     classes are supported when accessible. This package does not reference ASP.NET Core, so the constraint
+///     is semantic, not declared on the attribute.
 /// </para>
 /// <para>
 ///     Can be used on command classes mapped by the HTTP verbs, on <see cref="MapFindAttribute"/> classes and

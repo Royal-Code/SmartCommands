@@ -88,10 +88,9 @@ public class DemoOpenApiTests
 			string.Join(", ", renomearResponses.EnumerateObject().Select(p => p.Name)));
 		AssertProblemDetailsResponse(renomearResponses, "404");
 		var renomearTags = renomear.GetProperty("tags").EnumerateArray()
-			.Select(tag => tag.GetString())
+			.Select(tag => tag.GetString()!)
 			.ToArray();
-		Assert.Contains("Lojas", renomearTags);
-		Assert.Contains("Administracao", renomearTags);
+		Assert.Equal(["Lojas", "Administracao"], renomearTags);
 
 		// POST /lojas/importadas — WithResultStatus(Created) sem MapCreatedRoute: 201 com corpo projetado
 		var importar = GetPath(paths, "/lojas/importadas").GetProperty("post");
@@ -100,6 +99,14 @@ public class DemoOpenApiTests
 			"Respostas do POST /lojas/importadas: " +
 			string.Join(", ", importarResponses.EnumerateObject().Select(p => p.Name)));
 		Assert.True(created201.TryGetProperty("content", out _));
+
+		// DELETE /lojas/cache — WithResultStatus(Ok) sobrepõe a inferência 204 do verbo DELETE
+		var invalidarCache = GetPath(paths, "/lojas/cache").GetProperty("delete");
+		var invalidarCacheResponses = invalidarCache.GetProperty("responses");
+		Assert.True(invalidarCacheResponses.TryGetProperty("200", out _),
+			"Respostas do DELETE /lojas/cache: " +
+			string.Join(", ", invalidarCacheResponses.EnumerateObject().Select(p => p.Name)));
+		Assert.False(invalidarCacheResponses.TryGetProperty("204", out _));
 	}
 
 	private static void AssertProblemDetailsResponse(JsonElement responses, string statusCode)

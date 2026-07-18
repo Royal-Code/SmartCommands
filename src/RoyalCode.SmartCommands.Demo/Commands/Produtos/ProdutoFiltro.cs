@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using RoyalCode.SmartCommands.Demo.Domain;
+using RoyalCode.SmartCommands.Demo.Filters;
 using RoyalCode.SmartSearch;
 using RoyalCode.SmartSearch.AspNetCore.Internals;
 
@@ -8,6 +9,7 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
 [MapGroup("produtos")]
 [MapSearch("", "Listagem paginada de produtos")]
 [SearchReference<Produto, ProdutoDetalhes>]
+[WithEndpointFilter<FiltroAuditoria>]
 public class ProdutoFiltro
 {
     // string -> operador Like por convencao (substring, sem curinga informado pelo usuario). Case = Insensitive

@@ -132,11 +132,65 @@ public class EndpointExtensibilityTests
         Util.Compile(code, out var output, out var diagnostics);
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertOutputCompiles(output);
 
         var generated = GeneratedSources(output);
         Assert.Contains(generated, source =>
             source.Contains(".AddEndpointFilter<global::Tests.Phase10.FindSearchFilters.AuditFilter>()") &&
             source.Contains(".AddEndpointFilter<global::Tests.Phase10.FindSearchFilters.TenantFilter>()"));
+    }
+
+    [Fact]
+    public void Filtro_generico_construido_e_filtro_aninhado_acessivel_sao_aceitos()
+    {
+        const string code =
+            """
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Phase10.FilterShapes;
+
+            public sealed class GenericFilter<T> : Microsoft.AspNetCore.Http.IEndpointFilter
+            {
+                public ValueTask<object?> InvokeAsync(
+                    Microsoft.AspNetCore.Http.EndpointFilterInvocationContext context,
+                    Microsoft.AspNetCore.Http.EndpointFilterDelegate next) => next(context);
+            }
+
+            public static class FilterContainer
+            {
+                public sealed class NestedFilter : Microsoft.AspNetCore.Http.IEndpointFilter
+                {
+                    public ValueTask<object?> InvokeAsync(
+                        Microsoft.AspNetCore.Http.EndpointFilterInvocationContext context,
+                        Microsoft.AspNetCore.Http.EndpointFilterDelegate next) => next(context);
+                }
+            }
+
+            [MapPost("/things", "create-thing")]
+            [WithEndpointFilter<GenericFilter<string>>]
+            [WithEndpointFilter<FilterContainer.NestedFilter>]
+            public class CreateThing
+            {
+                [Command]
+                public Result Execute() => Result.Ok();
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertOutputCompiles(output);
+
+        var generated = Assert.Single(GeneratedSources(output), source => source.Contains("AddEndpointFilter"));
+        Assert.Contains(
+            ".AddEndpointFilter<global::Tests.Phase10.FilterShapes.GenericFilter<",
+            generated,
+            StringComparison.Ordinal);
+        Assert.Contains("FilterContainer.NestedFilter", generated, StringComparison.Ordinal);
     }
 
     [Theory]

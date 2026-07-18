@@ -167,7 +167,7 @@ internal static class FindGenerator
         // DF23: tags e filtros valem para todas as superfícies; WithResultStatus é só de command maps
         var tags = EndpointExtensibility.ReadTags(classSymbol, classLocation, errors, cancellationToken);
         var endpointFilters = EndpointExtensibility.ReadFilters(
-            classSymbol, classSymbol.ContainingAssembly, classLocation, errors, cancellationToken);
+            classSymbol, context.SemanticModel.Compilation, classLocation, errors, cancellationToken);
         EndpointExtensibility.DenyResultStatus(classSymbol, "MapFind", classLocation, errors, cancellationToken);
 
         if (groupName is not null && groupAttr is not null)

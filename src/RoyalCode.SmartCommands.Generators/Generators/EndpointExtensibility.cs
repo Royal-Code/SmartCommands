@@ -31,13 +31,13 @@ internal static class EndpointExtensibility
 {
     /// <summary>
     /// Lê os atributos <c>[WithEndpointFilter&lt;T&gt;]</c> na ordem declarada e valida o contrato do tipo:
-    /// classe top-level, não genérica, não abstrata, não file-local, acessível ao código gerado e
+    /// classe concreta, não file-local, acessível ao código gerado e
     /// implementando <c>Microsoft.AspNetCore.Http.IEndpointFilter</c> (RCCMD051). Tipos de erro (em digitação)
     /// são ignorados — o compilador já reporta (DF9).
     /// </summary>
     internal static string[] ReadFilters(
         INamedTypeSymbol classSymbol,
-        IAssemblySymbol compilationAssembly,
+        Compilation compilation,
         Location fallback,
         List<DiagnosticInfo> errors,
         CancellationToken cancellationToken)
@@ -59,7 +59,7 @@ internal static class EndpointExtensibility
                 continue;
             }
 
-            if (GetFilterTypeProblem(filterType, compilationAssembly) is { } problem)
+            if (GetFilterTypeProblem(filterType, compilation) is { } problem)
             {
                 errors.Add(DiagnosticInfo.Create(
                     CmdDiagnostics.InvalidEndpointFilter,
@@ -76,23 +76,16 @@ internal static class EndpointExtensibility
         return filters?.ToArray() ?? [];
     }
 
-    private static string? GetFilterTypeProblem(ITypeSymbol filterType, IAssemblySymbol compilationAssembly)
+    private static string? GetFilterTypeProblem(ITypeSymbol filterType, Compilation compilation)
     {
         if (filterType is not INamedTypeSymbol named || named.TypeKind != TypeKind.Class)
             return "the filter must be a class";
         if (named.IsAbstract)
             return "the filter must not be abstract or static";
-        if (named.IsGenericType)
-            return "the filter must not be generic";
-        if (named.ContainingType is not null)
-            return "the filter must be a top-level type, not a nested type";
         if (named.IsFileLocal)
             return "the filter must not be a file-local type (declared with the 'file' modifier)";
-        if (named.DeclaredAccessibility == Accessibility.Internal &&
-            !SymbolEqualityComparer.Default.Equals(named.ContainingAssembly, compilationAssembly))
-        {
-            return "the filter is internal to another assembly and is not accessible to the generated code";
-        }
+        if (!compilation.IsSymbolAccessibleWithin(named, compilation.Assembly))
+            return "the filter type is not accessible to the generated code";
         if (!named.AllInterfaces.Any(candidate =>
                 KnownAttributes.IsType(candidate, "Microsoft.AspNetCore.Http", "IEndpointFilter")))
         {

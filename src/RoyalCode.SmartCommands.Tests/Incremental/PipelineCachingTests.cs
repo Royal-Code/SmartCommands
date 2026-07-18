@@ -114,6 +114,133 @@ public class PipelineCachingTests
         AssertReasons(result, IncrementalGenerator.TrackingNames.Commands, IncrementalStepRunReason.Modified);
     }
 
+    [Fact]
+    public void Changing_result_status_invalidates_command_model_and_generated_source()
+    {
+        const string originalSource =
+            """
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Caching;
+
+            [MapDelete("/things/{id:int}", "delete")]
+            [WithResultStatus(HttpResultStatus.Ok)]
+            public class DeleteThing
+            {
+                [Command]
+                public Result Execute([WithParameter] int id) => Result.Ok();
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+        var changedSource = originalSource.Replace("HttpResultStatus.Ok", "HttpResultStatus.NoContent");
+        var original = Util.CreateCompilation(originalSource);
+        var driver = Util.CreateTrackedDriver().RunGenerators(original);
+        var originalGenerated = GeneratedSources(driver.GetRunResult());
+        var changed = original.ReplaceSyntaxTree(original.SyntaxTrees.Single(), Util.ParseSource(changedSource));
+
+        driver = driver.RunGenerators(changed);
+        var result = driver.GetRunResult();
+
+        AssertReasons(result, IncrementalGenerator.TrackingNames.Commands, IncrementalStepRunReason.Modified);
+        Assert.False(originalGenerated.SequenceEqual(GeneratedSources(result)),
+            "a mudança do status deve alterar a fonte gerada");
+    }
+
+    [Fact]
+    public void Changing_tags_invalidates_find_model_and_generated_source()
+    {
+        const string originalSource =
+            """
+            using RoyalCode.SmartCommands;
+
+            namespace Tests.Caching;
+
+            public class Entity { }
+
+            [MapFind("/{id}", "find"), EntityReference<Entity, int>]
+            [WithTags("Produtos")]
+            public class Details { }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+        var changedSource = originalSource.Replace("Produtos", "Catalogo");
+        var original = Util.CreateCompilation(originalSource);
+        var driver = Util.CreateTrackedDriver().RunGenerators(original);
+        var originalGenerated = GeneratedSources(driver.GetRunResult());
+        var changed = original.ReplaceSyntaxTree(original.SyntaxTrees.Single(), Util.ParseSource(changedSource));
+
+        driver = driver.RunGenerators(changed);
+        var result = driver.GetRunResult();
+
+        AssertReasons(result, IncrementalGenerator.TrackingNames.Finds, IncrementalStepRunReason.Modified);
+        Assert.False(originalGenerated.SequenceEqual(GeneratedSources(result)),
+            "a mudança das tags deve alterar a fonte gerada");
+    }
+
+    [Fact]
+    public void Changing_endpoint_filter_order_invalidates_search_model_and_generated_source()
+    {
+        const string originalSource =
+            """
+            using RoyalCode.SmartCommands;
+
+            namespace Tests.Caching;
+
+            public class Entity { }
+
+            public sealed class FirstFilter : Microsoft.AspNetCore.Http.IEndpointFilter
+            {
+                public System.Threading.Tasks.ValueTask<object?> InvokeAsync(
+                    Microsoft.AspNetCore.Http.EndpointFilterInvocationContext context,
+                    Microsoft.AspNetCore.Http.EndpointFilterDelegate next) => next(context);
+            }
+
+            public sealed class SecondFilter : Microsoft.AspNetCore.Http.IEndpointFilter
+            {
+                public System.Threading.Tasks.ValueTask<object?> InvokeAsync(
+                    Microsoft.AspNetCore.Http.EndpointFilterInvocationContext context,
+                    Microsoft.AspNetCore.Http.EndpointFilterDelegate next) => next(context);
+            }
+
+            [MapSearch("/", "search"), SearchReference<Entity>]
+            [WithEndpointFilter<FirstFilter>]
+            [WithEndpointFilter<SecondFilter>]
+            public class Filter { }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+        var changedSource = originalSource
+            .Replace(
+                "[WithEndpointFilter<FirstFilter>]",
+                "[WithEndpointFilter<TemporaryFilter>]",
+                StringComparison.Ordinal)
+            .Replace(
+                "[WithEndpointFilter<SecondFilter>]",
+                "[WithEndpointFilter<FirstFilter>]",
+                StringComparison.Ordinal)
+            .Replace(
+                "[WithEndpointFilter<TemporaryFilter>]",
+                "[WithEndpointFilter<SecondFilter>]",
+                StringComparison.Ordinal);
+
+        var original = Util.CreateCompilation(originalSource);
+        var driver = Util.CreateTrackedDriver().RunGenerators(original);
+        var originalGenerated = GeneratedSources(driver.GetRunResult());
+        var changed = original.ReplaceSyntaxTree(original.SyntaxTrees.Single(), Util.ParseSource(changedSource));
+
+        driver = driver.RunGenerators(changed);
+        var result = driver.GetRunResult();
+
+        AssertReasons(result, IncrementalGenerator.TrackingNames.Searches, IncrementalStepRunReason.Modified);
+        Assert.False(originalGenerated.SequenceEqual(GeneratedSources(result)),
+            "a mudança da ordem dos filtros deve alterar a fonte gerada");
+    }
+
     private static (GeneratorDriver Driver, GeneratorDriverRunResult Result) RunChangedCompilation(
         string originalSource,
         string changedSource)

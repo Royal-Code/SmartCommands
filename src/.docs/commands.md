@@ -100,7 +100,8 @@ Principais atributos na classe de comando (mapeamento HTTP):
   whitespace é erro (RCCMD041).
 - `WithEndpointFilter<TFilter>` (repetível): adiciona `AddEndpointFilter<TFilter>()` ao endpoint gerado, na
   ordem declarada, com o filtro ativado pela DI do ASP.NET Core; `TFilter` precisa implementar
-  `IEndpointFilter` e ser uma classe concreta top-level (RCCMD051). Vale para command/find/search maps.
+  `IEndpointFilter` e ser uma classe concreta acessível ao código gerado (RCCMD051). Tipos construídos
+  genéricos e tipos aninhados são aceitos quando acessíveis. Vale para command/find/search maps.
 - `WithResultStatus(HttpResultStatus)`: seleção explícita do status de sucesso (`Ok`, `Created`, `NoContent`)
   para command maps; sem o atributo vale a inferência abaixo. `Created` sem `MapCreatedRoute` responde `201`
   sem `Location`; `NoContent` descarta deliberadamente o valor de sucesso de `Result<T>` (os problemas são

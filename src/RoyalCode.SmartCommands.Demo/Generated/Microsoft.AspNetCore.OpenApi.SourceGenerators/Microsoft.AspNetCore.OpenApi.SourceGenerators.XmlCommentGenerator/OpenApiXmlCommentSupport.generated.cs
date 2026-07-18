@@ -450,10 +450,11 @@ public class MyCommand { }```"], null, null));
 filters are applied in the declaration order, using the standard
 AddEndpointFilter&lt;TFilter&gt;() of ASP.NET Core — instances are resolved/activated with the
 application's dependency injection.
-    TFilter must be a non-abstract, non-generic, top-level class implementing
+    TFilter must be a concrete class implementing
           Microsoft.AspNetCore.Http.IEndpointFilter. The contract is validated at compile time by the
-          generator (RCCMD051); this package does not reference ASP.NET Core, so the constraint is semantic,
-          not declared on the attribute.
+          generator (RCCMD051), including accessibility from the generated code. Constructed generic and nested
+          classes are supported when accessible. This package does not reference ASP.NET Core, so the constraint
+          is semantic, not declared on the attribute.
     Can be used on command classes mapped by the HTTP verbs, on MapFindAttribute classes and
 on MapSearchAttribute classes.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithFilterAttribute", new XmlComment(@"    Marks the method, in a class decorated with SearchReferenceAttribute&lt;TEntity&gt; or

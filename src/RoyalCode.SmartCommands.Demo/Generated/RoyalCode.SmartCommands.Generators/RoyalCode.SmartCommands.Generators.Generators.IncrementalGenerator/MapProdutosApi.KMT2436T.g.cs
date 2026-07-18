@@ -39,7 +39,8 @@ public static partial class MapProdutosApi
             .WithName("Get product stock details");
 
         group.MapGet("", SearchProdutoByProdutoFiltroAsync)
-            .WithName("Listagem paginada de produtos");
+            .WithName("Listagem paginada de produtos")
+            .AddEndpointFilter<global::RoyalCode.SmartCommands.Demo.Filters.FiltroAuditoria>();
 
         group.MapGet("/filtro/{id:int}", SearchProdutoByExemploProdutoFiltroAsync)
             .WithName("Listagem paginada de produtos exemplos");

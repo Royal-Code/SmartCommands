@@ -81,5 +81,35 @@ public class DemoHttpExtensibilityTests
 		Assert.Equal("Loja Importada", body.Nome);
 	}
 
+	[Fact]
+	public async Task Ok_explicito_sobrescreve_a_inferencia_de_NoContent_do_Delete()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+
+		var response = await client.DeleteAsync("/lojas/cache");
+
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+	}
+
+	[Fact]
+	public async Task Filtro_de_Search_e_executado_no_endpoint_real()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var create = await client.PostAsJsonAsync(
+			"/produtos/",
+			new { Nome = "Produto Filtrado", Sku = "FILTRO-001", Preco = 10m });
+		Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+
+		var response = await client.GetAsync("/produtos");
+
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		Assert.True(response.Headers.TryGetValues("X-Demo-Filtros", out var filtros));
+		Assert.Equal(["auditoria"], filtros!.ToArray());
+	}
+
 	private sealed record LojaResponse(int Id, string Nome);
 }

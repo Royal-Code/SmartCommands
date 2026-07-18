@@ -176,7 +176,7 @@ internal static class SearchGenerator
         // DF23: tags e filtros valem para todas as superfícies; WithResultStatus é só de command maps
         var tags = EndpointExtensibility.ReadTags(classSymbol, classLocation, declarationErrors, cancellationToken);
         var endpointFilters = EndpointExtensibility.ReadFilters(
-            classSymbol, classSymbol.ContainingAssembly, classLocation, declarationErrors, cancellationToken);
+            classSymbol, context.SemanticModel.Compilation, classLocation, declarationErrors, cancellationToken);
         EndpointExtensibility.DenyResultStatus(
             classSymbol, "MapSearch", classLocation, declarationErrors, cancellationToken);
 

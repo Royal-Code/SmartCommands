@@ -641,6 +641,7 @@ internal static class CommandHandlerGenerator
             commandType,
             valueReturnTypeSymbol,
             method,
+            context.SemanticModel.Compilation,
             errors,
             cancellationToken);
 
@@ -1605,6 +1606,7 @@ internal static class CommandHandlerGenerator
         INamedTypeSymbol commandType,
         ITypeSymbol? valueReturnType,
         MethodDeclarationSyntax method,
+        Compilation compilation,
         List<DiagnosticInfo> errors,
         CancellationToken cancellationToken)
     {
@@ -1733,7 +1735,7 @@ internal static class CommandHandlerGenerator
         var tags = EndpointExtensibility.ReadTags(
             commandType, attributeLocation, errors, cancellationToken);
         var endpointFilters = EndpointExtensibility.ReadFilters(
-            commandType, commandType.ContainingAssembly, attributeLocation, errors, cancellationToken);
+            commandType, compilation, attributeLocation, errors, cancellationToken);
 
         // tenta obter MapCreatedRoute — (route pattern, params nomes de propriedades)
         if (KnownAttributes.TryGet(commandType, KnownAttributes.MapCreatedRoute, out var createdRouteAttr))

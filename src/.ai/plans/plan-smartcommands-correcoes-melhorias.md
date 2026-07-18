@@ -1189,7 +1189,7 @@ quebra fonte/binário, coerência da documentação e DF10 (0 warnings novos).
 
 | Verificação | Resultado |
 |---|---|
-| `dotnet build SmartCommands.sln -c Release` | **êxito** — 0 erros, somente NU5104 aceitos (DF10) |
+| `dotnet build SmartCommands.sln -c Release --no-restore` | **êxito** — 0 erros, 6 NU5104 aceitos (DF10) |
 | `RoyalCode.SmartCommands.Tests` | **245/245** aprovados |
 | `RoyalCode.SmartCommands.Demo.Tests` | **71/71** aprovados |
 | `RoyalCode.SmartCommands.EntityFramework.Tests` (novo) | **22/22** aprovados |
@@ -1495,13 +1495,13 @@ determinística; erros com metadata OpenAPI coerente) ✔; nenhum atributo ignor
 **Tarefas:**
 
 - [x] Escrever a matriz de cada atributo com declaração do usuário, maps permitidos, emissão, resposta/status, metadata OpenAPI, combinações válidas e diagnóstico correspondente. (Matriz registrada no `Resultado da Fase 10`; a viabilidade das emissões sem mudar o SmartProblems foi verificada antes da implementação: `Result<T>` → `Result` por conversão implícita, `CreatedMatch(IResult)` público + `TypedResults.Created()`/`Created((string?)null, value)` para 201 sem Location.)
-- [x] Criar `WithEndpointFilterAttribute<T>` repetível, sem constraint pública do ASP.NET Core; validar semanticamente que `T` implementa `Microsoft.AspNetCore.Http.IEndpointFilter`, bloquear fonte inválida e aplicar filtros na ordem declarada por meio da API padrão do ASP.NET Core/DI. (Atributo genérico com `AllowMultiple`; validação semântica RCCMD051 — classe concreta, não genérica, top-level, não file-local, acessível, `IEndpointFilter` por metadata name; emissão `.AddEndpointFilter<global::Ns.Tipo>()` com nome globalmente qualificado — sem novos usings e sem colisão de homônimos; aplicado às três superfícies; ordem/DI observadas em runtime no Demo.)
+- [x] Criar `WithEndpointFilterAttribute<T>` repetível, sem constraint pública do ASP.NET Core; validar semanticamente que `T` implementa `Microsoft.AspNetCore.Http.IEndpointFilter`, bloquear fonte inválida e aplicar filtros na ordem declarada por meio da API padrão do ASP.NET Core/DI. (Atributo genérico com `AllowMultiple`; validação semântica RCCMD051 — classe concreta, não file-local, acessível segundo `Compilation.IsSymbolAccessibleWithin` e `IEndpointFilter` por metadata name. Tipos construídos genéricos e aninhados são aceitos quando acessíveis, acompanhando o contrato real de `AddEndpointFilter<T>()`; emissão com nome globalmente qualificado, aplicada às três superfícies; ordem/DI observadas em runtime no Demo.)
 - [x] Criar `HttpResultStatus` somente com `Ok`, `Created` e `NoContent`, além de `WithResultStatusAttribute`; aplicar apenas a command maps e diagnosticar valor desconhecido, retorno incompatível e uso em superfícies não suportadas. (Enum público com os códigos HTTP como valores — 200/201/204, preparado para `Accepted=202` do plano diferido; valor desconhecido e uso em `MapFind`/`MapSearch` produzem RCCMD052; conflitos de retorno cobertos por RCCMD053.)
 - [x] Preservar a inferência atual quando `WithResultStatus` estiver ausente; permitir `Created` sem `Location`; manter `MapCreatedRoute` como forma de adicionar `Location` e como implicação de `Created`, diagnosticando conflito com `Ok` ou `NoContent`. (Sem o atributo, emissão idêntica — testado inclusive o Delete-204 inferido; `Created` explícito + `MapCreatedRoute` é redundância válida e mantém a Location; `Ok`/`NoContent` + `MapCreatedRoute` = RCCMD053 sem fonte.)
 - [x] Implementar `NoContent` para `Result<T>` descartando somente o valor de sucesso e preservando todos os problemas; manter resposta HTTP e metadata OpenAPI coerentes para `Result` e `Result<T>` sem exigir mudança no SmartProblems. (Emissão `return (Result)result;` usando a conversão implícita existente; `.Produces(204)` na cadeia; problemas preservados verificados por HTTP — 400 do `HasProblems` e 404 do `EditEntity`; `NoContent` + `MapIdResultValue`/`MapResponseValues` = RCCMD053.)
 - [x] Criar `WithTagsAttribute` com uma ou mais tags válidas, preservar ordem declarada e emitir `.WithTags(...)` na cadeia compartilhada para command/find/search maps; diagnosticar configuração vazia, nula ou composta somente por whitespace. (RCCMD041 com requisito específico; ordem preservada e testada nas três superfícies; tags visíveis no JSON OpenAPI do Demo.)
 - [x] Reutilizar o modelo comum de endpoint e a emissão de metadata; não criar generator paralelo nem um `MapEndpoint` genérico baseado em strings. (`EndpointExtensibility` compartilha leitura e emissão entre os três transforms; os campos novos entraram nos modelos symbol-free existentes — `CommandEndpointModel`/`FindModel`/`SearchModel` com `EquatableArray<string>` e enum equatável; `PipelineRetentionTests` seguem verdes.)
-- [x] Criar cenários Demo reais e testes de geração, compilação, HTTP e OpenAPI para filtros repetidos/DI/ordem, cada status, `Result<T>` descartado, `Created` com/sem `Location`, tags e todos os conflitos negativos. (`EndpointExtensibilityTests` — 20 testes de geração/diagnóstico com compilação da saída; Demo: `RenomearLoja` (204 + dois filtros ordenados, um ativado por DI) e `ImportarLoja` (201 sem Location com corpo projetado); `DemoHttpExtensibilityTests` (3) e OpenAPI de tags/204/201 em `DemoOpenApiTests`.)
+- [x] Criar cenários Demo reais e testes de geração, compilação, HTTP e OpenAPI para filtros repetidos/DI/ordem, cada status, `Result<T>` descartado, `Created` com/sem `Location`, tags e todos os conflitos negativos. (`EndpointExtensibilityTests` cobre compilação das três superfícies, tipos genéricos construídos/aninhados e conflitos; `PipelineCachingTests` cobre invalidação por status, tags e ordem dos filtros; Demo cobre 200/201/204, filtro em Search, DI/ordem e OpenAPI.)
 - [x] Atualizar XML docs, README, `.docs/commands.md`, catálogo RCCMD e `AnalyzerReleases.Unshipped.md`; referenciar o plano separado para `Accepted` e `TryFindBy`. (XML docs completos nos quatro tipos públicos; README, `commands.md` — incluindo a nota de capacidades diferidas com link ao plano próprio — `diagnostics.md` RCCMD051-053 e `AnalyzerReleases.Unshipped.md` atualizados.)
 
 **Critérios de aceite:** os três atributos da DF23 possuem contrato público documentado, análise symbol-free, emissão determinística, diagnóstico localizado e testes positivos/negativos; a ordem dos filtros e a resolução por DI são observadas em runtime; `HttpResultStatus` produz exatamente o status e o corpo documentados, incluindo descarte deliberado de `Result<T>` em 204 e problemas preservados; tags/status aparecem corretamente no OpenAPI; nenhuma regressão nos maps existentes; `Accepted`, `TryFindBy` e form/file/stream não entram parcialmente.
@@ -1516,7 +1516,7 @@ determinística; erros com metadata OpenAPI coerente) ✔; nenhum atributo ignor
 
 | Atributo | Superfícies | Emissão | Resposta/status | OpenAPI | Combinações e diagnósticos |
 |---|---|---|---|---|---|
-| `WithEndpointFilter<T>` (repetível) | command, find, search | `.AddEndpointFilter<global::Ns.T>()` na ordem declarada, nome globalmente qualificado | não altera status; executa na ordem de registro, ativado por DI | inalterado | `T` sem `IEndpointFilter`, abstrato, genérico, aninhado, file-local ou inacessível = RCCMD051; tipo de erro segue para o compilador (DF9) |
+| `WithEndpointFilter<T>` (repetível) | command, find, search | `.AddEndpointFilter<global::Ns.T>()` na ordem declarada, nome globalmente qualificado | não altera status; executa na ordem de registro, ativado por DI | inalterado | `T` sem `IEndpointFilter`, abstrato, file-local ou inacessível = RCCMD051; genérico construído/aninhado acessível é válido; tipo de erro segue para o compilador (DF9) |
 | `WithTags(params string[])` | command, find, search | `.WithTags("a", "b")` na ordem declarada | não altera status | tags na operação | vazio/whitespace/nulo = RCCMD041 |
 | `WithResultStatus(Ok)` | command | caminho `OkMatch`/`OkMatch<T>` atual (anula a inferência de 204 do Delete) | `200` com o valor e projeções | 200 | `MapCreatedRoute` = RCCMD053 |
 | `WithResultStatus(Created)` | command | sem `MapCreatedRoute`: `new CreatedMatch[<T>](result[.Map(...)].Match<IResult>(TypedResults.Created(...), MatchErrorResult))`; com `MapCreatedRoute`: caminho atual com Location | `201`, Location somente com `MapCreatedRoute`; corpo do valor/projeção | 201 | compatível com `MapCreatedRoute` (redundante) e com `MapIdResultValue`/`MapResponseValues` |
@@ -1543,26 +1543,31 @@ determinística; erros com metadata OpenAPI coerente) ✔; nenhum atributo ignor
 
 #### Demo e testes
 
-- `EndpointExtensibilityTests` (20): filtros repetidos/ordem/qualificação/superfícies e inválidos (theory),
+- `EndpointExtensibilityTests` (21): filtros repetidos/ordem/qualificação/superfícies, formas genéricas
+  construídas/aninhadas acessíveis e inválidos (theory),
   tags nas três superfícies e inválidas (theory), cada status com compilação da saída (Ok anulando o 204 do
   Delete, NoContent descartando `Result<T>` com `.Produces(204)`, Created sem Location com/sem valor e com
   `MapIdResultValue`, Created redundante com `MapCreatedRoute`), conflitos RCCMD052/053 e baseline sem os
   atributos (emissão inalterada).
+- `PipelineCachingTests` (+3): alterações isoladas de status, tags e ordem dos filtros invalidam o modelo correto
+  e modificam a fonte gerada, sem esconder regressões de igualdade estrutural.
 - Demo: filtros `FiltroAuditoria`/`FiltroCarimbo` (o segundo com dependência de DI), `RenomearLoja`
   (`PUT`, `WithResultStatus(NoContent)` descartando `Result<Loja>`, dois filtros, tags) e `ImportarLoja`
-  (`POST`, `WithResultStatus(Created)` sem `MapCreatedRoute`, corpo via `MapResponseValues`).
-- `DemoHttpExtensibilityTests` (3): 204 com corpo vazio + header `X-Demo-Filtros` na ordem `auditoria,
+  (`POST`, `WithResultStatus(Created)` sem `MapCreatedRoute`, corpo via `MapResponseValues`),
+  `InvalidarCacheLojas` (`DELETE`, `WithResultStatus(Ok)`) e filtro real no Search de produtos.
+- `DemoHttpExtensibilityTests` (5): 204 com corpo vazio + header `X-Demo-Filtros` na ordem `auditoria,
   carimbo` + efeito persistido; problemas preservados (400/404) na seleção de 204; 201 sem `Location` com
-  corpo projetado. `DemoOpenApiTests` (+1): tags na ordem declarada, 204/404 do PUT e 201 do POST no JSON.
+  corpo projetado; 200 explícito sobrepondo o 204 inferido do DELETE; filtro de Search observado em runtime.
+  `DemoOpenApiTests`: ordem exata das tags e respostas 200/201/204 no JSON.
 
 #### Verificação (2026-07-17)
 
 | Verificação | Resultado |
 |---|---|
 | `dotnet build SmartCommands.sln -c Release` | **êxito** — 0 erros, somente NU5104 aceitos (DF10) |
-| `RoyalCode.SmartCommands.Tests` | **329/329** aprovados (309 anteriores + 20 da fase) |
+| `RoyalCode.SmartCommands.Tests` | **333/333** aprovados |
 | `RoyalCode.SmartCommands.EntityFramework.Tests` | **24/24** aprovados |
-| `RoyalCode.SmartCommands.Demo.Tests` | **81/81** aprovados (77 anteriores + 4 da fase) |
+| `RoyalCode.SmartCommands.Demo.Tests` | **83/83** aprovados |
 
 **Critérios de aceite — situação:** os três atributos possuem contrato público documentado, análise
 symbol-free, emissão determinística, diagnóstico localizado e testes positivos/negativos ✔; ordem dos

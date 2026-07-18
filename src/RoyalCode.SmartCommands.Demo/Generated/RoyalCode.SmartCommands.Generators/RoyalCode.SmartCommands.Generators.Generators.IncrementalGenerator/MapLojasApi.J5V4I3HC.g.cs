@@ -28,6 +28,10 @@ public static partial class MapLojasApi
             .WithSummary("Importar Loja")
             .WithTags("Lojas");
 
+        group.MapDelete("/cache", InvalidarCacheLojasHandle)
+            .WithName("invalidar-cache-lojas")
+            .WithTags("Lojas", "Administracao");
+
         group.MapPost("/", CriarLojaHandleAsync)
             .WithName("loja-criar");
 
@@ -70,6 +74,15 @@ public static partial class MapLojasApi
 
         var result = await handler.HandleAsync(command, ct);
         return new CreatedMatch<ImportarLojaResponse>(result.Map(v => new ImportarLojaResponse(v.Id, v.Nome)).Match<IResult>(static value => TypedResults.Created((string?)null, value), static problems => new MatchErrorResult(problems)));
+    }
+
+    private static OkMatch InvalidarCacheLojasHandle(
+        IInvalidarCacheLojasHandler handler)
+    {
+        var command = new InvalidarCacheLojas();
+
+        var result = handler.Handle(command);
+        return result;
     }
 
     [ProduceProblems(ProblemCategory.InvalidParameter)]
