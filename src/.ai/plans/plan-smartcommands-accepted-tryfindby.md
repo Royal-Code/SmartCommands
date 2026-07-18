@@ -1,16 +1,16 @@
 # Plan: `Accepted` e busca por chave alternativa/composta (`smartcommands-accepted-tryfindby`)
 
-## Status: EM EXECUÇÃO - Fase 1 concluída; Q1-Q6 fechadas (DF10-DF16)
+## Status: EM EXECUÇÃO - Fases 1-2 concluídas; release do SmartProblems aguardando autorização
 
 ## Progresso
 
-`█░░░░░` **17%** - 1 de 6 fases concluídas
+`██░░░░` **33%** - 2 de 6 fases concluídas
 
 | Fase | Estado |
 |---|---|
 | Fase 1 - Baseline, viabilidade e decisões de contrato | Concluída em 2026-07-18; evidências no Resultado da Fase 1 |
-| Fase 2 - Resultados HTTP `Accepted` no SmartProblems | Pronta para iniciar (Fase 1 concluída); escopo ampliado pela DF16 |
-| Fase 3 - `Accepted` no SmartCommands e no generator | Bloqueada pela Fase 2; dependência da Fase 10 do plano principal já satisfeita |
+| Fase 2 - Resultados HTTP `Accepted` no SmartProblems | Concluída em 2026-07-18 (código no working tree, sem commit); gate de release preparado |
+| Fase 3 - `Accepted` no SmartCommands e no generator | Bloqueada pela release do SmartProblems com `AcceptedMatch` (gate da Fase 2) |
 | Fase 4 - Contrato runtime e adapters de `TryFindBy` | Pronta para iniciar (Fase 1 e DFs 10-16 fechadas); exige antes a extensão no EnterprisePatterns (DF13-DF14) |
 | Fase 5 - Mapeamento `TryFindBy` no generator | Bloqueada pela Fase 4 |
 | Fase 6 - Integração, documentação e preparação de rollout | Bloqueada pelas Fases 2-5 |
@@ -318,14 +318,14 @@ Assinaturas candidatas (validadas contra a estrutura de `CreatedMatch'0/'1` e `N
 
 **Tarefas:**
 
-- [ ] Criar `AcceptedMatch` para `Result`, `Accepted`, `MatchErrorResult`, `Problem` e `Problems`, com `Location` opcional.
-- [ ] Criar `AcceptedMatch<T>` para `Result<T>`/`Accepted<T>`, preservando corpo `T`, problemas e conversão segura para a variante não genérica quando necessária.
-- [ ] Declarar metadata 202 correta com e sem `T`, sem content type para a variante sem corpo e com JSON para `T`.
-- [ ] Validar argumentos públicos (`Location`, `IResult`, delegates se existirem) e documentar todas as APIs públicas com XML docs.
-- [ ] Criar testes diretos de execução HTTP e metadata para sucesso, problema, `Location` ausente/presente e tipo genérico.
-- [ ] Expor no core a extração reutilizável de critérios de expressão (DF14), preservando o contrato tudo-ou-nada, com o SmartProblems EF delegando para ela sem mudança de comportamento.
-- [ ] Implementar o descritor/factories de resultado projetado das DFs 15-16 (`ProjectedFrom<TEntity>`), preservando a identidade da entidade nas categorias `NotFound` e `InvalidParameter`, com os testes mínimos da DF16 (incluindo o quirk atual de `FindResult<TEntity>(Problem)`) e nota de comportamento na mesma release.
-- [ ] Atualizar documentação/notas do SmartProblems e preparar o gate de pacote sem publicar.
+- [x] Criar `AcceptedMatch` para `Result`, `Accepted`, `MatchErrorResult`, `Problem` e `Problems`, com `Location` opcional.
+- [x] Criar `AcceptedMatch<T>` para `Result<T>`/`Accepted<T>`, preservando corpo `T`, problemas e conversão segura para a variante não genérica quando necessária.
+- [x] Declarar metadata 202 correta com e sem `T`, sem content type para a variante sem corpo e com JSON para `T`.
+- [x] Validar argumentos públicos (`Location`, `IResult`, delegates se existirem) e documentar todas as APIs públicas com XML docs.
+- [x] Criar testes diretos de execução HTTP e metadata para sucesso, problema, `Location` ausente/presente e tipo genérico.
+- [x] Expor no core a extração reutilizável de critérios de expressão (DF14), preservando o contrato tudo-ou-nada, com o SmartProblems EF delegando para ela sem mudança de comportamento.
+- [x] Implementar o descritor/factories de resultado projetado das DFs 15-16 (`ProjectedFrom<TEntity>`), preservando a identidade da entidade nas categorias `NotFound` e `InvalidParameter`, com os testes mínimos da DF16 (incluindo o quirk atual de `FindResult<TEntity>(Problem)`) e nota de comportamento na mesma release.
+- [x] Atualizar documentação/notas do SmartProblems e preparar o gate de pacote sem publicar.
 
 **Critérios de aceite:** matches executam 202 corretamente, não perdem problemas, não obrigam corpo/Location, anunciam metadata exata e passam em todos os TFMs suportados pelo SmartProblems; a extração de critérios (DF14) e o resultado projetado com identidade da entidade (DFs 15-16) integram a mesma release, com o comportamento do EF preservado; API pública e pacote estão prontos para revisão de release.
 
@@ -333,7 +333,25 @@ Assinaturas candidatas (validadas contra a estrutura de `CreatedMatch'0/'1` e `N
 
 ### Resultado da Fase 2
 
-*a preencher*
+**Concluída em 2026-07-18** no repositório SmartProblems (`main` @ `81207e4` + working tree; nada foi commitado, conforme política). Suíte completa: **462/462 testes verdes** (baseline: 410; +52 novos, todos passando); build Release da solução com **0 erros e exatamente os 8 warnings xUnit1031 pré-existentes do baseline** — nenhum warning novo. Bibliotecas compilam em net8/net9/net10; o projeto de testes executa em net10.0 (configuração existente do repositório, `TestVer`).
+
+**Entregas:**
+
+- **`AcceptedMatch` / `AcceptedMatch<T>`** (`RoyalCode.SmartProblems.ApiResults/HttpResults/AcceptedMatch'0.cs` e `'1.cs`): seguem a estrutura de `CreatedMatch`/`NoContentMatch`; `Location` opcional (string fixa ou `Func<T, string?>` a partir do valor); `Result` → 202 sem corpo, `Result<T>` → 202 com corpo JSON `T`; problemas sempre via `MatchErrorResult`, nunca 202; conversões implícitas de `Result`/`Result<T>`/`Accepted`/`Accepted<T>`/`MatchErrorResult`/`Problem`/`Problems` e de `AcceptedMatch<T>` para `AcceptedMatch`; validação de argumentos (`IResult` nulo, `locationFunction` nula); metadata 202 sem content type na variante sem corpo e `application/json` tipado em `T`, preservando a metadata de problemas. Extensions `.AcceptedMatch(...)` adicionadas em `HttpResultsExtensions`.
+- **DF14 — `FindCriteriaExtractor`** (novo, core `RoyalCode.SmartProblems/Entities`): `Extract<TEntity>(Expression<Func<TEntity,bool>>) -> FindCriterion[]`, tudo-ou-nada, nunca lança; a lógica privada do SmartProblems EF foi movida para o core e `GenerateProblem` do EF agora delega (comportamento preservado — testes EF existentes inalterados e verdes).
+- **DFs 15-16 — `FindTarget` (descritor interno) + factories `ProjectedFrom<TSource>`** nos dois structs: `FindResult<TDto>.ProjectedFrom<TEntity>(value, criteria)` e `FindResult<TDto,TId>.ProjectedFrom<TEntity>(value, id)`. O descritor preserva display name (respeitando `[DisplayName]`), nome técnico e critérios normalizados (`ByName` resolvido contra a entidade), e gera `NotFound` **e** `InvalidParameter` lazily com categorias corretas, nomeando a entidade, com extension data `entity`/`id`/critérios. Construtores existentes não mudaram de comportamento (caminho não projetado segue nomeando o tipo genérico). Anotações de trimming (`DynamicallyAccessedMembers`) aplicadas — sem IL2067/IL2087 novos.
+
+**Testes novos (52):** `AcceptedMatchTests` (execução direta HTTP: 202 com/sem Location, corpo JSON, problema nunca 202, função de location não invocada em falha, metadata 202 com/sem content type, conversões, argumentos nulos); `AcceptedApiTests` (WebApplicationFactory via `AppFixture` sobre endpoints novos em `TestsApi/Apis/AcceptedApi.cs`: 4 rotas cobrindo `Result`/`Result<T>` × com/sem `Location` × sucesso/problema); `FindCriteriaExtractorTests` (igualdade simples/invertida/composta em ordem, closure chain, valor nulo, e 9 casos de degradação tudo-ou-nada incluindo getter que lança); `ProjectedFindResultTests` (entidade nomeada nas duas categorias e nos dois structs, ordem de critérios, `[DisplayName]` de entidade e propriedade, `ByName` preservado, `ToResult`, extension data, criteria nula, caminho não projetado inalterado e o quirk documentado de `FindResult<TEntity>(Problem)` em `HasInvalidParameter`).
+
+**Documentação:** `problems.md` (tabela §1.1, §6 renomeada com subseção `AcceptedMatch` e exemplos, boas práticas, novas subseções `ProjectedFrom` e `FindCriteriaExtractor` na §5, diretrizes de IA) e `problems.ai-rules.md` (tabela, regras de namespace, assinaturas das extensions e implícitos).
+
+**Gate de pacote (sem publicar) — nota de release preparada para `1.0.0-preview-8` (ou próxima versão que o mantenedor definir):**
+
+1. Novidades: `AcceptedMatch`/`AcceptedMatch<T>` (202, `Location` opcional) no ApiResults; `FindCriteriaExtractor` e factories `ProjectedFrom` no core.
+2. Nota de comportamento (DF16): resultados **projetados** criados pelas novas factories nomeiam a entidade original nas mensagens/extension data de `NotFound`/`InvalidParameter`; nenhum comportamento existente mudou — o alinhamento do `TryFindAsync<TEntity,TDto,TId>` acontece no EnterprisePatterns ao consumir esta release.
+3. Ordem de rollout mantida: SmartProblems → EnterprisePatterns → SmartCommands; nenhuma publicação, versão ou commit foi feita nesta fase.
+
+**Pendência transferida:** a troca do `new FindResult<TDto,TId>(dto, id)` por `ProjectedFrom` no `EFExtensions.TryFindAsync<TEntity,TDto,TId>` do EnterprisePatterns é pré-requisito da Fase 4, junto com a projeção por predicado (DF13).
 
 ---
 
