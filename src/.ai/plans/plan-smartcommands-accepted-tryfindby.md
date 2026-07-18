@@ -1,6 +1,6 @@
 # Plan: `Accepted` e busca por chave alternativa/composta (`smartcommands-accepted-tryfindby`)
 
-## Status: RASCUNHO - Fase 1 pronta; implementação depende de Q1-Q3 e da Fase 10 do plano principal
+## Status: RASCUNHO - Q1-Q3 fechadas; Fase 1 em andamento
 
 ## Progresso
 
@@ -8,10 +8,10 @@
 
 | Fase | Estado |
 |---|---|
-| Fase 1 - Baseline, viabilidade e decisões de contrato | Pendente |
+| Fase 1 - Baseline, viabilidade e decisões de contrato | Em andamento; Q1-Q3 fechadas |
 | Fase 2 - Resultados HTTP `Accepted` no SmartProblems | Bloqueada pela Fase 1 |
-| Fase 3 - `Accepted` no SmartCommands e no generator | Bloqueada pelas Fases 1-2 e pela Fase 10 do plano principal |
-| Fase 4 - Contrato runtime e adapters de `TryFindBy` | Bloqueada por Q1-Q3 |
+| Fase 3 - `Accepted` no SmartCommands e no generator | Bloqueada pelas Fases 1-2; dependência da Fase 10 do plano principal já satisfeita |
+| Fase 4 - Contrato runtime e adapters de `TryFindBy` | Bloqueada pela conclusão da Fase 1 |
 | Fase 5 - Mapeamento `TryFindBy` no generator | Bloqueada pela Fase 4 |
 | Fase 6 - Integração, documentação e preparação de rollout | Bloqueada pelas Fases 2-5 |
 
@@ -42,7 +42,7 @@
 ### Estado atual do código (verificado em 2026-07-17)
 
 - Não existe `AcceptedMatch`/`AcceptedMatch<T>` no SmartProblems ApiResults.
-- Não existe `HttpResultStatus.Accepted` nem `MapAcceptedRoute` no SmartCommands; a Fase 10 do plano principal introduzirá primeiro `HttpResultStatus` com `Ok`, `Created` e `NoContent`.
+- Não existe `HttpResultStatus.Accepted` nem `MapAcceptedRoute` no SmartCommands; a Fase 10 do plano principal já estabilizou `HttpResultStatus` com `Ok`, `Created` e `NoContent`.
 - `CreatedMatch` possui variantes com e sem valor, inclui `Location` e delega problemas para `MatchErrorResult`; é a referência estrutural mais próxima de `Accepted`.
 - O comando pode retornar `Result` ou `Result<T>`; 202 não exige que `T` seja um identificador, URL ou modelo de operação específico.
 - `TryFindByAsync` já está implementado e testado na borda EF do SmartProblems para um predicado, um seletor de propriedade e critérios compostos.
@@ -68,7 +68,7 @@
 | Contratos públicos HTTP | SmartCommands / runtime | `HttpResultStatus.Accepted` e `MapAcceptedRouteAttribute` |
 | Runtime de persistência | SmartCommands / runtime | eventual extensão de `IRepositoryAccessor<TEntity>` para chave alternativa/composta |
 | Adapter EF | SmartCommands.EntityFramework | execução/projeção de busca por critérios sem vazar EF para o núcleo |
-| Adapter WorkContext | SmartCommands.WorkContext e possivelmente EnterprisePatterns | reaproveitamento de `IRepository<TEntity>` e fechamento da lacuna de projeção |
+| Adapter WorkContext | SmartCommands.WorkContext e EnterprisePatterns | reaproveitamento de `IRepository<TEntity>` e extensão mínima para projeção por predicado |
 | Generator/analyzer | SmartCommands.Generators | leitura semântica, modelos incrementais, diagnósticos, emissão e OpenAPI |
 | Demo e testes | SmartCommands.Demo, Demo.Tests e testes do generator | processamento assíncrono, consulta por chave simples/composta e casos negativos |
 | Documentação/pacotes | repositórios envolvidos | XML docs, guias, analyzer releases, notas de quebra e ordem de releases |
@@ -103,21 +103,21 @@ metadata OpenAPI, incrementalidade do generator e paridade entre os adapters EF 
     - **A) Propriedades nomeadas no map (recomendada):** `[MapFindBy<TEntity>(route, name, nameof(TEntity.Prop1), ...)]`; cada propriedade casa, sem diferenciar caixa, com um placeholder de mesmo nome e o generator deriva o tipo. Alias exige uma futura API específica, não pares posicionais de strings.
     - **B) Tipo de filtro dedicado:** `[MapFindBy<TEntity, TFilter>(route, name)]`; o endpoint recebe `TFilter` por binding e uma abstração adicional transforma o filtro em critérios. É mais flexível, mas se aproxima de `MapSearch`/SmartSearch e amplia muito o contrato.
   - **Impacto se não decidir:** não é possível congelar o atributo, os snapshots nem a assinatura gerada da Fase 5.
-  - **Status:** Aberta.
+  - **Status:** Respondida em 2026-07-18: opção A. Registrada na DF10.
 
 - **Q2 — Projeção da busca alternativa:** o primeiro release precisa manter a mesma proteção de DTO do `MapFind`?
   - **Opções:**
     - **A) Projeção obrigatória (recomendada):** o tipo decorado continua sendo `TDto`; criar a menor capacidade portável de projeção por critérios nos adapters/abstrações, sem materializar a entidade antes da projeção quando o provider suportar tradução.
     - **B) Entidade somente no primeiro release:** expor apenas `FindResult<TEntity>` e adiar DTO. Reduz implementação, mas deixa `MapFindBy` funcionalmente inferior e facilita exposição acidental do domínio.
   - **Impacto se não decidir:** define se EnterprisePatterns/SmartSelector precisam evoluir e muda a superfície pública de `IRepositoryAccessor<TEntity>`.
-  - **Status:** Aberta.
+  - **Status:** Respondida em 2026-07-18: opção A. Registrada na DF11.
 
 - **Q3 — Semântica de unicidade:** como tratar mais de uma entidade para uma chave declarada como alternativa/composta?
   - **Opções:**
     - **A) `FirstOrDefault` (recomendada):** manter a semântica já existente em SmartProblems e WorkContext; unicidade é invariante do modelo/banco, e o pacote retorna a primeira correspondência.
     - **B) `SingleOrDefault`:** detectar duplicidade, mas definir um novo problema/erro consistente e pagar o custo/comportamento do provider em todos os adapters.
   - **Impacto se não decidir:** impede fechar o contrato runtime, os testes de duplicidade e a documentação operacional.
-  - **Status:** Aberta.
+  - **Status:** Respondida em 2026-07-18: opção A. Registrada na DF12.
 
 ---
 
@@ -132,6 +132,9 @@ metadata OpenAPI, incrementalidade do generator e paridade entre os adapters EF 
 - **DF7 — Rotas na fronteira correta:** o generator valida apenas correspondência, existência, duplicidade, tipo e acessibilidade das propriedades/placeholders que interpreta; sintaxe geral e seleção do endpoint permanecem no ASP.NET Core. Fonte: DF22 do plano principal.
 - **DF8 — Cancelamento e problemas preservados:** toda operação async recebe `CancellationToken`; cancelamento não vira 202/404/500 padronizado, e falhas de `Result`/`Result<T>` nunca são descartadas por seleção de status. Fonte: invariantes do repositório.
 - **DF9 — Mudanças públicas documentadas diretamente:** qualquer quebra aprovada é aplicada sem shim `[Obsolete]`, com XML docs, testes e nota de migração. Fonte: política do mantenedor no plano principal.
+- **DF10 — `MapFindBy` declara propriedades nomeadas:** adotar `[MapFindBy<TEntity>(route, name, nameof(TEntity.Prop1), ...)]`; cada propriedade direta da entidade casa, sem diferenciar caixa, com um placeholder de mesmo nome, e o generator deriva semanticamente o tipo do parâmetro. Alias explícito fica diferido; não usar pares posicionais de strings nem tipo de filtro dedicado neste ciclo. Fonte: resposta humana à Q1 em 2026-07-18.
+- **DF11 — Projeção para DTO é obrigatória:** o tipo decorado por `MapFindBy` permanece `TDto`; EF e WorkContext devem projetar no provider, sem materializar primeiro a entidade nem expor o domínio por HTTP. A lacuna de projeção por predicado será fechada no EnterprisePatterns antes de o SmartCommands consumir a nova capacidade; SmartSelector não recebe uma feature específica de `TryFindBy`. Fonte: resposta humana à Q2 em 2026-07-18 e inspeção das capacidades existentes.
+- **DF12 — Busca usa `FirstOrDefault`:** manter a semântica atual de SmartProblems e WorkContext. Unicidade é invariante do modelo/banco; ocorrências duplicadas não criam uma nova categoria de problema neste ciclo, e os testes devem documentar que, sem ordenação explícita, o contrato não promete qual duplicata será retornada. Fonte: resposta humana à Q3 em 2026-07-18.
 
 ---
 
@@ -143,6 +146,12 @@ metadata OpenAPI, incrementalidade do generator e paridade entre os adapters EF 
   - **Conclusão:** SUPERSEDED pela DF1/DF4; 202 permanece agnóstico ao modelo, e a referência de operação poderá ser uma feature consumidora futura.
 - Foi considerada a adoção direta de SmartSearch para busca alternativa/composta.
   - **Conclusão:** SUPERSEDED parcialmente pela DF5; primeiro serão compostas as capacidades mais simples já existentes, mantendo SmartSearch como hipótese condicionada a evidência.
+- Q1 comparou propriedades nomeadas no map com um tipo de filtro dedicado.
+  - **Conclusão:** selecionada a opção A; propriedades e placeholders casam por nome conforme DF10.
+- Q2 comparou projeção obrigatória com exposição inicial da entidade.
+  - **Conclusão:** selecionada a opção A; DTO é obrigatório e a projeção ocorre no provider conforme DF11.
+- Q3 comparou `FirstOrDefault` com `SingleOrDefault`.
+  - **Conclusão:** selecionada a opção A; manter `FirstOrDefault` e tratar unicidade no modelo/banco conforme DF12.
 
 ---
 
@@ -150,19 +159,19 @@ metadata OpenAPI, incrementalidade do generator e paridade entre os adapters EF 
 
 ### Contratos e bordas
 
-- `HttpResultStatus` recebe `Accepted` somente depois de a Fase 10 do plano principal estabilizar o enum e sua leitura semântica.
+- `HttpResultStatus` recebe `Accepted` estendendo o enum e a leitura semântica estabilizados pela Fase 10 do plano principal.
 - `MapAcceptedRouteAttribute` recebe pattern e nomes de propriedades do valor de sucesso, usando placeholders nomeados e as mesmas regras seguras do `MapCreatedRoute`.
 - `WithResultStatus(Accepted)` e `MapAcceptedRoute` são combinações compatíveis; `MapAcceptedRoute` com `Ok`, `Created` ou `NoContent` é diagnosticado e não gera endpoint.
 - `Result` produz 202 sem corpo; `Result<T>` produz 202 com `T`. Quando houver `MapAcceptedRoute`, `Location` é adicionado sem alterar o corpo determinado pelo retorno.
-- A API de `TryFindBy` será congelada após Q1-Q3. Ela não aceitará property names soltos sem validação semântica nem pares posicionais frágeis.
-- O tipo exposto pela Minimal API deve ser DTO quando Q2=A; entity tracking e detalhes de provider não atravessam a borda HTTP.
+- A API de `TryFindBy` usa propriedades nomeadas conforme DF10. Ela não aceita property names soltos sem validação semântica nem pares posicionais frágeis.
+- O tipo exposto pela Minimal API é DTO conforme DF11; entity tracking e detalhes de provider não atravessam a borda HTTP.
 
 ### Modelo, dados e persistência
 
 - A busca simples usa igualdade entre valor de entrada e propriedade direta da entidade; composição usa AND e preserva a ordem declarada para produzir o problema `NotFound`.
 - O generator deriva tipos das propriedades da entidade e verifica conversibilidade dos parâmetros antes de emitir código.
 - O núcleo descreve a intenção com contratos portáveis. EF pode usar `TryFindByAsync`/`FindCriteria`; WorkContext delega a `IRepository<TEntity>`.
-- Se Q2=A revelar ausência de projeção portável, a Fase 1 deve propor a menor extensão no repositório dono da abstração, com testes nos providers, antes de alterar `IRepositoryAccessor<TEntity>`.
+- A ausência confirmada de projeção portátil por predicado será fechada pela menor extensão necessária no EnterprisePatterns, com testes dos providers, antes de alterar `IRepositoryAccessor<TEntity>`.
 - Não materializar coleção para escolher um item; executar operação single-result diretamente no provider com `CancellationToken`.
 
 ### Arquitetura alvo
@@ -186,12 +195,12 @@ MapFindBy ─> IRepositoryAccessor<TEntity> ────────────
 - 202 só é emitido quando o handler conclui com `Result` de sucesso; aceitar a solicitação não converte exceção, cancelamento ou problema em sucesso.
 - `Location` deve ser construída por valores escapados/formatados pela infraestrutura apropriada; não concatenar entrada não codificada em headers.
 - A busca respeita filtros de segurança/tenant já aplicados pelo provider ou pelo contexto; o generator não contorna query filters.
-- Chaves alternativas declaradas devem ser documentadas como únicas quando Q3=A; o banco continua sendo a autoridade para a constraint.
+- Chaves alternativas declaradas devem ser documentadas como únicas conforme DF12; o banco continua sendo a autoridade para a constraint.
 - Nenhuma mensagem de provider/exceção é exposta no problema `NotFound` ou na resposta 202.
 
 ### Compatibilidade, migração e rollout
 
-- Ordem prevista de pacotes: SmartProblems ApiResults -> SmartCommands Fase 10 estabilizada -> SmartCommands runtime/generator/adapters. EnterprisePatterns só entra se Q2=A exigir capacidade ausente.
+- Ordem prevista de pacotes: SmartProblems ApiResults -> EnterprisePatterns com projeção por predicado -> SmartCommands runtime/generator/adapters. A dependência da Fase 10 do plano principal já está satisfeita.
 - Toda atualização de `PackageReference` ocorre somente após a versão correspondente estar publicada e confirmada pelo mantenedor.
 - Validar os pacotes SmartCommands em net8/net9/net10 e o generator em netstandard2.0; testes/Demo permanecem em net10.0 conforme o repositório.
 - Não publicar durante a execução técnica deste plano. A Fase 6 produz a lista de versões/dependências e aguarda autorização para cada release.
@@ -200,7 +209,7 @@ MapFindBy ─> IRepositoryAccessor<TEntity> ────────────
 
 ## Ordem de execução
 
-1. **Fase 1:** medir as capacidades existentes, criar sondas e fechar Q1-Q3 sem mudar contratos.
+1. **Fase 1:** medir as capacidades existentes, criar sondas e validar as assinaturas decorrentes das DFs 10-12 sem mudar contratos.
 2. **Fase 2:** adicionar e validar `AcceptedMatch` no repositório dono da union HTTP.
 3. **Fase 3:** integrar 202 ao enum, atributo, generator, Demo e OpenAPI após a Fase 10 principal.
 4. **Fase 4:** implementar a menor abstração portável de busca alternativa/composta e paridade dos adapters.
@@ -211,9 +220,9 @@ MapFindBy ─> IRepositoryAccessor<TEntity> ────────────
 
 ## Fase 1 - Baseline, viabilidade e decisões de contrato
 
-**Depende de:** DF1-DF9; acesso somente leitura aos repositórios SmartProblems, EnterprisePatterns, Searches e SmartCommands.
+**Depende de:** DF1-DF12; acesso somente leitura aos repositórios SmartProblems, EnterprisePatterns, Searches e SmartCommands.
 
-**Escopo:** inventário de APIs, protótipos descartáveis/testes de caracterização, matriz de casos e fechamento de Q1-Q3.
+**Escopo:** inventário de APIs, protótipos descartáveis/testes de caracterização, matriz de casos e validação das assinaturas decorrentes das DFs 10-12.
 
 **O que/como:** comprovar quais capacidades de expressão, projeção, composição e metadata já existem em cada provider. Não alterar API pública antes de comparar as assinaturas geradas e o custo entre EF e WorkContext.
 
@@ -221,13 +230,13 @@ MapFindBy ─> IRepositoryAccessor<TEntity> ────────────
 
 - [ ] Registrar commits/status, versões de pacotes e baselines de build/test dos repositórios potencialmente impactados.
 - [ ] Montar matriz de `Accepted` para `Result`/`Result<T>`, com/sem `Location`, sucesso/problema/cancelamento, resposta HTTP e OpenAPI esperados.
-- [ ] Prototipar as opções de Q1 somente em teste/rascunho e comparar legibilidade, aliases, chave composta, tipos nullable, constraints de rota e diagnósticos possíveis.
-- [ ] Verificar projeção por predicado nos adapters EF/WorkContext e identificar precisamente o repositório dono de qualquer capacidade faltante para Q2=A.
-- [ ] Medir a semântica/custo de `FirstOrDefault` e `SingleOrDefault` nos providers relevantes e fechar Q3.
+- [ ] Prototipar a declaração da DF10 somente em teste/rascunho e validar legibilidade, chave composta, tipos nullable, constraints de rota e diagnósticos possíveis.
+- [ ] Verificar projeção por predicado nos adapters EF/WorkContext e especificar precisamente a menor extensão necessária no EnterprisePatterns para cumprir a DF11.
+- [ ] Caracterizar a semântica e o custo de `FirstOrDefault` nos providers relevantes, incluindo a ausência de garantia sobre qual registro duplicado é retornado, conforme DF12.
 - [ ] Confirmar se SmartSearch oferece benefício necessário além de filtro/seleção simples; registrar evidência antes de propor dependência.
-- [ ] Obter resposta humana para Q1-Q3 e convertê-las em DFs antes de iniciar as Fases 4-5.
+- [x] Obter resposta humana para Q1-Q3 e convertê-las nas DFs 10-12 antes de iniciar as Fases 4-5.
 
-**Critérios de aceite:** matriz reproduzível e assinaturas candidatas registradas; nenhuma API pública alterada; Q1-Q3 fechadas; dono de cada mudança entre repositórios identificado; nenhuma dependência em SmartSearch introduzida por conveniência.
+**Critérios de aceite:** matriz reproduzível e assinaturas candidatas registradas; nenhuma API pública alterada; DFs 10-12 validadas por sondas; dono de cada mudança entre repositórios identificado; nenhuma dependência em SmartSearch introduzida por conveniência.
 
 **Testes:** baselines dos projetos envolvidos; sondas de compilação para atributos/assinaturas; consultas SQLite para simples/composta/duplicada/projeção/cancelamento; inspeção de expression trees sem benchmark prematuro.
 
@@ -294,22 +303,22 @@ MapFindBy ─> IRepositoryAccessor<TEntity> ────────────
 
 ## Fase 4 - Contrato runtime e adapters de `TryFindBy`
 
-**Depende de:** Fase 1 e DFs resultantes de Q1-Q3.
+**Depende de:** Fase 1 e DFs 10-12.
 
-**Escopo:** contratos SmartCommands, adapters EF/WorkContext e, somente se comprovado, menor extensão necessária no EnterprisePatterns/SmartSelector.
+**Escopo:** contratos SmartCommands, adapters EF/WorkContext e a menor extensão necessária no EnterprisePatterns. SmartSelector não recebe funcionalidade específica de `TryFindBy`.
 
 **O que/como:** expor uma única intenção portável de busca por critérios e implementar paridade real, reutilizando operações existentes. Evitar `IQueryable`, `DbContext`, `FindCriteria` ou SmartSearch no contrato do núcleo.
 
 **Tarefas:**
 
-- [ ] Definir assinatura(s) de `IRepositoryAccessor<TEntity>` conforme Q1-Q3, com XML docs, nullable correto e `CancellationToken` obrigatório.
+- [ ] Definir assinatura(s) de `IRepositoryAccessor<TEntity>` conforme DFs 10-12, com XML docs, nullable correto e `CancellationToken` obrigatório.
 - [ ] Representar múltiplos critérios e dados do `NotFound` sem reflection/string parsing em runtime quando o generator já conhece símbolos.
 - [ ] Implementar adapter EF sobre `TryFindByAsync`/composição/projeção existente, preservando query filters e execução assíncrona no provider.
 - [ ] Implementar adapter WorkContext sobre `IRepository<TEntity>`; se faltar projeção, corrigi-la primeiro no repositório dono e consumir a release, sem fallback silencioso para materialização rastreada.
-- [ ] Garantir paridade de simples/composta, null, conversões, not found, duplicidade conforme Q3, cancelamento e projeção conforme Q2.
+- [ ] Garantir paridade de simples/composta, null, conversões, not found, duplicidade conforme DF12, cancelamento e projeção conforme DF11.
 - [ ] Documentar breaking changes e atualizar todos os fakes/implementações de `IRepositoryAccessor<TEntity>` na solução.
 
-**Critérios de aceite:** núcleo permanece provider-agnostic; EF e WorkContext observam o mesmo contrato e resultado; não há N+1/materialização de coleção; projeção não expõe entidade quando Q2=A; cancelamento e problemas são idênticos; APIs públicas possuem XML docs e validação.
+**Critérios de aceite:** núcleo permanece provider-agnostic; EF e WorkContext observam o mesmo contrato e resultado; não há N+1/materialização de coleção; projeção não expõe entidade conforme DF11; cancelamento e problemas são idênticos; APIs públicas possuem XML docs e validação.
 
 **Testes:** unitários de contrato/fakes; SQLite real para EF; repositório fake e testes do WorkContext; SQL/log de consulta para comprovar single query/projeção; testes de cancelamento e duplicidade.
 
@@ -321,7 +330,7 @@ MapFindBy ─> IRepositoryAccessor<TEntity> ────────────
 
 ## Fase 5 - Mapeamento `TryFindBy` no generator
 
-**Depende de:** Fase 4 e Q1-Q3 fechadas.
+**Depende de:** Fase 4 e DFs 10-12.
 
 **Escopo:** atributos, leitura semântica, modelos incrementais, diagnósticos, emissão, Demo e testes HTTP/OpenAPI.
 
@@ -329,10 +338,10 @@ MapFindBy ─> IRepositoryAccessor<TEntity> ────────────
 
 **Tarefas:**
 
-- [ ] Criar o atributo escolhido em Q1 com XML docs e exemplos simples/compostos.
+- [ ] Criar o atributo definido na DF10 com XML docs e exemplos simples/compostos.
 - [ ] Resolver entidade, propriedades, placeholders, tipos, nulabilidade e acessibilidade via símbolos/TypedConstants; congelar snapshots symbol-free/equatáveis.
 - [ ] Diagnosticar propriedade/placeholder ausente, duplicado, incompatível, não direto ou ambíguo; entrada inválida não chega a DI/emissão.
-- [ ] Emitir chamada ao contrato da Fase 4, retorno DTO/entidade conforme Q2, `Ok`/`NotFound`, metadata e filtros/tags comuns.
+- [ ] Emitir chamada ao contrato da Fase 4, retorno DTO conforme DF11, `Ok`/`NotFound`, metadata e filtros/tags comuns.
 - [ ] Preservar ordem determinística, nomes reservados e hint names da DF20; adicionar testes tracked de cache e invalidação seletiva.
 - [ ] Criar casos Demo: SKU simples, chave composta e not found rico; testar rota/query conforme o contrato escolhido.
 - [ ] Atualizar catálogo RCCMD, AnalyzerReleases, README e `.docs/commands.md`.
@@ -358,7 +367,7 @@ MapFindBy ─> IRepositoryAccessor<TEntity> ────────────
 **Tarefas:**
 
 - [ ] Executar build/test limpo de cada repositório alterado e registrar warnings contra seus baselines.
-- [ ] Empacotar localmente SmartProblems, eventual EnterprisePatterns e SmartCommands; consumir os `.nupkg` em projetos mínimos net8/net9/net10.
+- [ ] Empacotar localmente SmartProblems, EnterprisePatterns e SmartCommands; consumir os `.nupkg` em projetos mínimos net8/net9/net10.
 - [ ] Testar no mesmo consumer `Accepted`, busca simples/composta, EF, WorkContext, OpenAPI e coexistência com maps antigos.
 - [ ] Revisar API pública e fontes geradas; documentar migração de qualquer assinatura quebrada e dependências mínimas por pacote.
 - [ ] Atualizar todos os resultados de fase, matriz, riscos, diferidos e referências com evidência executada.
@@ -380,8 +389,8 @@ MapFindBy ─> IRepositoryAccessor<TEntity> ────────────
 |---|---|---|---|---|
 | 202 sem modelo rígido | 1-3, 6 | DF1-DF4 | `Result`/`Result<T>`, corpo e `Location` opcionais, problemas preservados | ApiResults + HTTP + OpenAPI |
 | Rota de acompanhamento | 1-3 | DF2, DF7 | placeholders próprios validados; header correto; sem parser geral | generator diagnostics + HTTP |
-| Busca alternativa/composta portável | 1, 4-6 | Q1-Q3, DF5-DF8 | contrato sem EF/SmartSearch; paridade EF/WorkContext | SQLite + fakes + consumer-smoke |
-| Projeção segura | 1, 4-6 | Q2 | DTO projetado pelo provider ou decisão explícita por entidade | SQL/projeção + HTTP |
+| Busca alternativa/composta portável | 1, 4-6 | DF5-DF8, DF10-DF12 | contrato sem EF/SmartSearch; paridade EF/WorkContext | SQLite + fakes + consumer-smoke |
+| Projeção segura | 1, 4-6 | DF11 | DTO projetado pelo provider, sem materialização prévia da entidade | SQL/projeção + HTTP |
 | Generator robusto/incremental | 3, 5-6 | DF7-DF9 | modelos symbol-free, diagnósticos, sem fonte parcial/CS8785 | tracked steps + snapshots + compile |
 | Rollout coordenado | 2-6 | DF3, DF9 | pacotes ordenados e consumíveis sem publicação implícita | pack + smoke por TFM |
 
@@ -406,9 +415,9 @@ MapFindBy ─> IRepositoryAccessor<TEntity> ────────────
 
 ## Critérios globais de conclusão
 
-- Q1-Q3 fechadas e registradas como decisões; nenhuma escolha arquitetural ficou implícita.
+- DFs 10-12 implementadas conforme as respostas de Q1-Q3; nenhuma escolha arquitetural ficou implícita.
 - `AcceptedMatch`/`AcceptedMatch<T>`, status e rota opcional funcionam com runtime e OpenAPI coerentes.
-- `TryFindBy` simples/composto possui contrato portável, paridade EF/WorkContext e projeção conforme Q2.
+- `TryFindBy` simples/composto possui contrato portável, paridade EF/WorkContext e projeção conforme DF11.
 - Generator cobre entradas válidas/inválidas, incrementalidade e colisões sem crash nem fonte parcial.
 - Problemas `NotFound`, cancelamento, query filters e constraints de segurança são preservados.
 - SmartSearch e `OperationReference` permanecem fora, salvo nova decisão humana sustentada por evidência.
@@ -426,8 +435,8 @@ MapFindBy ─> IRepositoryAccessor<TEntity> ────────────
 | `Location` insegura ou inválida | concatenação direta de valores de rota | header incorreto/injeção | placeholders nomeados, formatação/escape e testes de valores especiais | Aberto |
 | Pacotes dessincronizados | SmartCommands consome match/adapter ainda não publicado | restore/build quebrado | ordem de rollout e PackageReference pinado; aguardar confirmação humana | Aberto |
 | Abstração de busca vazar EF | `FindCriteria`/`IQueryable` entra no núcleo | acoplamento e adapter WorkContext artificial | DF6 e revisão de API na Fase 4 | Aberto |
-| Projeção causar materialização rastreada | adapter busca entidade e mapeia em memória | custo, tracking e exposição de dados | Q2 explícita, SQL/projeção testada e evolução no dono correto | Aberto |
-| Chave duplicada passar silenciosamente | Q3=A e banco sem unique constraint | resultado não determinístico | documentar invariante, recomendar constraint e teste de comportamento | Aberto |
+| Projeção causar materialização rastreada | adapter busca entidade e mapeia em memória | custo, tracking e exposição de dados | DF11, SQL/projeção testada e evolução no dono correto | Aberto |
+| Chave duplicada passar silenciosamente | DF12 e banco sem unique constraint | resultado possivelmente não determinístico | documentar invariante, recomendar constraint e teste de comportamento | Aceito por decisão; mitigar por documentação e constraint |
 | SmartSearch ser adotado por conveniência | tipo de filtro parece reutilizável | dependências/ciclo e escopo excessivos | DF5; exigir evidência e decisão nova | Mitigado por design; revalidar Fase 1 |
 | Generator regredir incrementalidade | novo modelo carrega símbolo/array mutável | cache incorreto e retenção | snapshots/EquatableArray e tracked-step tests | Aberto |
 | Escopo atravessar muitos repositórios | projeção requer mudança em EnterprisePatterns | atraso e releases encadeadas | Fase 1 identifica menor dono; fases/gates separados | Aberto |
@@ -438,7 +447,7 @@ MapFindBy ─> IRepositoryAccessor<TEntity> ────────────
 
 - `OperationReference` padronizado, polling, retry-after, callbacks e links de operação — plano próprio após casos reais em mais de um consumidor.
 - Cancelamento de operação já aceita e idempotency keys — feature HTTP/infra separada.
-- Alias explícito entre placeholder e propriedade de chave alternativa — reavaliar após uso da convenção definida em Q1.
+- Alias explícito entre placeholder e propriedade de chave alternativa — reavaliar após uso da convenção definida na DF10.
 - Operadores além de igualdade, OR, ranges, includes e hints — usar `MapSearch`/SmartSearch; não ampliar `TryFindBy` silenciosamente.
 - Streaming/form/file/upload — uso direto de Minimal API, conforme DF23.
 - Detecção automática de unique index do EF — não fazer do modelo EF uma exigência do generator.

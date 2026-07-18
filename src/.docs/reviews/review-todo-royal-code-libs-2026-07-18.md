@@ -14,6 +14,10 @@ Há também uma pequena inconsistência: o cabeçalho diz “Fase 1 pronta”, m
 
 Antes da implementação, eu fecharia formalmente essas três DFs.
 
+### Revisão
+
+As questões foram respondidas, o plano atualizado, e problemas resolvidos.
+
 ## 2. SmartProblems
 
 ### Mudança obrigatória: `AcceptedMatch`
