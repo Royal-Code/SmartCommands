@@ -177,6 +177,8 @@ Então penso que aqui não seria necessário um retorno rígido.
 
 Até poderia existir um `OperationReference` que quando usado tem uma integração melhor com o gerador de código e api's internas se existirem, mas precisaria pensar bem sobre isso, elaborar um design bem útil.
 
+Também seria necessário criar um AcceptedMatch, algo no SmartProblems, precisa liberar uma nova versão eu acho.
+
 ---
 
 ### 2. Find por chave alternativa ou composta
@@ -225,6 +227,7 @@ No `SmartProblems` há integração com EFCore.
 Tem um TryFindBy lá.
 Teria que avaliar se é possível usar aquilo, ou o `ICriteria` do SmartSearch.
 Primeiro teria que avaliar a viabilidade de usar algo componentizado, depois poderia pensar como solucionar a arquitetura da funcionalidade.
+Criar um novo método `FindEntityByAsync` no unit of work adapter seria simples, mas o resto precisa estar pronto para isso.
 
 ---
 
@@ -308,3 +311,19 @@ Ela entrega uma base útil imediatamente: filtros e política explícita de resp
 3. arquivos e streaming.
 
 Depois da A, eu trataria cada um como uma fase ou plano separado. Entre os itens da B, `Accepted` é pequeno o bastante para eventualmente entrar junto, mas chave alternativa/composta e upload/stream merecem desenhos próprios.
+
+---
+
+Direcionamento Humano:
+
+As três primeiras opções são mais simples e fáceis de fazer.
+
+A do retorno 202 é bem útil, daria um pequeno trabalho de design e liberação do SmartProblems, mas é uma boa funcionalidade.
+
+O TryFindBy é boa, mas acho que daria um longa implementação, teria que avaliar.
+
+O de Streaming é desnecessária, isso fica para Minimal API.
+
+Então penso que a opção A seria o melhor para este plano e as duas outras funcionalidades poderiam ser feitas em um novo plano.
+
+---

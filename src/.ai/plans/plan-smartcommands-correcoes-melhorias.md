@@ -1,6 +1,6 @@
 # Plan: Correções, endurecimento e evolução do SmartCommands (`smartcommands-correcoes-melhorias`)
 
-## Status: RASCUNHO - somente Q4 (novas capacidades HTTP) permanece aberta
+## Status: EM ANDAMENTO - Fases 1-9 concluídas; Fase 10 desbloqueada pela DF23
 
 ## Progresso
 
@@ -17,7 +17,7 @@
 | Fase 7 - Confiabilidade do adapter Entity Framework | Concluida |
 | Fase 8 - Runtime de decorators, WorkContext e retry | Concluida |
 | Fase 9 - Completude dos mapeamentos Minimal API existentes | Concluida |
-| Fase 10 - Novas capacidades de mapeamento Minimal API | Bloqueada por Q4 |
+| Fase 10 - Novas capacidades de mapeamento Minimal API | Pendente |
 | Fase 11 - Qualidade transversal, pacote, documentação e CI | Pendente |
 | Fase 12 - Compatibilidade, regressão e preparação de release | Pendente |
 
@@ -51,6 +51,7 @@
 - [Binding de parâmetros em Minimal APIs](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/parameter-binding?view=aspnetcore-10.0) — rota, query, header, body, form, DI e binding customizado podem ser explícitos ou inferidos; nome presente no template determina rota para tipos parseáveis.
 - [Respostas de Minimal APIs](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/responses?view=aspnetcore-10.0) e [metadados OpenAPI](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/include-metadata?view=aspnetcore-10.0) — `TypedResults` e unions tipadas expõem metadados de resposta; `ProducesProblem`/`ProducesValidationProblem` documentam problemas.
 - [Filtros de Minimal APIs](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/min-api-filters?view=aspnetcore-10.0) e [tratamento de erros em APIs](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling-api?view=aspnetcore-10.0) — filtros executam antes/depois do handler; exceções não tratadas podem ser centralizadas por middleware/`IExceptionHandler` e `ProblemDetails`.
+- `.docs/reviews/review-questao-4-plan-smartcommands-correcoes-melhorias-v1.md` — registra a comparação entre as opções A/B e o direcionamento humano que fechou Q4: `WithEndpointFilter<T>`, `WithResultStatus(HttpResultStatus)`, `WithTags`, descarte explícito do valor em `NoContent` e diferimento de `Accepted`/`TryFindBy`.
 - [Roslyn Incremental Generators Cookbook](https://github.com/dotnet/roslyn/blob/main/docs/features/incremental-generators.cookbook.md) — modelos do pipeline devem ter igualdade por valor, não carregar símbolos/syntax/locations e encapsular coleções; embora a recomendação geral separe diagnósticos, DF15 adota DTO symbol-free no generator para evitar uma segunda análise semântica, seguindo o precedente do SmartSelector.
 - `git remote -v` — o repositório correto é `https://github.com/Royal-Code/SmartCommands.git`.
 - `git status --short` em 2026-07-13 — há alterações do usuário no plano/Demo e arquivos gerados; este plano não pode sobrescrevê-las.
@@ -77,7 +78,7 @@
 
 ### Lacunas, conflitos e restrições
 
-- **Contrato público pendente:** somente o primeiro pacote de novas capacidades HTTP permanece dependente de Q4; Q1-Q3, Q5 e Q6 foram fechadas em DF13-DF17.
+- **Contrato HTTP selecionado:** Q4 foi fechada pela DF23 com a opção A e escopo explícito para filtro, status e tags. `Accepted`/202 e `TryFindBy` seguem para plano próprio; form/file/stream permanecem sob uso direto da Minimal API.
 - **Diagnósticos no generator:** por DF15, o transform produz DTOs equatáveis e symbol-free; `Diagnostic`/`Location` são reconstruídos somente em `RegisterSourceOutput`, sem uma segunda análise por `DiagnosticAnalyzer`.
 - **Binding inferido:** remover `[FromRoute]` corrige o contrato geral de `WithParameter`, mas tipos complexos em POST podem virar body e tipos registrados podem vir de DI; atributos explícitos precisam ser preservados no delegate.
 - **Retry e efeitos colaterais:** validações adicionais devem executar uma vez fora do laço para não repetir consultas/efeitos externos em conflito de concorrência.
@@ -194,17 +195,6 @@ textual por ocorrência com `rg -o` + `Measure-Object -Line`; os números não r
 
 ---
 
-## Perguntas ao humano
-
-- **Q4 — Primeiro pacote de novas capacidades HTTP:** quanto deve entrar após corrigir os mapeamentos atuais?
-  - **Opções:**
-    - **A) Extensibilidade mínima (recomendada):** filtro por endpoint, política explícita de resultado/status e metadados completos; deferir alternate/composite find, upload e streaming.
-    - **B) Pacote ampliado:** incluir também `Accepted`/202, find por chave alternativa/composta e binding/form/file/stream assistido.
-  - **Impacto se não decidir:** Fase 10 fica limitada ao documento de design e backlog, sem nova API pública.
-  - **Status:** Aberta.
-
----
-
 ## Decisões fechadas
 
 - **DF1 — Breaking changes diretas:** corrigir contratos e nomes sem aliases, duplicações ou membros `[Obsolete]`. Fonte: solicitação do mantenedor.
@@ -229,6 +219,7 @@ textual por ocorrência com `rg -o` + `Measure-Object -Line`; os números não r
 - **DF21 — Transação por comando (`[WithTransaction]`):** novo atributo opcional no método de comando exige transação para aquele comando, independentemente da opção global `BeginTransactions`. `IUnitOfWorkAccessor<T>.BeginAsync` ganha a assinatura `BeginAsync(bool requireTransaction, CancellationToken ct)`: com `options.BeginTransactions = true` a transação é sempre criada (como hoje); com a opção desligada, criada somente quando `requireTransaction = true`. Somente opt-in — não há modo de desligar por comando. O atributo exige UoW (`WithUnitOfWork`/`WithDbContext`/`WithWorkContext`); uso sem UoW produz diagnóstico (RCCMD041). A mudança de interface é breaking direta (DF1), sem default interface method, e vale para os dois accessors (EF e WorkContext). Implementação na Fase 8. Fonte: proposta do mantenedor em 2026-07-16, motivada por retry com escritas intermediárias.
 - **DF20 — Hint names legíveis, curtos e determinísticos:** todo arquivo emitido pelo generator usa o formato `{nomeLegívelLimitado}.{hash}.g.cs`, mantendo o nome do tipo/artefato na frente para facilitar localização. `nomeLegívelLimitado` é sanitizado e limitado a 32 caracteres; `hash` possui exatamente 8 caracteres Base32 (`A-Z2-7`) e codifica os primeiros 40 bits do SHA-256 da identidade completa do artefato, incluindo namespace e papel gerado. O sufixo é sempre emitido, não representa erro nem workaround transitório: ele evita colisões entre tipos homônimos e mantém os caminhos materializados abaixo dos limites comuns do Windows/Git. Não usar o metadata name completo no nome físico, não mover o hash para prefixo e não reduzir a identidade abaixo de 40 bits sem nova decisão. Fonte: definição do mantenedor após validação do limite de caminhos e da usabilidade dos arquivos gerados.
 - **DF22 — Fronteira da validação de rotas:** validade sintática, precedência e seleção de endpoints pertencem ao roteamento do ASP.NET Core; o SmartCommands não mantém parser geral concorrente nem proíbe genericamente combinações iguais de verbo+template que o framework possa diferenciar por constraints ou metadata. O generator valida somente invariantes que ele próprio interpreta ou cria: nome derivável do grupo, binding obrigatório de `{id}` no `MapFind`, placeholders simples do `MapCreatedRoute`, colisões de nomes/tipos/métodos gerados e normalização da barra na junção `MapGroup` + `MapCreatedRoute`. Fonte: definição do mantenedor após revisão da Fase 9.
+- **DF23 — Q4 adota a opção A com extensibilidade HTTP comum:** a Fase 10 inclui `[WithEndpointFilter<T>]` repetível, na ordem declarada e resolvido pelo DI do ASP.NET Core; `[WithResultStatus(HttpResultStatus)]` para `Ok`, `Created` e `NoContent`; e `[WithTags(params string[])]`. Sem `WithResultStatus`, permanece a inferência atual. `NoContent` pode descartar explicitamente o valor de sucesso de `Result<T>`, preservando a resposta de problemas. `Created` é permitido sem `Location`; `MapCreatedRoute` continua sendo a forma de produzir `Location` e implica `Created`, sendo incompatível com seleção explícita de `Ok`/`NoContent`. Os atributos não introduzem dependência runtime do núcleo em ASP.NET Core: o generator valida semanticamente o filtro e emite a integração no consumidor. `Accepted`/202 e `TryFindBy` seguem para plano próprio; form/file/stream e customizações HTTP específicas ficam no mapeamento manual da Minimal API. Fonte: Q4, `.docs/reviews/review-questao-4-plan-smartcommands-correcoes-melhorias-v1.md` e definição do mantenedor em 2026-07-17.
 
 ---
 
@@ -249,6 +240,9 @@ textual por ocorrência com `rg -o` + `Measure-Object -Line`; os números não r
 
 - `WithParameterAttribute`: marcador de argumento fornecido pelo chamador; não implica `[FromRoute]`.
 - Binding HTTP: copiar `[FromRoute]`, `[FromQuery]`, `[FromHeader]`, `[FromBody]`, `[FromForm]`, `[FromServices]` e `[AsParameters]` quando semanticamente válidos; sem marcador explícito, deixar inferência do framework atuar.
+- `[WithEndpointFilter<T>]`: atributo repetível para adicionar filtros à rota gerada na ordem declarada; o tipo é validado semanticamente pelo generator como filtro de endpoint, sem acoplar o projeto runtime ao ASP.NET Core.
+- `[WithResultStatus(HttpResultStatus)]`: seleção opcional de `Ok`, `Created` ou `NoContent` para command maps; sem o atributo, preservar a inferência existente. `NoContent` descarta deliberadamente o valor de sucesso de `Result<T>`, mas nunca seus problemas.
+- `[WithTags(params string[])]`: metadata comum de tags para os endpoints gerados, preservando a ordem informada e diagnosticando configuração vazia ou inválida.
 - `EditEntityAttribute<TEntity,TId>.RouteParameterName`: propriedade nomeada opcional para desambiguação; valor inexistente, duplicado ou incompatível produz RCCMD.
 - `CommandValidationAttribute`: marcador de método de instância com `Order` opcional, padrão `10`, conforme DF13; contrato detalhado na Fase 6, sem acesso implícito a entidade/UoW antes do carregamento.
 - `IUnitOfWorkAccessor<T>.CompleteAsync`: mantém `Task<Result>` nesta entrega; falhas inesperadas são limpas e relançadas conforme DF14.
@@ -364,20 +358,21 @@ HasProblems (quando WithValidateModel)
 
 | Superfície | Estado atual | Alvo obrigatório | Expansão candidata |
 |---|---|---|---|
-| Command maps | GET/POST/PUT/PATCH/DELETE, resposta parcialmente inferida pelo verbo | modelo comum de binding, resposta e metadata; conflito de atributos diagnosticado | política explícita `Ok`/`Created`/`Accepted`/`NoContent` |
-| `MapFind` | um `Id<TEntity,TId>` chamado `id` | validar rota, alias, tipo, acessibilidade e `NotFound` | chave alternativa/composta |
+| Command maps | GET/POST/PUT/PATCH/DELETE, resposta parcialmente inferida pelo verbo | modelo comum de binding, resposta e metadata; política opcional `Ok`/`Created`/`NoContent`; conflito de atributos diagnosticado | `Accepted`/202 em plano próprio |
+| `MapFind` | um `Id<TEntity,TId>` chamado `id` | validar rota, alias, tipo, acessibilidade e `NotFound` | `TryFindBy` por chave alternativa/composta em plano próprio |
 | `MapSearch` | GET, `[AsParameters]`, serviços hardcoded e `WithParameter` forçado para rota | async semântico, binding geral, grupo opcional consistente | cursor/stream/exportação |
 | Created | placeholders `{0}` e propriedades por string | DF17: placeholders nomeados, validação completa e `Location` determinística | `CreatedAtRoute` por endpoint name |
 | Erros | `ProduceProblems` no método gerado | metadata OpenAPI coerente por categoria/status | integração configurável de catálogo ProblemDetails |
-| Filtros | somente configuração externa | não duplicar exception handling do app | `[WithEndpointFilter<T>]` repetível, condicionado a Q4 |
-| Body/form/file | body inferido do command | copiar binding explícito e validar GET/DELETE sem body implícito | upload/form/stream condicionado a Q4 |
+| Filtros | somente configuração externa | não duplicar exception handling do app; `[WithEndpointFilter<T>]` repetível e ordenado | filtros especializados permanecem no app |
+| Tags | configuração externa ou ausente | `[WithTags]` reaproveita a metadata padrão da Minimal API | convenções avançadas por organização ficam no app |
+| Body/form/file | body inferido do command | copiar binding explícito e validar GET/DELETE sem body implícito | form/file/stream específicos permanecem no mapeamento manual |
 
 ### Segurança, concorrência e confiabilidade
 
 - Não incluir mensagem/provider detail de exceções de persistência na resposta HTTP gerada.
 - Não converter `OperationCanceledException` em `Result`, 500 ou retry esgotado.
 - Não executar validação adicional ou efeito externo novamente em retry otimista.
-- Validar `[FromForm]`/arquivos com cenários de antiforgery documentados; a biblioteca não desativa antiforgery.
+- Quando o consumidor mapear `[FromForm]`/arquivos manualmente, preservar o comportamento e as exigências de antiforgery do ASP.NET Core; a biblioteca não os substitui nem desativa.
 - Endpoint name, group class name, handler type e hint name devem ser únicos após normalização.
 - `Mediator` não manterá enumerador mutável; `next` terá comportamento determinístico quando invocado mais de uma vez.
 
@@ -402,7 +397,7 @@ HasProblems (quando WithValidateModel)
 7. **Fase 7 (EF)** — aplica DF14 com testes de transação/cancelamento.
 8. **Fase 8 (runtime/WorkContext)** — corrige estado do mediator e coerência do retry.
 9. **Fase 9 (Minimal API atual)** — fecha bugs e completude dos mapeamentos existentes.
-10. **Fase 10 (novos maps)** — implementa somente o pacote selecionado em Q4.
+10. **Fase 10 (novos maps)** — implementa o pacote HTTP comum selecionado em DF23.
 11. **Fase 11 (qualidade/distribuição)** — documentação, typos, pacote, TFM e verificações locais; GitHub Actions permanece como está.
 12. **Fase 12 (release)** — regressão integrada e inventário final de quebra.
 
@@ -419,7 +414,7 @@ dotnet test RoyalCode.SmartCommands.Demo.Tests/RoyalCode.SmartCommands.Demo.Test
 
 ## Fase 1 - Baseline e decisões de contrato
 
-**Depende de:** DF1-DF19; somente Q4 permanece necessária para desbloquear a Fase 10.
+**Depende de:** DF1-DF19. Q4 permaneceu aberta ao término desta fase e foi fechada posteriormente pela DF23.
 
 **Escopo:** solução inteira em modo somente leitura, documentação do plano e novos testes de caracterização sem alterar contratos.
 
@@ -433,9 +428,9 @@ dotnet test RoyalCode.SmartCommands.Demo.Tests/RoyalCode.SmartCommands.Demo.Test
 - [x] Inventariar arquivos/hint names gerados por cada cenário para detectar mudanças não intencionais nas fases seguintes.
 - [x] Registrar os comandos `rg`/PowerShell usados no inventário textual de descritores e membros, distinguindo ocorrências de dependências únicas.
 - [x] Consolidar Q1-Q3, Q5 e Q6 como DF13-DF17 e atualizar as fases dependentes.
-- [x] Responder Q4 ou manter a Fase 10 explicitamente bloqueada, limitada a design/backlog. (Fase 10 mantida explicitamente bloqueada; Q4 permanece Aberta — ver `Resultado da Fase 1`.)
+- [x] Responder Q4 ou manter a Fase 10 explicitamente bloqueada, limitada a design/backlog. (Na conclusão da fase, a Fase 10 ficou bloqueada; Q4 foi fechada posteriormente pela DF23.)
 
-**Critérios de aceite:** baseline reproduzível registrado; nenhuma alteração do usuário perdida; Q4 possui resposta fechada ou a Fase 10 permanece explicitamente bloqueada; testes de caracterização falham somente pelos bugs que pretendem capturar.
+**Critérios de aceite:** baseline reproduzível registrado; nenhuma alteração do usuário perdida; Q4 possui resposta fechada ou a Fase 10 permanece explicitamente bloqueada; testes de caracterização falham somente pelos bugs que pretendem capturar. Critério histórico satisfeito pelo bloqueio explícito e posteriormente superseded pela DF23.
 
 **Testes:** build/test padrão; `git diff --check`; `dotnet --info`; filtro xUnit dos novos testes de caracterização.
 
@@ -548,16 +543,16 @@ não acessa símbolo — premissa central da Fase 2).
 
 #### 6. Q4 e Fase 10
 
-Q4 (primeiro pacote de novas capacidades HTTP) **permanece Aberta**. Por decisão de escopo, a **Fase 10 fica
-explicitamente bloqueada**, limitada a documento de design e backlog, sem nova API pública — o que **satisfaz o
-critério de aceite** ("Q4 fechada ou Fase 10 explicitamente bloqueada"). A decisão será oferecida ao mantenedor
-(recomendação do plano: opção A — extensibilidade mínima); ao ser respondida, vira DF e destrava a Fase 10.
+No encerramento da Fase 1, Q4 (primeiro pacote de novas capacidades HTTP) permaneceu aberta e a Fase 10 ficou
+explicitamente bloqueada, limitada a documento de design e backlog, sem nova API pública — o que satisfez o
+critério de aceite histórico. **Estado posterior:** SUPERSEDED em 2026-07-17 pela DF23, que adotou a opção A com
+escopo detalhado e desbloqueou a Fase 10.
 
 #### Critérios de aceite — situação
 
 - Baseline reprodutível registrado (commit/status/SDKs/build/test). ✔
 - Nenhuma alteração do usuário perdida (worktree limpo antes; só caracterização + plano depois). ✔
-- Q4 fechada **ou** Fase 10 explicitamente bloqueada → **Fase 10 bloqueada**. ✔
+- Q4 fechada **ou** Fase 10 explicitamente bloqueada → bloqueio explícito na data da fase; depois, Q4 fechada pela DF23. ✔
 - Testes de caracterização falham **somente** pelos bugs-alvo (9/9 verificados individualmente). ✔
 
 **Verificações executadas:** `git rev-parse HEAD`, `git status --short`, `git diff --check`, `dotnet --info`;
@@ -1491,25 +1486,27 @@ determinística; erros com metadata OpenAPI coerente) ✔; nenhum atributo ignor
 
 ## Fase 10 - Novas capacidades de mapeamento Minimal API
 
-**Depende de:** Fase 9 e Q4 respondida.
+**Depende de:** Fase 9 e DF23.
 
-**Escopo:** novos atributos/contratos selecionados, emitter compartilhado, Demo e documentação.
+**Escopo:** `WithEndpointFilter<T>`, `WithResultStatus(HttpResultStatus)`, `WithTags`, emitter compartilhado, diagnósticos, Demo e documentação.
 
-**O que/como:** implementar somente os casos aprovados em Q4; cada nova API deve reutilizar `EndpointModel`, binding, response metadata e diagnósticos, sem novo gerador paralelo.
+**O que/como:** implementar o pacote da opção A detalhado na DF23, reutilizando os modelos e emitters comuns da Fase 9. Os atributos ficam no núcleo sem referência pública a tipos do ASP.NET Core; o generator reconhece `IEndpointFilter` por metadata name, valida o contrato no consumer e emite as chamadas padrão de Minimal API. Nenhum item diferido entra parcialmente nesta fase.
 
 **Tarefas:**
 
-- [ ] Escrever uma tabela de caso de uso, declaração do usuário, assinatura gerada, resposta/status, OpenAPI e limitações para cada candidato.
-- [ ] Implementar filtro de endpoint genérico/repetível caso aprovado, preservando ordem declarada e DI do ASP.NET Core.
-- [ ] Implementar política explícita de resultado para `Ok`/`Created`/`Accepted`/`NoContent` caso aprovada, com diagnóstico de retorno incompatível.
-- [ ] Implementar somente os itens ampliados escolhidos: 202/location, chave alternativa/composta, form/file/stream ou nenhum.
-- [ ] Evitar um `MapEndpoint` genérico se ele apenas trocar atributos tipados por strings sem diagnóstico melhor.
-- [ ] Criar cenário Demo real por feature e teste HTTP/OpenAPI correspondente.
-- [ ] Documentar decisão e mover candidatos não escolhidos para backlog com critério de retomada.
+- [ ] Escrever a matriz de cada atributo com declaração do usuário, maps permitidos, emissão, resposta/status, metadata OpenAPI, combinações válidas e diagnóstico correspondente.
+- [ ] Criar `WithEndpointFilterAttribute<T>` repetível, sem constraint pública do ASP.NET Core; validar semanticamente que `T` implementa `Microsoft.AspNetCore.Http.IEndpointFilter`, bloquear fonte inválida e aplicar filtros na ordem declarada por meio da API padrão do ASP.NET Core/DI.
+- [ ] Criar `HttpResultStatus` somente com `Ok`, `Created` e `NoContent`, além de `WithResultStatusAttribute`; aplicar apenas a command maps e diagnosticar valor desconhecido, retorno incompatível e uso em superfícies não suportadas.
+- [ ] Preservar a inferência atual quando `WithResultStatus` estiver ausente; permitir `Created` sem `Location`; manter `MapCreatedRoute` como forma de adicionar `Location` e como implicação de `Created`, diagnosticando conflito com `Ok` ou `NoContent`.
+- [ ] Implementar `NoContent` para `Result<T>` descartando somente o valor de sucesso e preservando todos os problemas; manter resposta HTTP e metadata OpenAPI coerentes para `Result` e `Result<T>` sem exigir mudança no SmartProblems.
+- [ ] Criar `WithTagsAttribute` com uma ou mais tags válidas, preservar ordem declarada e emitir `.WithTags(...)` na cadeia compartilhada para command/find/search maps; diagnosticar configuração vazia, nula ou composta somente por whitespace.
+- [ ] Reutilizar o modelo comum de endpoint e a emissão de metadata; não criar generator paralelo nem um `MapEndpoint` genérico baseado em strings.
+- [ ] Criar cenários Demo reais e testes de geração, compilação, HTTP e OpenAPI para filtros repetidos/DI/ordem, cada status, `Result<T>` descartado, `Created` com/sem `Location`, tags e todos os conflitos negativos.
+- [ ] Atualizar XML docs, README, `.docs/commands.md`, catálogo RCCMD e `AnalyzerReleases.Unshipped.md`; referenciar o plano separado para `Accepted` e `TryFindBy`.
 
-**Critérios de aceite:** toda feature aprovada possui contrato público, diagnóstico negativo, código compilado, teste HTTP e metadata OpenAPI; nenhuma regressão nos maps existentes; recursos não aprovados não entram parcialmente.
+**Critérios de aceite:** os três atributos da DF23 possuem contrato público documentado, análise symbol-free, emissão determinística, diagnóstico localizado e testes positivos/negativos; a ordem dos filtros e a resolução por DI são observadas em runtime; `HttpResultStatus` produz exatamente o status e o corpo documentados, incluindo descarte deliberado de `Result<T>` em 204 e problemas preservados; tags/status aparecem corretamente no OpenAPI; nenhuma regressão nos maps existentes; `Accepted`, `TryFindBy` e form/file/stream não entram parcialmente.
 
-**Testes:** filtro xUnit por cada feature; WebApplicationFactory e OpenAPI; build/test padrão.
+**Testes:** testes unitários do generator e de igualdade/incrementalidade dos modelos; snapshots de fonte; compilação sem `CS8785`; `WebApplicationFactory` para filtro/DI/ordem/status/body/Location; inspeção do JSON OpenAPI para tags e respostas; build/test padrão.
 
 ### Resultado da Fase 10
 
@@ -1550,7 +1547,7 @@ determinística; erros com metadata OpenAPI coerente) ✔; nenhum atributo ignor
 
 ## Fase 12 - Compatibilidade, regressão e preparação de release
 
-**Depende de:** Fases 1-11 concluídas e Q4 fechada — por seleção de funcionalidades ou diferimento explícito da Fase 10.
+**Depende de:** Fases 1-11 concluídas e DF23 implementada integralmente na Fase 10.
 
 **Escopo:** solução, pacotes locais, Demo, changelog/notas e este plano.
 
@@ -1585,7 +1582,7 @@ determinística; erros com metadata OpenAPI coerente) ✔; nenhum atributo ignor
 | Binding e EditEntity corretos | 5 | DF2-DF5 | inferência/atributos preservados; ambiguidade bloqueada | generator + WebApplicationFactory |
 | Validações adicionais | 6 | DF2, DF5, DF13 | ordem/short-circuit/async/CT/DI definidos; `Order` padrão 10; empate sem precedência pública | snapshots + fakes + HTTP |
 | Runtime EF/WorkContext/decorators confiável | 7-8 | DF5, DF6, DF14 | cancelamento e exceção corretos; retry/decorators determinísticos | SQLite, retry e decorator tests |
-| Minimal API completa/evoluída | 9-10 | DF2-DF4, DF17, Q4 | maps atuais completos; placeholders nomeados; somente features aprovadas | HTTP matrix + OpenAPI |
+| Minimal API completa/evoluída | 9-10 | DF2-DF4, DF17, DF22-DF23 | maps atuais completos; placeholders nomeados; filtros/status/tags aprovados; itens diferidos ausentes | generator + HTTP matrix + OpenAPI |
 | Qualidade/distribuição/compatibilidade | 11-12 | DF1, DF6, DF7, DF10-DF12, DF16 | docs/pacotes/TFMs/verificações locais verdes; Actions intactas | pack, consumer-smoke, build/test final |
 
 ---
@@ -1609,7 +1606,7 @@ determinística; erros com metadata OpenAPI coerente) ✔; nenhum atributo ignor
 
 ## Critérios globais de conclusão
 
-- DF13-DF19 aplicadas e Q4 fechada por seleção de funcionalidades ou diferimento explícito.
+- DF13-DF23 aplicadas conforme as fases correspondentes, incluindo o pacote HTTP fechado em Q4/DF23.
 - Nenhuma falha de igualdade, parsing textual inseguro ou back-reference listada no contexto permanece.
 - Generator e regras de diagnóstico cobrem entradas válidas e inválidas sem crash, segunda análise semântica ou fonte parcial.
 - Pipeline do handler respeita a ordem e a semântica de cancelamento definidas.
@@ -1635,7 +1632,7 @@ determinística; erros com metadata OpenAPI coerente) ✔; nenhum atributo ignor
 | Validator causar efeito repetido | validator colocado dentro do retry | duplicação de consulta/efeito | invariante e teste contador com conflito forçado | Aberto |
 | Mudança EF quebrar consumidor não HTTP | consumidor esperava exceção convertida em Result | breaking runtime | DF14, release notes e testes das duas bordas | Aberto |
 | Rollback usar token cancelado | cancelamento durante save | transação fica aberta/erro secundário | token de cleanup definido e teste específico | Aberto |
-| Novas features HTTP ampliarem escopo | Q4=B sem priorização | atraso e abstrações incompletas | matriz de caso de uso e implementar somente aprovadas | Aberto |
+| Novas features HTTP ampliarem escopo | itens diferidos entrarem parcialmente na Fase 10 | atraso e abstrações incompletas | DF23 limita a fase a filtro/status/tags; `Accepted` e `TryFindBy` possuem plano próprio; form/file/stream ficam manuais | Mitigado por DF23; revalidar na Fase 10 |
 | Metadados OpenAPI divergirem do runtime | status/body real não aparece na spec | clientes gerados incorretos | teste do JSON OpenAPI e resposta HTTP para cada map | Mitigado na Fase 9 (`DemoOpenApiTests` + `.Produces(204)` explícito); revalidar na Fase 12 |
 | Dependências não suportarem smoke em TFM | restore/compile falha em net8/net9 | pacote anuncia suporte incorreto | consumer-smoke por `.nupkg` antes de release | Aberto |
 | Worktree concorrente sofrer sobreposição | arquivos do Demo mudam durante execução | perda/conflito de trabalho do usuário | registrar status por fase e editar somente hunks necessários | Aberto |
@@ -1654,6 +1651,8 @@ determinística; erros com metadata OpenAPI coerente) ✔; nenhum atributo ignor
 - Benchmark de tempo/memória do generator em solução grande — destino: performance após Fase 2; tracked steps são obrigatórios nesta entrega.
 - Suporte amplo a nested command types — destino: implementar somente após naming/visibilidade estabilizados; até lá diagnosticar os casos não suportados.
 - Multiple endpoints para a mesma command class — destino: design separado; nesta entrega atributos conflitantes são erro.
+- `Accepted`/202, `MapAcceptedRoute` e `TryFindBy` por chave alternativa/composta — destino: `.ai/plans/plan-smartcommands-accepted-tryfindby.md`, com coordenação de SmartProblems e dos adapters.
+- Binding/form/file/stream assistido — não integrar ao SmartCommands sem novo caso de uso comum comprovado; usar diretamente as APIs de Minimal API.
 - Publicação automática NuGet — destino: plano de release/segredos; DF16 mantém Actions inalteradas nesta entrega.
 
 ---
