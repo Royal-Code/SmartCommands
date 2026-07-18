@@ -29,7 +29,9 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
         string? description,
         string? summary,
         string[]? authorizationPolicies,
-        string? groupName)
+        string? groupName,
+        string[]? endpointFilters = null,
+        string[]? tags = null)
     {
         EntityType = entityType;
         IdType = idType;
@@ -40,6 +42,8 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
         Summary = summary;
         AuthorizationPolicies = authorizationPolicies;
         GroupName = groupName;
+        EndpointFilters = endpointFilters;
+        Tags = tags;
     }
 
 #nullable disable
@@ -64,6 +68,12 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
 
     public string[]? AuthorizationPolicies { get; set; }
 
+    /// <summary>Filtros de endpoint (DF23), nomes globalmente qualificados, na ordem declarada.</summary>
+    public string[]? EndpointFilters { get; }
+
+    /// <summary>Tags OpenAPI (DF23), na ordem declarada.</summary>
+    public string[]? Tags { get; }
+
     /// <summary>
     /// Localização do argumento do endpoint name no atributo. Uso exclusivo do transform (vira snapshot no
     /// modelo do pipeline); não participa da igualdade porque a informação é transitória.
@@ -85,6 +95,8 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
                 Summary == other.Summary &&
                 GroupName == other.GroupName &&
                 SequenceEqual(AuthorizationPolicies, other.AuthorizationPolicies) &&
+                SequenceEqual(EndpointFilters, other.EndpointFilters) &&
+                SequenceEqual(Tags, other.Tags) &&
                 EqualErrors(other);
     }
 
@@ -122,6 +134,10 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
             foreach (var error in errors) hashCode = hashCode * -1521134295 + error.GetHashCode();
         if (AuthorizationPolicies is not null)
             foreach (var policy in AuthorizationPolicies) hashCode = hashCode * -1521134295 + policy.GetHashCode();
+        if (EndpointFilters is not null)
+            foreach (var filter in EndpointFilters) hashCode = hashCode * -1521134295 + filter.GetHashCode();
+        if (Tags is not null)
+            foreach (var tag in Tags) hashCode = hashCode * -1521134295 + tag.GetHashCode();
         return hashCode;
     }
 
@@ -175,6 +191,10 @@ internal class FindInformation : IEquatable<FindInformation>, IMapEndpointGenera
                 LineIdent = true
             };
         }
+
+        // tags e filtros (DF23), na ordem declarada
+        methodInvoke = EndpointExtensibility.EmitTags(methodInvoke, mapInfo.Tags);
+        methodInvoke = EndpointExtensibility.EmitFilters(methodInvoke, mapInfo.EndpointFilters);
 
         if (mapInfo.AuthorizationPolicies is not null)
         {

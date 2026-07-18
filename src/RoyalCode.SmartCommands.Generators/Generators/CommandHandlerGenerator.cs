@@ -789,6 +789,14 @@ internal static class CommandHandlerGenerator
             }
         }
 
+        // comandos que carregam entidades (EditEntity ou parâmetros-entidade) respondem NotFound quando o
+        // registro não existe; a categoria entra na metadata declarada para o OpenAPI refletir o runtime
+        if ((editType is not null || idPropertiesBindings.Count > 0) &&
+            !produceProblems.Contains("ProblemCategory.NotFound"))
+        {
+            produceProblems.Add("ProblemCategory.NotFound");
+        }
+
         // armazena todas as informações coletadas
         var info = new CommandHandlerInformation
         {
@@ -1719,6 +1727,14 @@ internal static class CommandHandlerGenerator
                 errors);
         }
 
+        // DF23: extensibilidade HTTP comum — status de sucesso explícito, tags e filtros de endpoint
+        var resultStatus = EndpointExtensibility.ReadResultStatus(
+            commandType, attributeLocation, errors, cancellationToken);
+        var tags = EndpointExtensibility.ReadTags(
+            commandType, attributeLocation, errors, cancellationToken);
+        var endpointFilters = EndpointExtensibility.ReadFilters(
+            commandType, commandType.ContainingAssembly, attributeLocation, errors, cancellationToken);
+
         // tenta obter MapCreatedRoute — (route pattern, params nomes de propriedades)
         if (KnownAttributes.TryGet(commandType, KnownAttributes.MapCreatedRoute, out var createdRouteAttr))
         {
@@ -1897,6 +1913,31 @@ internal static class CommandHandlerGenerator
             }
         }
 
+        // DF23: conflitos entre o status explícito e os mapeamentos de resposta são erro, nunca prioridade
+        // silenciosa — MapCreatedRoute implica Created; NoContent não pode declarar corpo de resposta.
+        if (resultStatus is HttpResultStatusModel.Ok or HttpResultStatusModel.NoContent &&
+            createdInformation is not null)
+        {
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.ConflictingResultStatus,
+                GetResultStatusLocation(commandType, cancellationToken, attributeLocation),
+                resultStatus.ToString()!,
+                "MapCreatedRoute, which implies Created"));
+            return null;
+        }
+
+        if (resultStatus is HttpResultStatusModel.NoContent && (hasMapIdResultValue || hasMapResponseValues))
+        {
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.ConflictingResultStatus,
+                GetResultStatusLocation(commandType, cancellationToken, attributeLocation),
+                nameof(HttpResultStatusModel.NoContent),
+                hasMapIdResultValue
+                    ? "MapIdResultValue, which declares a response body"
+                    : "MapResponseValues, which declares a response body"));
+            return null;
+        }
+
         return new MapInformation
         {
             HttpMethod = httpMethod,
@@ -1909,9 +1950,21 @@ internal static class CommandHandlerGenerator
             CreatedInformation = createdInformation,
             IdResultValueType = idResultValueType,
             ResponseValues = responseValues,
-            AuthorizationPolicies = authorizationPolicies
+            AuthorizationPolicies = authorizationPolicies,
+            ResultStatus = resultStatus,
+            EndpointFilters = endpointFilters.Length > 0 ? endpointFilters : null,
+            Tags = tags.Length > 0 ? tags : null,
         };
     }
+
+    /// <summary>Localização do atributo <c>WithResultStatus</c> para os diagnósticos de conflito (RCCMD053).</summary>
+    private static Location GetResultStatusLocation(
+        INamedTypeSymbol commandType,
+        CancellationToken cancellationToken,
+        Location fallback) =>
+        KnownAttributes.TryGet(commandType, KnownAttributes.WithResultStatus, out var statusAttr)
+            ? KnownAttributes.GetLocation(statusAttr!, cancellationToken, fallback)
+            : fallback;
 
     /// <summary>
     /// DF17: valida o pattern do <c>MapCreatedRoute</c> — somente placeholders nomeados simples, sem

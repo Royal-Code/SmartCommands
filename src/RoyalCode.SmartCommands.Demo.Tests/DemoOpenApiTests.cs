@@ -67,6 +67,41 @@ public class DemoOpenApiTests
 
 	}
 
+	[Fact]
+	public async Task OpenApi_reflete_tags_e_status_explicitos_da_extensibilidade()
+	{
+		using var app = new DemoApiFactory(environment: "Development");
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var response = await client.GetAsync("/swagger/v1/swagger.json");
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+		using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+		var paths = document.RootElement.GetProperty("paths");
+
+		// PUT /lojas/{id}/nome — WithResultStatus(NoContent): 204 sem corpo; tags na ordem declarada
+		var renomear = GetPath(paths, "/lojas/{id}/nome").GetProperty("put");
+		var renomearResponses = renomear.GetProperty("responses");
+		Assert.True(renomearResponses.TryGetProperty("204", out _),
+			"Respostas do PUT /lojas/{id}/nome: " +
+			string.Join(", ", renomearResponses.EnumerateObject().Select(p => p.Name)));
+		AssertProblemDetailsResponse(renomearResponses, "404");
+		var renomearTags = renomear.GetProperty("tags").EnumerateArray()
+			.Select(tag => tag.GetString())
+			.ToArray();
+		Assert.Contains("Lojas", renomearTags);
+		Assert.Contains("Administracao", renomearTags);
+
+		// POST /lojas/importadas — WithResultStatus(Created) sem MapCreatedRoute: 201 com corpo projetado
+		var importar = GetPath(paths, "/lojas/importadas").GetProperty("post");
+		var importarResponses = importar.GetProperty("responses");
+		Assert.True(importarResponses.TryGetProperty("201", out var created201),
+			"Respostas do POST /lojas/importadas: " +
+			string.Join(", ", importarResponses.EnumerateObject().Select(p => p.Name)));
+		Assert.True(created201.TryGetProperty("content", out _));
+	}
+
 	private static void AssertProblemDetailsResponse(JsonElement responses, string statusCode)
 	{
 		Assert.True(responses.TryGetProperty(statusCode, out var response),

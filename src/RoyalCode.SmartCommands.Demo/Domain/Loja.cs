@@ -31,5 +31,7 @@ public class Loja : Entity<int>
 
     public void Desativar() => Ativa = false;
 
+    public void Renomear(string novoNome) => Nome = novoNome;
+
     public override string ToString() => $"{Nome} - {Endereco}";
 }

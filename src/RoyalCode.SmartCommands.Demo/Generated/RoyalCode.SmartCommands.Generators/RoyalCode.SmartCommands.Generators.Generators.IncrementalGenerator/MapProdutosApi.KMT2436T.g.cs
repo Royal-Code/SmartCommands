@@ -72,6 +72,7 @@ public static partial class MapProdutosApi
         return group;
     }
 
+    [ProduceProblems(ProblemCategory.NotFound)]
     private static async Task<OkMatch> DesativarProdutoHandleAsync(
         IDesativarProdutoHandler handler, 
         [FromRoute(Name = "id")]  Guid produtoId, 
@@ -83,7 +84,7 @@ public static partial class MapProdutosApi
         return result;
     }
 
-    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.NotFound)]
     private static async Task<OkMatch> EditarProdutoHandleAsync(
         IEditarProdutoHandler handler, 
         [FromRoute(Name = "id")]  Guid produtoId, 
@@ -152,6 +153,7 @@ public static partial class MapProdutosApi
         return Performer.SearchAsync<Produto, ProdutoDetalhes, ExemploProdutoFiltro>(filter, options, orderby, criteria, configure, logger, ct);
     }
 
+    [ProduceProblems(ProblemCategory.NotFound)]
     private static async Task<OkMatch> ReativarProdutoHandleAsync(
         IReativarProdutoHandler handler, 
         [FromRoute(Name = "id")]  Guid produtoId, 
@@ -163,7 +165,7 @@ public static partial class MapProdutosApi
         return result;
     }
 
-    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.NotFound)]
     private static async Task<OkMatch> AdicionarEntradaEstoqueHandleAsync(
         IAdicionarEntradaEstoqueHandler handler, 
         [FromRoute(Name = "id")]  Guid produtoId, 
@@ -190,7 +192,7 @@ public static partial class MapProdutosApi
         return result.CreatedMatch(v => $"produtos/{v.Id}", v => new CriarProduto2Response(v.Id, v.Nome, v.Sku));
     }
 
-    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.NotFound)]
     private static async Task<OkMatch> LiberarReservaEstoqueHandleAsync(
         ILiberarReservaEstoqueHandler handler, 
         [FromRoute(Name = "id")]  Guid produtoId, 
@@ -204,7 +206,7 @@ public static partial class MapProdutosApi
         return result;
     }
 
-    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.NotFound)]
     private static async Task<OkMatch> RegistrarEstoqueInicialHandleAsync(
         IRegistrarEstoqueInicialHandler handler, 
         [FromRoute(Name = "id")]  Guid produtoId, 
@@ -218,7 +220,7 @@ public static partial class MapProdutosApi
         return result;
     }
 
-    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.NotFound)]
     private static async Task<OkMatch> ReservarEstoqueHandleAsync(
         IReservarEstoqueHandler handler, 
         [FromRoute(Name = "id")]  Guid produtoId, 

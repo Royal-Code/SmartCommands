@@ -30,3 +30,6 @@ RCCMD047 | Usage | Error | Two endpoints in the same group generate the same han
 RCCMD048 | Usage | Error | The property cannot be used in the endpoint response
 RCCMD049 | Usage | Error | MapIdResultValue and MapResponseValues cannot be combined
 RCCMD050 | Usage | Error | Invalid MapCreatedRoute pattern (DF17 named placeholders)
+RCCMD051 | Usage | Error | Invalid endpoint filter type for WithEndpointFilter
+RCCMD052 | Usage | Error | Invalid use of WithResultStatus
+RCCMD053 | Usage | Error | The explicit result status conflicts with a response mapping

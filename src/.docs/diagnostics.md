@@ -278,3 +278,23 @@ placeholders diferente da quantidade de propriedades, placeholder sem propriedad
 formato posicional antigo `"{0}"`, removido) ou propriedade inexistente/não legível no tipo de valor
 retornado. **Correção:** alinhe placeholders e propriedades, por exemplo
 `[MapCreatedRoute("{id}", nameof(Produto.Id))]`.
+
+## RCCMD051
+**Tipo inválido em `WithEndpointFilter<T>` (DF23).** O filtro precisa ser uma classe top-level, não genérica,
+não abstrata, não file-local, acessível ao código gerado e implementando
+`Microsoft.AspNetCore.Http.IEndpointFilter` — o pacote runtime não referencia ASP.NET Core, então o contrato é
+validado semanticamente pelo generator. **Correção:** implemente `IEndpointFilter` em uma classe concreta
+pública/interna do próprio assembly (ou pública de um assembly referenciado).
+
+## RCCMD052
+**Uso inválido de `WithResultStatus` (DF23).** O valor não é um `HttpResultStatus` conhecido (`Ok`, `Created`
+ou `NoContent`), ou o atributo foi aplicado a uma classe de `MapFind`/`MapSearch` — ele vale apenas para
+command maps; nas demais superfícies seria ignorado em silêncio. **Correção:** use um valor do enum em um
+comando mapeado por verbo HTTP.
+
+## RCCMD053
+**Conflito entre o status explícito e um mapeamento de resposta (DF23).** `MapCreatedRoute` implica `Created`
+e não pode ser combinado com `Ok`/`NoContent` explícitos; `NoContent` não pode ser combinado com
+`MapIdResultValue`/`MapResponseValues`, que declaram um corpo de resposta. **Correção:** remova o atributo
+conflitante ou escolha um status compatível — `Created` explícito pode coexistir com `MapCreatedRoute`
+(redundante) e com as projeções de corpo.

@@ -96,12 +96,29 @@ Principais atributos na classe de comando (mapeamento HTTP):
   são erro (RCCMD049) e as propriedades precisam ser públicas e legíveis (RCCMD048).
 - `WithDescription(text)` / `WithSummary(text)`: metadados de documentação.
 - `WithAuthorization` / `WithPolicy(params string[] policies)`: exigem autenticação/política.
+- `WithTags(params string[] tags)`: tags OpenAPI na ordem declarada, para command/find/search maps; vazio ou
+  whitespace é erro (RCCMD041).
+- `WithEndpointFilter<TFilter>` (repetível): adiciona `AddEndpointFilter<TFilter>()` ao endpoint gerado, na
+  ordem declarada, com o filtro ativado pela DI do ASP.NET Core; `TFilter` precisa implementar
+  `IEndpointFilter` e ser uma classe concreta top-level (RCCMD051). Vale para command/find/search maps.
+- `WithResultStatus(HttpResultStatus)`: seleção explícita do status de sucesso (`Ok`, `Created`, `NoContent`)
+  para command maps; sem o atributo vale a inferência abaixo. `Created` sem `MapCreatedRoute` responde `201`
+  sem `Location`; `NoContent` descarta deliberadamente o valor de sucesso de `Result<T>` (os problemas são
+  sempre preservados). Conflitos são erro (RCCMD052/RCCMD053).
 
-Status de sucesso por verbo:
+Status de sucesso por verbo (inferência, sem `WithResultStatus`):
 - `MapGet`/`MapPost`/`MapPut`/`MapPatch`: `200 OK` com o valor do `Result` (ou `201 Created` com
   `MapCreatedRoute`).
 - `MapDelete`: `204 No Content` somente quando o contrato não retorna valor nem created; quando o comando
-  retorna valor, o endpoint responde `200 OK` com o valor — o valor nunca é descartado em silêncio.
+  retorna valor, o endpoint responde `200 OK` com o valor — o valor nunca é descartado em silêncio (o
+  descarte é opt-in via `WithResultStatus(NoContent)`).
+
+Comandos que carregam entidades (`EditEntity` ou parâmetros-entidade) incluem `ProblemCategory.NotFound`
+automaticamente na metadata declarada (`ProduceProblems`), refletindo o `404` real do runtime.
+
+Capacidades diferidas: `Accepted`/202 e busca por chave alternativa/composta (`TryFindBy`) possuem plano
+próprio (`.ai/plans/plan-smartcommands-accepted-tryfindby.md`); upload/form/file/stream permanecem no
+mapeamento manual da Minimal API (DF23).
 
 Validações automáticas do Generator:
 - Proíbe generics na classe/método de comando.

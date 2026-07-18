@@ -23,6 +23,11 @@ public static partial class MapLojasApi
             .WithDescription("Desativa a loja informada (exclusao logica).")
             .WithSummary("Excluir Loja");
 
+        group.MapPost("/importadas", ImportarLojaHandleAsync)
+            .WithName("importar-loja")
+            .WithSummary("Importar Loja")
+            .WithTags("Lojas");
+
         group.MapPost("/", CriarLojaHandleAsync)
             .WithName("loja-criar");
 
@@ -31,9 +36,18 @@ public static partial class MapLojasApi
             .WithSummary("Relatorio de lojas")
             .RequireAuthorization("relatorios");
 
+        group.MapPut("/{id:int}/nome", RenomearLojaHandleAsync)
+            .WithName("renomear-loja")
+            .Produces(204)
+            .WithSummary("Renomear Loja")
+            .WithTags("Lojas", "Administracao")
+            .AddEndpointFilter<global::RoyalCode.SmartCommands.Demo.Filters.FiltroAuditoria>()
+            .AddEndpointFilter<global::RoyalCode.SmartCommands.Demo.Filters.FiltroCarimbo>();
+
         return group;
     }
 
+    [ProduceProblems(ProblemCategory.NotFound)]
     private static async Task<NoContentMatch> ExcluirLojaHandleAsync(
         IExcluirLojaHandler handler, 
         [FromRoute(Name = "id")]  int lojaId, 
@@ -43,6 +57,19 @@ public static partial class MapLojasApi
 
         var result = await handler.HandleAsync(lojaId, command, ct);
         return result;
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    private static async Task<CreatedMatch<ImportarLojaResponse>> ImportarLojaHandleAsync(
+        IImportarLojaHandler handler, 
+        ImportarLoja? command, 
+        CancellationToken ct)
+    {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
+        var result = await handler.HandleAsync(command, ct);
+        return new CreatedMatch<ImportarLojaResponse>(result.Map(v => new ImportarLojaResponse(v.Id, v.Nome)).Match<IResult>(static value => TypedResults.Created((string?)null, value), static problems => new MatchErrorResult(problems)));
     }
 
     [ProduceProblems(ProblemCategory.InvalidParameter)]
@@ -66,5 +93,19 @@ public static partial class MapLojasApi
 
         var result = await handler.HandleAsync(command, ct);
         return result;
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.NotFound)]
+    private static async Task<NoContentMatch> RenomearLojaHandleAsync(
+        IRenomearLojaHandler handler, 
+        [FromRoute(Name = "id")]  int lojaId, 
+        RenomearLoja? command, 
+        CancellationToken ct)
+    {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
+        var result = await handler.HandleAsync(lojaId, command, ct);
+        return (Result)result;
     }
 }

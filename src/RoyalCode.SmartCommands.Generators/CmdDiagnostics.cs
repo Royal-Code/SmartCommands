@@ -415,6 +415,30 @@ internal static class CmdDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor InvalidEndpointFilter = new(
+        id: "RCCMD051",
+        title: "Invalid endpoint filter type",
+        messageFormat: "The endpoint filter type '{0}' is invalid: {1}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidResultStatus = new(
+        id: "RCCMD052",
+        title: "Invalid use of WithResultStatus",
+        messageFormat: "Invalid use of WithResultStatusAttribute: {0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor ConflictingResultStatus = new(
+        id: "RCCMD053",
+        title: "The explicit result status conflicts with a response mapping",
+        messageFormat: "The explicit result status '{0}' conflicts with {1}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> Descriptors =
         new[]
         {
@@ -469,6 +493,9 @@ internal static class CmdDiagnostics
             InvalidResponseProperty,
             ConflictingResponseMappings,
             InvalidCreatedRoute,
+            InvalidEndpointFilter,
+            InvalidResultStatus,
+            ConflictingResultStatus,
         }
         .ToDictionary(descriptor => descriptor.Id, StringComparer.Ordinal);
 

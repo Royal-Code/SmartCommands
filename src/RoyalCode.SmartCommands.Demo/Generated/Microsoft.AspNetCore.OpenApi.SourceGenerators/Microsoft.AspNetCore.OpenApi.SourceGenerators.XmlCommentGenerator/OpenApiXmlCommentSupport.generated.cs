@@ -140,6 +140,18 @@ resolves the parameter by convention (single route parameter; {entityParameterNa
 entityParameterName).", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.EntityReferenceAttribute`2", new XmlComment(@"Attribute used to reference an entity and its ID type.
 Used together with MapFindAttribute.", null, null, null, null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.HttpResultStatus", new XmlComment(@"    The explicit success status that a mapped command endpoint produces, used with
+WithResultStatusAttribute.
+    Without an explicit selection, the generator keeps the current inference: commands respond
+200 OK with the value of the Result, MapCreatedRouteAttribute produces
+201 Created, and MapDelete without a returned value produces 204 No Content.", null, null, null, null, false, null, null, null));
+            cache.Add(@"F:RoyalCode.SmartCommands.HttpResultStatus.Ok", new XmlComment(@"`200 OK`: the response body is the success value of the command result, including the
+            projections of MapIdResultValueAttribute or MapResponseValuesAttribute.", null, null, null, null, false, null, null, null));
+            cache.Add(@"F:RoyalCode.SmartCommands.HttpResultStatus.Created", new XmlComment(@"`201 Created`: the resource was created. The `Location` header is produced only when the
+            command also declares MapCreatedRouteAttribute; without it, the response is a
+            `201` without `Location`.", null, null, null, null, false, null, null, null));
+            cache.Add(@"F:RoyalCode.SmartCommands.HttpResultStatus.NoContent", new XmlComment(@"`204 No Content`: the success value of a `Result&lt;T&gt;` is deliberately discarded and
+            the response has no body. Problems are always preserved and produce their regular status codes.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.IDecorator`2", new XmlComment(@"    A decorator that wraps the execution of a command marked with WithDecoratorsAttribute,
 allowing cross-cutting behavior (logging, caching, transactions, etc.) to run around the command logic.
     Registered decorators are resolved from Dependency Injection and executed, in registration order,
@@ -434,6 +446,16 @@ via Mediator&lt;TModel, TResult&gt;, before invoking the command method.
             cache.Add(@"T:RoyalCode.SmartCommands.WithDescriptionAttribute", new XmlComment(@"Specifies a description for an endpoint generated from a command.", null, @"Apply this attribute to a class to provide a human-readable description.", null, null, false, [@"    ```[WithDescription(""This command does something useful."")]
 public class MyCommand { }```"], null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.WithDescriptionAttribute.#ctor(System.String)", new XmlComment(@"Initializes a new instance of the WithDescriptionAttribute class with the specified description.", null, null, null, null, false, null, [new XmlParameterComment(@"description", @"The description of the endpoint.", null, false)], null));
+            cache.Add(@"T:RoyalCode.SmartCommands.WithEndpointFilterAttribute`1", new XmlComment(@"    Adds an endpoint filter to the generated Minimal API endpoint. The attribute is repeatable and the
+filters are applied in the declaration order, using the standard
+AddEndpointFilter&lt;TFilter&gt;() of ASP.NET Core — instances are resolved/activated with the
+application's dependency injection.
+    TFilter must be a non-abstract, non-generic, top-level class implementing
+          Microsoft.AspNetCore.Http.IEndpointFilter. The contract is validated at compile time by the
+          generator (RCCMD051); this package does not reference ASP.NET Core, so the constraint is semantic,
+          not declared on the attribute.
+    Can be used on command classes mapped by the HTTP verbs, on MapFindAttribute classes and
+on MapSearchAttribute classes.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithFilterAttribute", new XmlComment(@"    Marks the method, in a class decorated with SearchReferenceAttribute&lt;TEntity&gt; or
 SearchReferenceAttribute&lt;TEntity, TModel&gt;, that applies custom filtering logic to the
 search query. The generated search handler invokes this method to build the filtered query.
@@ -455,6 +477,21 @@ bound the usual ASP.NET Core way (route, query, services, etc.).
 or the unit of work context.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithPolicyAttribute", new XmlComment(@"Applies a policy requirement to an endpoint generated from a command.", null, null, null, null, false, null, null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.WithPolicyAttribute.#ctor(System.String[])", new XmlComment(@"Initializes a new instance of the WithPolicyAttribute class with the specified policy.", null, null, null, null, false, null, [new XmlParameterComment(@"policy", @"A string array of policy names to apply to the endpoint.", null, false)], null));
+            cache.Add(@"T:RoyalCode.SmartCommands.WithResultStatusAttribute", new XmlComment(@"    Selects, explicitly, the success status produced by a mapped command endpoint
+(MapPostAttribute and the other HTTP verbs). Without this attribute the generator keeps
+the current inference — see HttpResultStatus.
+    Rules validated at compile time: MapCreatedRouteAttribute implies
+HttpResultStatus.Created and cannot be combined with an explicit Ok or
+NoContent; NoContent cannot be combined with MapIdResultValueAttribute or
+MapResponseValuesAttribute (they declare a response body); the attribute applies only to
+command maps, not to MapFindAttribute or MapSearchAttribute classes.
+    Example:
+          ```// responds 204, deliberately discarding the success value of Result&lt;Produto&gt;
+[MapGroup(""produtos"")]
+[MapPost(""/{id}/arquivar"", ""arquivar-produto"")]
+[WithResultStatus(HttpResultStatus.NoContent)]
+public class ArquivarProduto { /* ... */ }```", null, null, null, null, false, null, null, null));
+            cache.Add(@"M:RoyalCode.SmartCommands.WithResultStatusAttribute.#ctor(RoyalCode.SmartCommands.HttpResultStatus)", new XmlComment(@"Initializes a new instance of the WithResultStatusAttribute class.", null, null, null, null, false, null, [new XmlParameterComment(@"status", @"The explicit success status produced by the endpoint.", null, false)], null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithRetryOnConcurrencyAttribute", new XmlComment(@"    Opt-in attribute that makes the generated command handler retry the command body on optimistic-concurrency
 conflicts. It is only supported together with WithWorkContextAttribute.
     When applied, the generated handler wraps { Begin → find entities → Execute → Complete } in a retry
@@ -471,6 +508,11 @@ to create the problem returned when the retry budget is exhausted.", null, null,
             cache.Add(@"P:RoyalCode.SmartCommands.WithRetryOnConcurrencyAttribute.Operation", new XmlComment(@"The semantic operation key used by the retry problem factory when the retry budget is exhausted.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithSummaryAttribute", new XmlComment(@"Specifies a summary for an endpoint generated from a command.", null, null, null, null, false, null, null, null));
             cache.Add(@"M:RoyalCode.SmartCommands.WithSummaryAttribute.#ctor(System.String)", new XmlComment(@"Initializes a new instance of the WithSummaryAttribute class with the specified summary.", null, null, null, null, false, null, [new XmlParameterComment(@"summary", @"The summary of the endpoint.", null, false)], null));
+            cache.Add(@"T:RoyalCode.SmartCommands.WithTagsAttribute", new XmlComment(@"    Adds OpenAPI tags to the generated Minimal API endpoint, preserving the declared order — the generator
+emits .WithTags(...) on the endpoint. Can be used on command classes mapped by the HTTP verbs,
+on MapFindAttribute classes and on MapSearchAttribute classes.
+    At least one tag is required and tags must not be empty or whitespace (RCCMD041).", null, null, null, null, false, null, null, null));
+            cache.Add(@"M:RoyalCode.SmartCommands.WithTagsAttribute.#ctor(System.String[])", new XmlComment(@"Initializes a new instance of the WithTagsAttribute class.", null, null, null, null, false, null, [new XmlParameterComment(@"tags", @"One or more non-empty tags, emitted in the declared order.", null, false)], null));
             cache.Add(@"T:RoyalCode.SmartCommands.WithTransactionAttribute", new XmlComment(@"    Requires a transaction for the command's unit of work, regardless of the adapter option
 (BeginTransactions). The generated handler calls
 IUnitOfWorkAccessor&lt;T&gt;.BeginAsync(requireTransaction: true, ct).

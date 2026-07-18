@@ -275,7 +275,10 @@ internal sealed record CommandEndpointModel(
     bool RequiresAuthorization,
     EquatableArray<string> AuthorizationPolicies,
     LocationModel NameLocation,
-    string? EditRouteParameterName) : IMapEndpointModel
+    string? EditRouteParameterName,
+    HttpResultStatusModel? ResultStatus,
+    EquatableArray<string> EndpointFilters,
+    EquatableArray<string> Tags) : IMapEndpointModel
 {
     public string? Group => GroupName;
 
@@ -311,7 +314,10 @@ internal sealed record CommandEndpointModel(
         information.AuthorizationPolicies is not null,
         new EquatableArray<string>(information.AuthorizationPolicies),
         LocationModel.Create(information.EndpointNameLocation),
-        information.EditRouteParameterName);
+        information.EditRouteParameterName,
+        information.ResultStatus,
+        new EquatableArray<string>(information.EndpointFilters),
+        new EquatableArray<string>(information.Tags));
 
     internal MapInformation ToInformation()
     {
@@ -335,6 +341,9 @@ internal sealed record CommandEndpointModel(
                     ResponseValues.Properties.Select(PipelineModelConversions.ToDescriptor).ToList()),
             AuthorizationPolicies = RequiresAuthorization ? AuthorizationPolicies.ToArray() : null,
             EditRouteParameterName = EditRouteParameterName,
+            ResultStatus = ResultStatus,
+            EndpointFilters = EndpointFilters.IsEmpty ? null : EndpointFilters.ToArray(),
+            Tags = Tags.IsEmpty ? null : Tags.ToArray(),
         };
         return map;
     }
@@ -370,6 +379,8 @@ internal sealed record FindModel(
     bool RequiresAuthorization,
     EquatableArray<string> AuthorizationPolicies,
     string? GroupName,
+    EquatableArray<string> EndpointFilters,
+    EquatableArray<string> Tags,
     LocationModel NameLocation) : IMapEndpointModel
 {
     public string? Group => GroupName;
@@ -392,6 +403,8 @@ internal sealed record FindModel(
         information.AuthorizationPolicies is not null,
         new EquatableArray<string>(information.AuthorizationPolicies),
         information.GroupName,
+        new EquatableArray<string>(information.EndpointFilters),
+        new EquatableArray<string>(information.Tags),
         LocationModel.Create(information.EndpointNameLocation));
 
     public IMapEndpointGenerator ToGenerator() => new FindInformation(
@@ -403,7 +416,9 @@ internal sealed record FindModel(
         Description,
         Summary,
         RequiresAuthorization ? AuthorizationPolicies.ToArray() : null,
-        GroupName);
+        GroupName,
+        EndpointFilters.IsEmpty ? null : EndpointFilters.ToArray(),
+        Tags.IsEmpty ? null : Tags.ToArray());
 }
 
 internal sealed record SearchFilterParameterModel(
@@ -431,6 +446,8 @@ internal sealed record SearchModel(
     EquatableArray<string> AuthorizationPolicies,
     string? GroupName,
     SearchFilterModel? Filter,
+    EquatableArray<string> EndpointFilters,
+    EquatableArray<string> Tags,
     LocationModel NameLocation) : IMapEndpointModel
 {
     public string? Group => GroupName;
@@ -466,6 +483,8 @@ internal sealed record SearchModel(
                         parameter.IsCancellationTokenParameter,
                         parameter.IsHttpContextParameter,
                         parameter.Bindings)))),
+        new EquatableArray<string>(information.EndpointFilters),
+        new EquatableArray<string>(information.Tags),
         LocationModel.Create(information.EndpointNameLocation));
 
     public IMapEndpointGenerator ToGenerator() => new SearchInformation(
@@ -489,7 +508,9 @@ internal sealed record SearchModel(
                     parameter.IsCriteriaParameter,
                     parameter.IsCancellationTokenParameter,
                     parameter.IsHttpContextParameter,
-                    parameter.Bindings)).ToArray()));
+                    parameter.Bindings)).ToArray()),
+        EndpointFilters.IsEmpty ? null : EndpointFilters.ToArray(),
+        Tags.IsEmpty ? null : Tags.ToArray());
 }
 
 internal sealed record AddServicesModel(TypeSnapshot ClassType, string Title)

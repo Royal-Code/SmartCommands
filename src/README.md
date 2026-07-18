@@ -15,7 +15,7 @@ Projects target .NET 8, .NET 9, and .NET 10. The analyzer/generator targets .NET
 - Unit of Work and repositories via `WithUnitOfWork<TContext>` / `WithDbContext` / `WithWorkContext`.
 - Entity loading and editing with `WithFindEntities<TContext>` and `EditEntity(typeof(Entity))`.
 - Decorators pipeline with `WithDecorators` and `IDecorator<TCommand, TResult>`.
-- Minimal APIs mapping using `MapPost/Put/Patch/Delete/Get`, metadata (`WithSummary`, `WithDescription`, `WithAuthorization`, `WithPolicy`), created location (`MapCreatedRoute`), and response composition (`MapIdResultValue`, `MapResponseValues`).
+- Minimal APIs mapping using `MapPost/Put/Patch/Delete/Get`, metadata (`WithSummary`, `WithDescription`, `WithAuthorization`, `WithPolicy`, `WithTags`), created location (`MapCreatedRoute`), response composition (`MapIdResultValue`, `MapResponseValues`), explicit success status (`WithResultStatus`: `Ok`/`Created`/`NoContent`), and repeatable endpoint filters (`WithEndpointFilter<TFilter>`).
 - Consistent results and problems modeling via SmartProblems (`Result`, `Result<T>`, `Problems`).
 
 ## Compatibility

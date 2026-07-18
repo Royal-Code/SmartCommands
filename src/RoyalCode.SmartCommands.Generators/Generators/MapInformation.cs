@@ -35,6 +35,15 @@ internal sealed class MapInformation : IEquatable<MapInformation>
 
     public string[]? AuthorizationPolicies { get; set; }
 
+    /// <summary>Status de sucesso explícito (DF23); <see langword="null"/> preserva a inferência atual.</summary>
+    public HttpResultStatusModel? ResultStatus { get; set; }
+
+    /// <summary>Filtros de endpoint (DF23), nomes globalmente qualificados, na ordem declarada.</summary>
+    public string[]? EndpointFilters { get; set; }
+
+    /// <summary>Tags OpenAPI (DF23), na ordem declarada.</summary>
+    public string[]? Tags { get; set; }
+
     /// <summary>
     /// O nome do parâmetro de rota que carrega o id da entidade editada (DF4), resolvido no transform;
     /// <see langword="null"/> quando o comando não usa EditEntity ou o template não declara variáveis
@@ -61,7 +70,10 @@ internal sealed class MapInformation : IEquatable<MapInformation>
             Equals(IdResultValueType, other.IdResultValueType) &&
             Equals(ResponseValues, other.ResponseValues) &&
             EditRouteParameterName == other.EditRouteParameterName &&
-            SequenceEqual(AuthorizationPolicies, other.AuthorizationPolicies);
+            SequenceEqual(AuthorizationPolicies, other.AuthorizationPolicies) &&
+            ResultStatus == other.ResultStatus &&
+            SequenceEqual(EndpointFilters, other.EndpointFilters) &&
+            SequenceEqual(Tags, other.Tags);
     }
 
     private static bool SequenceEqual(string[]? left, string[]? right) =>
@@ -85,9 +97,16 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         hashCode = hashCode * -1521134295 + (IdResultValueType?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (ResponseValues?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (EditRouteParameterName?.GetHashCode() ?? 0);
+        hashCode = hashCode * -1521134295 + (ResultStatus?.GetHashCode() ?? 0);
         if (AuthorizationPolicies is not null)
             foreach (var policy in AuthorizationPolicies)
                 hashCode = hashCode * -1521134295 + policy.GetHashCode();
+        if (EndpointFilters is not null)
+            foreach (var filter in EndpointFilters)
+                hashCode = hashCode * -1521134295 + filter.GetHashCode();
+        if (Tags is not null)
+            foreach (var tag in Tags)
+                hashCode = hashCode * -1521134295 + tag.GetHashCode();
         return hashCode;
     }
 
@@ -125,13 +144,25 @@ internal sealed class MapInformation : IEquatable<MapInformation>
     }
 
     /// <summary>
-    /// O endpoint responde 204 No Content: Delete cujo contrato não retorna valor nem created.
-    /// A escolha de status por verbo vive aqui e em <see cref="DiscoveryReturnType"/>.
+    /// O endpoint responde 204 No Content: seleção explícita (DF23) ou, por inferência, Delete cujo
+    /// contrato não retorna valor nem created. A escolha de status vive aqui e em
+    /// <see cref="DiscoveryReturnType"/>.
     /// </summary>
     private static bool ProducesNoContent(MapInformation mapInfo, ReturnModel returnModel) =>
-        mapInfo.HttpMethod == "Delete" &&
-        returnModel.ValueType is null &&
-        mapInfo.CreatedInformation is null;
+        mapInfo.ResultStatus == HttpResultStatusModel.NoContent ||
+        (mapInfo.ResultStatus is null &&
+         mapInfo.HttpMethod == "Delete" &&
+         returnModel.ValueType is null &&
+         mapInfo.CreatedInformation is null);
+
+    /// <summary>
+    /// O endpoint responde 201 Created: <c>MapCreatedRoute</c> (com Location) ou seleção explícita (DF23,
+    /// sem Location). Conflitos entre os dois caminhos e <c>Ok</c>/<c>NoContent</c> são diagnosticados no
+    /// transform (RCCMD053) e não chegam aqui.
+    /// </summary>
+    private static bool ProducesCreated(MapInformation mapInfo) =>
+        mapInfo.CreatedInformation is not null ||
+        mapInfo.ResultStatus == HttpResultStatusModel.Created;
 
     private static MethodInvokeGenerator GenerateMapMethodInvoke(
         MapInformation mapInfo,
@@ -177,6 +208,10 @@ internal sealed class MapInformation : IEquatable<MapInformation>
                 LineIdent = true
             };
         }
+
+        // tags e filtros (DF23), na ordem declarada
+        methodInvoke = EndpointExtensibility.EmitTags(methodInvoke, mapInfo.Tags);
+        methodInvoke = EndpointExtensibility.EmitFilters(methodInvoke, mapInfo.EndpointFilters);
 
         if (mapInfo.AuthorizationPolicies is not null)
         {
@@ -324,6 +359,18 @@ internal sealed class MapInformation : IEquatable<MapInformation>
             var returnCommand = new ReturnCommand(createdInvoke);
             method.Commands.Add(returnCommand);
         }
+        // Created explícito sem MapCreatedRoute (DF23): 201 sem Location
+        else if (mapInfo.ResultStatus == HttpResultStatusModel.Created)
+        {
+            method.Commands.Add(new ReturnCommand(
+                GenerateCreatedWithoutLocation(mapInfo, commandInfo, returnModel, resultVarName)));
+        }
+        // NoContent explícito com Result<T> (DF23): descarta deliberadamente o valor de sucesso,
+        // preservando os problemas (conversão Result<T> -> Result do SmartProblems)
+        else if (mapInfo.ResultStatus == HttpResultStatusModel.NoContent && returnModel.ValueType is not null)
+        {
+            method.Commands.Add(new ReturnCommand(new StringValueNode($"(Result){resultVarName}")));
+        }
         // senão, verifica se mapeia o Id
         else if (mapInfo.MapIdResultValue)
         {
@@ -350,6 +397,64 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         }
 
         return method;
+    }
+
+    /// <summary>
+    /// <para>
+    ///     Emissão do 201 sem Location (DF23): o <c>CreatedMatch</c> atual do SmartProblems exige um
+    ///     path no construtor de <c>Result</c>, então o sucesso é convertido via <c>Match</c> +
+    ///     <c>TypedResults.Created()</c> (sem URI) e os problemas seguem para <c>MatchErrorResult</c>,
+    ///     usando o construtor público <c>CreatedMatch(IResult)</c> — sem mudança no SmartProblems.
+    /// </para>
+    /// <para>
+    ///     As projeções de <c>MapIdResultValue</c>/<c>MapResponseValues</c> são aplicadas antes, por
+    ///     <c>Map</c>, exatamente como no caminho com Location.
+    /// </para>
+    /// </summary>
+    private static ValueNode GenerateCreatedWithoutLocation(
+        MapInformation mapInfo,
+        CommandHandlerInformation commandInfo,
+        ReturnModel returnModel,
+        string resultVarName)
+    {
+        if (returnModel.ValueType is null)
+        {
+            return new StringValueNode(
+                $"new CreatedMatch({resultVarName}.Match<IResult>(" +
+                "static () => TypedResults.Created(), " +
+                "static problems => new MatchErrorResult(problems)))");
+        }
+
+        string source;
+        string valueTypeName;
+        if (mapInfo.MapIdResultValue)
+        {
+            source = $"{resultVarName}.Map(v => v.Id)";
+            valueTypeName = mapInfo.IdResultValueType!.Name;
+        }
+        else if (mapInfo.ResponseValues is not null)
+        {
+            var projection = new StringBuilder();
+            projection.Append(resultVarName).Append(".Map(v => new ")
+                .Append(commandInfo.ModelType.Name).Append("Response(");
+            foreach (var property in mapInfo.ResponseValues.PropertiesNames)
+                projection.Append("v.").Append(property.Name).Append(", ");
+            projection.Remove(projection.Length - 2, 2);
+            projection.Append("))");
+
+            source = projection.ToString();
+            valueTypeName = $"{commandInfo.ModelType.Name}Response";
+        }
+        else
+        {
+            source = resultVarName;
+            valueTypeName = PipelineModelConversions.ToDescriptor(returnModel.ValueType).Name;
+        }
+
+        return new StringValueNode(
+            $"new CreatedMatch<{valueTypeName}>({source}.Match<IResult>(" +
+            "static value => TypedResults.Created((string?)null, value), " +
+            "static problems => new MatchErrorResult(problems)))");
     }
 
     private static TypeDescriptor DiscoveryReturnType(
@@ -394,8 +499,8 @@ internal sealed class MapInformation : IEquatable<MapInformation>
             }
         }
 
-        // verifica se deve retornar CreatedMatch ou OkMatch
-        if (mapInfo.CreatedInformation is not null)
+        // verifica se deve retornar CreatedMatch ou OkMatch (MapCreatedRoute ou Created explícito, DF23)
+        if (ProducesCreated(mapInfo))
         {
             // se tipo de valor, então retornará CreatedMatch<T>
             // se não tiver tipo de valor, então retornará CreatedMatch

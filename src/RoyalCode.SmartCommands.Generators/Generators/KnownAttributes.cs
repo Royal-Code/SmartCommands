@@ -87,6 +87,9 @@ internal static class KnownAttributes
     internal static readonly AttributeSpec WithAuthorization = new(CommandsNamespace, "WithAuthorization");
     internal static readonly AttributeSpec WithPolicy = new(CommandsNamespace, "WithPolicy");
     internal static readonly AttributeSpec WithOpenApi = new(CommandsNamespace, "WithOpenApi");
+    internal static readonly AttributeSpec WithEndpointFilter = new(CommandsNamespace, "WithEndpointFilter", 1);
+    internal static readonly AttributeSpec WithResultStatus = new(CommandsNamespace, "WithResultStatus");
+    internal static readonly AttributeSpec WithTags = new(CommandsNamespace, "WithTags");
 
     internal static readonly AttributeSpec MapApiHandlers = new(CommandsNamespace, "MapApiHandlers");
     internal static readonly AttributeSpec AddHandlersServices = new(CommandsNamespace, "AddHandlersServices");

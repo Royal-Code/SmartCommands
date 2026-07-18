@@ -173,6 +173,13 @@ internal static class SearchGenerator
             KnownAttributes.GetArgumentLocation(mapSearchAttribute, 1, cancellationToken, classLocation),
             declarationErrors);
 
+        // DF23: tags e filtros valem para todas as superfícies; WithResultStatus é só de command maps
+        var tags = EndpointExtensibility.ReadTags(classSymbol, classLocation, declarationErrors, cancellationToken);
+        var endpointFilters = EndpointExtensibility.ReadFilters(
+            classSymbol, classSymbol.ContainingAssembly, classLocation, declarationErrors, cancellationToken);
+        EndpointExtensibility.DenyResultStatus(
+            classSymbol, "MapSearch", classLocation, declarationErrors, cancellationToken);
+
         if (groupName is not null && groupAttr is not null)
         {
             EndpointNameRules.ValidateGroupName(
@@ -227,7 +234,9 @@ internal static class SearchGenerator
             summary,
             authorizationPolicies,
             groupName,
-            searchFilterInformation)
+            searchFilterInformation,
+            endpointFilters.Length > 0 ? endpointFilters : null,
+            tags.Length > 0 ? tags : null)
         {
             EndpointNameLocation = KnownAttributes.GetArgumentLocation(
                 mapSearchAttribute, 1, cancellationToken, classLocation),

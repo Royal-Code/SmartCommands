@@ -32,7 +32,9 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
         string? summary,
         string[]? authorizationPolicies,
         string? groupName,
-        SearchFilterInformation? filter)
+        SearchFilterInformation? filter,
+        string[]? endpointFilters = null,
+        string[]? tags = null)
     {
         EntityType = entityType;
         SelectType = selectType;
@@ -44,6 +46,8 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
         AuthorizationPolicies = authorizationPolicies;
         GroupName = groupName;
         Filter = filter;
+        EndpointFilters = endpointFilters;
+        Tags = tags;
     }
 
     // Instances created from diagnostics are reported and never reach source emission.
@@ -64,6 +68,12 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
     public string? Summary { get; }
 
     public string[]? AuthorizationPolicies { get; }
+
+    /// <summary>Filtros de endpoint (DF23), nomes globalmente qualificados, na ordem declarada.</summary>
+    public string[]? EndpointFilters { get; }
+
+    /// <summary>Tags OpenAPI (DF23), na ordem declarada.</summary>
+    public string[]? Tags { get; }
 
     public SearchFilterInformation? Filter { get; set; }
 
@@ -88,6 +98,8 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
             Description == other.Description &&
             Summary == other.Summary &&
             SequenceEqual(AuthorizationPolicies, other.AuthorizationPolicies) &&
+            SequenceEqual(EndpointFilters, other.EndpointFilters) &&
+            SequenceEqual(Tags, other.Tags) &&
             (Filter is null && other.Filter is null || Filter?.Equals(other.Filter) == true);
     }
 
@@ -110,8 +122,12 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
         hashCode = hashCode * -1521134295 + (GroupName?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (Description?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (Summary?.GetHashCode() ?? 0);
-        hashCode = hashCode * -1521134295 + (AuthorizationPolicies != null ? 
+        hashCode = hashCode * -1521134295 + (AuthorizationPolicies != null ?
             AuthorizationPolicies.Aggregate(0, (current, policy) => current ^ policy.GetHashCode()) : 0);
+        hashCode = hashCode * -1521134295 + (EndpointFilters != null ?
+            EndpointFilters.Aggregate(0, (current, filter) => current ^ filter.GetHashCode()) : 0);
+        hashCode = hashCode * -1521134295 + (Tags != null ?
+            Tags.Aggregate(0, (current, tag) => current ^ tag.GetHashCode()) : 0);
         hashCode = hashCode * -1521134295 + (Filter?.GetHashCode() ?? 0);
         return hashCode;
     }
@@ -164,6 +180,10 @@ internal class SearchInformation : IEquatable<SearchInformation>, IMapEndpointGe
                 LineIdent = true
             };
         }
+
+        // tags e filtros (DF23), na ordem declarada
+        methodInvoke = EndpointExtensibility.EmitTags(methodInvoke, Tags);
+        methodInvoke = EndpointExtensibility.EmitFilters(methodInvoke, EndpointFilters);
 
         if (AuthorizationPolicies is not null)
         {

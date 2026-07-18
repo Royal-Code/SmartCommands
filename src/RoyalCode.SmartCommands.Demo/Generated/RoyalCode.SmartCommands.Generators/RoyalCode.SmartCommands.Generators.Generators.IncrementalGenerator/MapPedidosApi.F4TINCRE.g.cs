@@ -65,6 +65,7 @@ public static partial class MapPedidosApi
         return Performer.SearchAsync<Pedido, PedidoResumo, PedidoFiltro>(filter, options, orderby, criteria, configure, logger, ct);
     }
 
+    [ProduceProblems(ProblemCategory.NotFound)]
     private static async Task<OkMatch> CancelarPedidoHandleAsync(
         ICancelarPedidoHandler handler, 
         [FromRoute(Name = "id")]  Guid pedidoId, 
