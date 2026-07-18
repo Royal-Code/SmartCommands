@@ -1,4 +1,4 @@
-## Release 0.1.0
+## Release 0.0.9
 
 ### New Rules
 
@@ -28,3 +28,40 @@ RCCMD020 | Usage   | Error    | CMD020_WithWorkContextAttribute_cannot_be_used_w
 RCCMD021 | Usage   | Error    | CMD021_Invalid_use_of_the_MapFind_attribute, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd021)
 RCCMD022 | Usage   | Error    | CMD022_Invalid_use_of_the_MapSearch_attribute, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd022)
 RCCMD023 | Usage   | Error    | CMD023_Invalid_use_of_the_WithFilter_attribute, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd023)
+
+## Release 0.1.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|--------------------
+RCCMD024 | Usage | Error | WithRetryOnConcurrency requires WithWorkContext, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd024)
+RCCMD025 | Usage | Error | WithRetryOnConcurrency max attempts must be greater than zero, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd025)
+RCCMD026 | Usage | Error | A command type must declare only one command method, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd026)
+RCCMD027 | Usage | Error | A command type must declare only one Map attribute, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd027)
+RCCMD028 | Usage | Error | A Map attribute requires route pattern and endpoint name, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd028)
+RCCMD029 | Usage | Error | A command parameter uses a name reserved by generated code, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd029)
+RCCMD030 | Usage | Error | Duplicate endpoint name across mapped endpoints, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd030)
+RCCMD031 | Usage | Error | EditEntity route parameter cannot be resolved, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd031)
+RCCMD032 | Usage | Error | EditEntity route parameter is incompatible with the entity id, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd032)
+RCCMD033 | Usage | Error | A parameter declares conflicting binding sources, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd033)
+RCCMD034 | Usage | Error | AsParameters is not supported on external command parameters, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd034)
+RCCMD035 | Usage | Error | A route-bound parameter is absent from the route template, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd035)
+RCCMD036 | Usage | Error | GET and DELETE endpoints cannot infer a request body, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd036)
+RCCMD037 | Usage | Error | The endpoint has more than one request body source, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd037)
+RCCMD038 | Usage | Error | Invalid command validation method, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd038)
+RCCMD039 | Usage | Error | Parameter not allowed in a command validation method, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd039)
+RCCMD040 | Usage | Error | The same parameter name is declared with different types, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd040)
+RCCMD041 | Usage | Error | Invalid endpoint metadata attribute argument, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd041)
+RCCMD042 | Usage | Error | The same parameter name is declared with incompatible roles, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd042)
+RCCMD043 | Usage | Error | WithTransaction requires a unit of work, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd043)
+RCCMD044 | Usage | Error | The endpoint name must not be empty or whitespace, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd044)
+RCCMD045 | Usage | Error | The MapGroup route prefix cannot derive a valid group class name, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd045)
+RCCMD046 | Usage | Error | Distinct group route prefixes generate the same group class, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd046)
+RCCMD047 | Usage | Error | Two endpoints in the same group generate the same handler method, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd047)
+RCCMD048 | Usage | Error | The property cannot be used in the endpoint response, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd048)
+RCCMD049 | Usage | Error | MapIdResultValue and MapResponseValues cannot be combined, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd049)
+RCCMD050 | Usage | Error | Invalid MapCreatedRoute pattern, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd050)
+RCCMD051 | Usage | Error | Invalid endpoint filter type for WithEndpointFilter, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd051)
+RCCMD052 | Usage | Error | Invalid use of WithResultStatus, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd052)
+RCCMD053 | Usage | Error | The explicit result status conflicts with a response mapping, [Documentation](https://github.com/Royal-Code/SmartCommands/blob/main/src/.docs/diagnostics.md#rccmd053)

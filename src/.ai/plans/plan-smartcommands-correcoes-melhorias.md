@@ -1,10 +1,10 @@
 # Plan: Correções, endurecimento e evolução do SmartCommands (`smartcommands-correcoes-melhorias`)
 
-## Status: EM ANDAMENTO - Fases 1-11 concluídas; resta preparação de release (12)
+## Status: CONCLUÍDO - Fases 1-12 concluídas; release 0.1.0 preparada, sem publicação automática
 
 ## Progresso
 
-`███████████░` **92%** - 11 de 12 fases concluídas
+`████████████` **100%** - 12 de 12 fases concluídas
 
 | Fase | Estado |
 |---|---|
@@ -19,7 +19,7 @@
 | Fase 9 - Completude dos mapeamentos Minimal API existentes | Concluida |
 | Fase 10 - Novas capacidades de mapeamento Minimal API | Concluida |
 | Fase 11 - Qualidade transversal, pacote e documentação | Concluida |
-| Fase 12 - Compatibilidade, regressão e preparação de release | Pendente |
+| Fase 12 - Compatibilidade, regressão e preparação de release | Concluida |
 
 > **Manutenção deste plano:** ao concluir as tarefas de uma fase, marque cada tarefa com `- [x]`,
 > troque o **Estado** da fase para `Concluida` na tabela acima e atualize a barra de progresso
@@ -1700,17 +1700,17 @@ atual/legada inequívocas ✔; typos/links conhecidos ✔; Actions intactas ✔;
 
 **Tarefas:**
 
-- [ ] Limpar somente `bin/obj` conhecidos após verificar caminhos; restaurar e executar build/test/pack do zero.
-- [ ] Reexecutar os testes incrementais e os gates automatizados de layout/consumer-smoke da Fase 11 com os
+- [x] Limpar somente `bin/obj` conhecidos após verificar caminhos; restaurar e executar build/test/pack do zero.
+- [x] Reexecutar os testes incrementais e os gates automatizados de layout/consumer-smoke da Fase 11 com os
   `.nupkg` finais; a Fase 12 não cria outro harness paralelo.
-- [ ] Revisar diff de API pública e registrar cada remoção/adição/quebra, incluindo exemplos de migração direta.
-- [ ] Revisar fontes geradas do Demo e snapshots; separar alterações esperadas de ruído.
-- [ ] Confirmar que não existe `async void`, `CS8785`, `AD0001`, fonte duplicada, erro de OpenAPI ou warning novo.
-- [ ] Registrar versão/release notes sem publicar; atualizar `SCmdVer` somente com autorização explícita do mantenedor.
-- [ ] Quando a versão de release estiver definida, mover RCCMD024-RCCMD053 de
+- [x] Revisar diff de API pública e registrar cada remoção/adição/quebra, incluindo exemplos de migração direta.
+- [x] Revisar fontes geradas do Demo e snapshots; separar alterações esperadas de ruído.
+- [x] Confirmar que não existe `async void`, `CS8785`, `AD0001`, fonte duplicada, erro de OpenAPI ou warning novo.
+- [x] Registrar versão/release notes sem publicar; atualizar `SCmdVer` somente com autorização explícita do mantenedor.
+- [x] Quando a versão de release estiver definida, mover RCCMD024-RCCMD053 de
   `AnalyzerReleases.Unshipped.md` para a seção correspondente de `AnalyzerReleases.Shipped.md`, sem duplicar
   IDs e mantendo em `Unshipped` somente alterações ainda não publicadas.
-- [ ] Preencher todos os `Resultado da Fase`, rastreabilidade, riscos e diferidos; marcar o plano concluído somente após critérios globais.
+- [x] Preencher todos os `Resultado da Fase`, rastreabilidade, riscos e diferidos; marcar o plano concluído somente após critérios globais.
 
 **Critérios de aceite:** todos os comandos finais verdes; 100% das perguntas fechadas; todos os critérios globais satisfeitos; pacote local consumível nos três TFMs; diff final não toca alterações não relacionadas do usuário.
 
@@ -1718,7 +1718,63 @@ atual/legada inequívocas ✔; typos/links conhecidos ✔; Actions intactas ✔;
 
 ### Resultado da Fase 12
 
-*a preencher*
+**Concluída em 2026-07-18.** A release `0.1.0` foi preparada e validada localmente, sem commit, push,
+publicação ou alteração de workflow. A consulta isolada ao feed oficial confirmou `0.0.9` como última versão
+publicada; por definição explícita do mantenedor, `SCmdVer` foi atualizado de `0.0.10` para `0.1.0`.
+
+#### Matriz limpa e artefatos finais
+
+- Foram auditados e removidos somente os 38 diretórios `bin/obj` dentro de `src`; o restore foi executado com
+  `--force --no-cache` antes do build completo.
+- `eng/verify-distribution.ps1` recriou os quatro `.nupkg`, validou metadata/layout e compilou consumers reais
+  em `net8.0`, `net9.0` e `net10.0`, além do consumer inválido RCCMD026 e do consumer conjunto com
+  SmartSelector 0.5.2. Nenhum `CS8032`, `CS8785` ou `AD0001` ocorreu.
+- O `consumer-smoke.ps1` passou a usar `globalPackagesFolder` próprio dentro da pasta temporária. Isso impede
+  que um pacote local ainda não publicado contamine o cache NuGet global; as entradas criadas pelas execuções
+  anteriores foram removidas de forma pontual após auditoria dos caminhos.
+- Os 13 testes explicitamente incrementais passaram; a suíte completa também cobre catálogo, igualdade,
+  retenção, caching e robustez de entradas incompletas.
+
+#### Compatibilidade pública e migração
+
+- O Package Validation do SDK comparou a superfície da release com os `.nupkg` oficiais `0.0.9` em cache
+  isolado e confirmou as quebras intencionais: `IUnitOfWorkAccessor<T>.BeginAsync(CancellationToken)` foi
+  substituído por `BeginAsync(bool, CancellationToken)`; o mesmo membro mudou em `DbContextAccessor<TContext>`
+  e `UnitOfWorkAccessor<TWorkContext>`; `WorkContext.Adapters.RepositoryAdapter<TEntity>` deixou de ser público.
+- As adições públicas (`CommandValidation`, `WithTransaction`, resolução de `EditEntity`, status/tags/filtros
+  HTTP e extensibilidade do problema de retry), mudanças comportamentais dos adapters e quebras de geração/
+  Minimal API foram registradas em `.docs/versions/0.1.0.md`, com exemplos de migração direta.
+- `AnalyzerReleases.Shipped.md` agora associa RCCMD000-RCCMD023 à versão efetivamente publicada `0.0.9` e
+  RCCMD024-RCCMD053 à `0.1.0`; `Unshipped` permanece válido e sem regras pendentes. O teste do catálogo passou.
+
+#### Fontes geradas e invariantes
+
+- O diff desde a versão `0.0.9` contém 73 alterações em `Demo/Generated`: novas features/cenários, migração dos
+  hints antigos e atualização do generator do SmartSelector. Nos 52 arquivos atuais do SmartCommands, todos
+  os nomes atendem `{nome-legível}.{hash-base32-8}.g.cs`, todos têm cabeçalho auto-generated e não há nomes
+  duplicados. O build completo confirma que não há tipo/fonte duplicada.
+- A busca em projetos de produção não encontrou `async void`; a única ocorrência intencional fica como entrada
+  inválida de teste de `CommandValidation`. Os testes HTTP/OpenAPI passaram e não houve erro de geração.
+- Todas as perguntas Q1-Q6 estão fechadas. `Accepted`/`TryFindBy`, file/form/stream assistido e os demais itens
+  listados em backlog permanecem diferidos explicitamente, sem implementação parcial nesta entrega.
+
+#### Verificação final
+
+| Verificação | Resultado |
+|---|---|
+| `dotnet restore SmartCommands.sln --force --no-cache` | aprovado |
+| `dotnet build SmartCommands.sln -c Release --no-restore` | aprovado — 0 erros, 9 warnings, todos NU5104 permitidos |
+| `RoyalCode.SmartCommands.Tests` | **333/333** aprovados |
+| testes incrementais explícitos | **13/13** aprovados |
+| `RoyalCode.SmartCommands.EntityFramework.Tests` | **24/24** aprovados |
+| `RoyalCode.SmartCommands.Demo.Tests` | **83/83** aprovados, incluindo HTTP e OpenAPI |
+| `eng/verify-distribution.ps1` | aprovado — layout, três TFMs, RCCMD026, SmartSelector e 28 docs |
+| inspeção de generated files | 52/52 nomes/cabeçalhos válidos; zero duplicações |
+| `git diff --check` | aprovado |
+
+**Critérios de aceite — situação:** matriz final verde ✔; perguntas fechadas ou explicitamente diferidas ✔;
+pacotes locais consumíveis nos três TFMs ✔; breaking changes e release notes documentados ✔; catálogo de
+diagnósticos versionado ✔; invariantes de geração/HTTP/OpenAPI verificadas ✔; somente NU5104 permitido ✔.
 
 ---
 
@@ -1772,20 +1828,20 @@ atual/legada inequívocas ✔; typos/links conhecidos ✔; Actions intactas ✔;
 
 | Risco | Gatilho | Impacto | Mitigação | Estado |
 |---|---|---|---|---|
-| ID de diagnóstico não existir no catálogo | `DiagnosticInfo` chega à saída com ID sem `DiagnosticDescriptor` correspondente | exceção ao reconstruir o diagnóstico e possível `CS8785` | catálogo único, resolver explícito e teste de completude de todos os IDs produzidos | Aberto |
-| Igualdade esconder mudança real | tracked step retorna Cached após alterar campo relevante | fonte obsoleta no IDE/build incremental | testes campo a campo e hash/equals; rerun limpo versus incremental | Mitigado na Fase 2; revalidar na Fase 12 |
+| ID de diagnóstico não existir no catálogo | `DiagnosticInfo` chega à saída com ID sem `DiagnosticDescriptor` correspondente | exceção ao reconstruir o diagnóstico e possível `CS8785` | catálogo único, resolver explícito e teste de completude de todos os IDs produzidos | Fechado: catálogo RCCMD000-053 e release tracking validados na Fase 12 |
+| Igualdade esconder mudança real | tracked step retorna Cached após alterar campo relevante | fonte obsoleta no IDE/build incremental | testes campo a campo e hash/equals; rerun limpo versus incremental | Fechado: 13 testes incrementais e suíte completa verdes na Fase 12 |
 | Base e consumidores dessincronizarem | Fase 2 depende de uma release da base (0.4.0), consumida por `PackageReference` pinado | SmartCommands bloqueado esperando pacote; SmartSelector quebrado por mudança da base | fechar a superfície da 0.4.0 antes de tocar os `*Information`; rodar a suíte do SmartSelector contra a base nova antes de publicar | Fechado na Fase 2: base 0.4.0 e SmartSelector 0.5.2 consumidos |
-| Generators carregarem versões incompatíveis da base | SmartCommands e SmartSelector empacotam versões/pastas Roslyn diferentes de `RoyalCode.Extensions.SourceGenerator.dll` | `CS8032`, `CS8785`, `AD0001` ou um generator deixa de carregar | alinhar versões e validar consumer-smoke com os dois `.nupkg` no mesmo projeto em todos os TFMs | Mitigado pelo alinhamento atual; consumer-smoke final na Fase 12 |
+| Generators carregarem versões incompatíveis da base | SmartCommands e SmartSelector empacotam versões/pastas Roslyn diferentes de `RoyalCode.Extensions.SourceGenerator.dll` | `CS8032`, `CS8785`, `AD0001` ou um generator deixa de carregar | alinhar versões e validar consumer-smoke com os dois `.nupkg` no mesmo projeto em todos os TFMs | Fechado: consumer-smoke final conjunto passou sem códigos de crash |
 | Refactor incremental alterar todos os hints | diff massivo/duplicado em generated files | revisão difícil e colisão | inventário Fase 1, nomes FQN determinísticos e migração em fase única | Fechado na Fase 2; hints preservados |
-| Binding inferido escolher body/DI inesperado | parâmetro complexo sem atributo em POST | endpoint inicia errado ou lê fonte incorreta | preservar binding explícito, diagnósticos e testes reais ASP.NET | Aberto |
-| Validator causar efeito repetido | validator colocado dentro do retry | duplicação de consulta/efeito | invariante e teste contador com conflito forçado | Aberto |
-| Mudança EF quebrar consumidor não HTTP | consumidor esperava exceção convertida em Result | breaking runtime | DF14, release notes e testes das duas bordas | Aberto |
-| Rollback usar token cancelado | cancelamento durante save | transação fica aberta/erro secundário | token de cleanup definido e teste específico | Aberto |
+| Binding inferido escolher body/DI inesperado | parâmetro complexo sem atributo em POST | endpoint inicia errado ou lê fonte incorreta | preservar binding explícito, diagnósticos e testes reais ASP.NET | Mitigado: matriz HTTP cobre binding; fonte explícita permanece recomendada para contratos ambíguos |
+| Validator causar efeito repetido | validator colocado dentro do retry | duplicação de consulta/efeito | invariante e teste contador com conflito forçado | Fechado: teste runtime confirma uma validação para múltiplas tentativas |
+| Mudança EF quebrar consumidor não HTTP | consumidor esperava exceção convertida em Result | breaking runtime | DF14, release notes e testes das duas bordas | Fechado como breaking change intencional, testado e documentado em 0.1.0 |
+| Rollback usar token cancelado | cancelamento durante save | transação fica aberta/erro secundário | token de cleanup definido e teste específico | Fechado: cleanup usa token próprio e possui cobertura de cancelamento/falha |
 | Novas features HTTP ampliarem escopo | itens diferidos entrarem parcialmente na Fase 10 | atraso e abstrações incompletas | DF23 limita a fase a filtro/status/tags; `Accepted` e `TryFindBy` possuem plano próprio; form/file/stream ficam manuais | Fechado na Fase 10: somente filtro/status/tags entraram; diferidos referenciados na documentação |
-| Metadados OpenAPI divergirem do runtime | status/body real não aparece na spec | clientes gerados incorretos | teste do JSON OpenAPI e resposta HTTP para cada map | Mitigado na Fase 9 (`DemoOpenApiTests` + `.Produces(204)` explícito); revalidar na Fase 12 |
-| Dependências não suportarem smoke em TFM | restore/compile falha em net8/net9 | pacote anuncia suporte incorreto | consumer-smoke por `.nupkg` antes de release | Aberto |
-| Worktree concorrente sofrer sobreposição | arquivos do Demo mudam durante execução | perda/conflito de trabalho do usuário | registrar status por fase e editar somente hunks necessários | Aberto |
-| CRLF tornar snapshots frágeis | execução Linux difere de Windows | CI falso negativo | comparar texto normalizado para `\n` sem impor newline do SO | Aberto |
+| Metadados OpenAPI divergirem do runtime | status/body real não aparece na spec | clientes gerados incorretos | teste do JSON OpenAPI e resposta HTTP para cada map | Fechado para a matriz atual: Demo HTTP/OpenAPI 83/83 na Fase 12 |
+| Dependências não suportarem smoke em TFM | restore/compile falha em net8/net9 | pacote anuncia suporte incorreto | consumer-smoke por `.nupkg` antes de release | Fechado: consumers net8/net9/net10 aprovados a partir dos pacotes finais |
+| Worktree concorrente sofrer sobreposição | arquivos do Demo mudam durante execução | perda/conflito de trabalho do usuário | registrar status por fase e editar somente hunks necessários | Fechado para o plano: diff final limitado aos artefatos da Fase 12 |
+| CRLF tornar snapshots frágeis | execução Linux difere de Windows | CI falso negativo | comparar texto normalizado para `\n` sem impor newline do SO | Mitigado: comparações normalizadas e `git diff --check` no gate final; CI segue fora do escopo por DF16 |
 
 ---
 

@@ -65,6 +65,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{FA111863-1
 		.docs\instructions.md = .docs\instructions.md
 		.docs\references\smart-commands.ai-rules.md = .docs\references\smart-commands.ai-rules.md
 		.docs\references\smart-commands.md = .docs\references\smart-commands.md
+		.docs\versions\0.1.0.md = .docs\versions\0.1.0.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RoyalCode.SmartCommands.Demo.Tests", "RoyalCode.SmartCommands.Demo.Tests\RoyalCode.SmartCommands.Demo.Tests.csproj", "{9504ACE5-8135-49A2-8BEF-CC15B66AB96A}"

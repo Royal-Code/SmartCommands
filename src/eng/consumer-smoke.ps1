@@ -69,10 +69,16 @@ New-Item -ItemType Directory -Path $workRoot | Out-Null
 
 try {
     $escapedFeed = [System.Security.SecurityElement]::Escape($packageDirectoryPath)
+    $packageCache = Join-Path $workRoot 'packages'
+    New-Item -ItemType Directory -Path $packageCache | Out-Null
+    $escapedPackageCache = [System.Security.SecurityElement]::Escape($packageCache)
     $nugetConfig = Join-Path $workRoot 'NuGet.Config'
     Write-Utf8File $nugetConfig @"
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
+  <config>
+    <add key="globalPackagesFolder" value="$escapedPackageCache" />
+  </config>
   <packageSources>
     <clear />
     <add key="SmartCommandsLocal" value="$escapedFeed" />
