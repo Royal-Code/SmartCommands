@@ -2,8 +2,6 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$PackageDirectory,
     [Parameter(Mandatory = $true)]
-    [string]$SmartProblemsVersion,
-    [Parameter(Mandatory = $true)]
     [string]$SmartSelectorVersion,
     [switch]$KeepWorkDirectory
 )
@@ -93,28 +91,74 @@ try {
         $project = Join-Path $directory 'ValidConsumer.csproj'
         Write-Utf8File $project @"
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>$tfm</TargetFramework><Nullable>enable</Nullable></PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>$tfm</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="RoyalCode.SmartCommands" Version="$smartCommandsVersion" />
+    <PackageReference Include="RoyalCode.SmartCommands.EntityFramework" Version="$smartCommandsVersion" />
+    <PackageReference Include="RoyalCode.SmartCommands.WorkContext" Version="$smartCommandsVersion" />
     <PackageReference Include="RoyalCode.SmartCommands.Generators" Version="$smartCommandsVersion" PrivateAssets="all" />
-    <PackageReference Include="RoyalCode.SmartProblems.ApiResults" Version="$SmartProblemsVersion" />
   </ItemGroup>
 </Project>
 "@
         Write-Utf8File (Join-Path $directory 'Command.cs') @'
+using Microsoft.Extensions.DependencyInjection;
 using RoyalCode.SmartCommands;
+using RoyalCode.SmartCommands.WorkContext.Extensions;
 using RoyalCode.SmartProblems;
+using RoyalCode.WorkContext;
 
 namespace DistributionSmoke;
 
+public sealed class Thing
+{
+    public Guid Id { get; init; }
+    public string Sku { get; init; } = "";
+    public int Region { get; init; }
+}
+
 [MapGroup("things")]
 [MapPost("/", "create-thing")]
-public class CreateThing
+[MapCreatedRoute("{id}", nameof(Thing.Id))]
+public sealed class CreateThing
 {
-    [Command]
-    public Result Execute() => Result.Ok();
+    [Command] public Thing Execute() => new() { Id = Guid.NewGuid(), Sku = "created" };
 }
+
+[MapGroup("jobs")]
+[MapPost("/", "accept-job")]
+[MapAcceptedRoute("status/{id}", nameof(Thing.Id))]
+[MapResponseValues(nameof(Thing.Id))]
+public sealed class AcceptJob
+{
+    [Command] public Thing Execute() => new() { Id = Guid.NewGuid(), Sku = "accepted" };
+}
+
+[MapGroup("jobs")]
+[MapPost("/reindex", "accept-reindex")]
+[WithResultStatus(HttpResultStatus.Accepted)]
+public sealed class AcceptReindex
+{
+    [Command] public Result Execute() => Result.Ok();
+}
+
+[MapGroup("things")]
+[MapFind("{id:guid}", "find-thing")]
+[EntityReference<Thing, Guid>]
+public sealed class ThingById { public Guid Id { get; init; } }
+
+[MapGroup("things")]
+[MapFindBy<Thing>("by-sku/{sku}", "find-thing-by-sku", nameof(Thing.Sku))]
+public sealed class ThingBySku { public Guid Id { get; init; } }
+
+[MapGroup("things")]
+[MapFindBy<Thing>("by-region/{region:int}/{sku}", "find-thing-by-region-sku",
+    nameof(Thing.Region), nameof(Thing.Sku))]
+public sealed class ThingByRegionAndSku { public Guid Id { get; init; } }
 
 [MapApiHandlers]
 public static partial class Endpoints { }
@@ -122,9 +166,33 @@ public static partial class Endpoints { }
 public static class GeneratedContractCheck
 {
     public static System.Type HandlerType => typeof(ICreateThingHandler);
+
+    public static IServiceCollection RegisterWorkContext(IServiceCollection services) =>
+        services.AddUnitOfWorkAccessor<IWorkContext>();
+
+    public static System.Type EfAdapterType =>
+        typeof(RoyalCode.SmartCommands.EntityFramework.Adapters.RepositoryAdapter<,>);
 }
 '@
         Invoke-ConsumerBuild $project $true
+
+        $generatedRoot = Join-Path $directory 'Generated'
+        $generatedText = @(Get-ChildItem -LiteralPath $generatedRoot -Recurse -Filter '*.g.cs' -File |
+            Get-Content -Raw) -join "`n"
+        foreach ($expectedToken in @(
+            'CreatedMatch',
+            'AcceptedMatch',
+            'FindThingHandleAsync',
+            'FindThingBySkuBySkuAsync',
+            'FindThingByRegionAndSkuByRegionSkuAsync',
+            'FindEntityAsync<ThingBySku>',
+            'FindEntityAsync<ThingByRegionAndSku>',
+            '[ProduceProblems(ProblemCategory.NotFound)]',
+            '.Produces(202)'
+        )) {
+            Assert-True ($generatedText.IndexOf($expectedToken, [StringComparison]::Ordinal) -ge 0) `
+                "Consumer $tfm generated output does not contain '$expectedToken'."
+        }
         Write-Host "Consumer $tfm ........... passed"
     }
 

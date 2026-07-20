@@ -202,7 +202,7 @@ WithResultStatusAttribute with HttpResultStatus.Accepted alone responds
 202 without the header. The response body follows the command result: Result responds
 without a body and Result&lt;T&gt; responds with the success value.
     The route pattern uses named placeholders, like ""{ticket}"", matched case-insensitively to the
-properties of the value returned by the command, declared in propertiesNames
+properties of the value returned by the command, declared in propertyNames
 (prefer nameof). Each placeholder must match exactly one declared property, and every declared
 property must be used by a placeholder; mismatches, duplications and unknown or unreadable properties
 are reported at compile time (RCCMD054). At runtime, each property value is formatted with the
@@ -220,7 +220,7 @@ public class AgendarEnvio
             cache.Add(@"M:RoyalCode.SmartCommands.MapAcceptedRouteAttribute.#ctor(System.String,System.String[])", new XmlComment(@"Initializes a new instance of the MapAcceptedRouteAttribute class.", null, null, null, null, false, null, [new XmlParameterComment(@"endpointRoutePattern", @"The route pattern used to build the `Location` header, with named placeholders,
 e.g. `""status/{ticket}""`, or a static route when the command returns a plain `Result`.
 When the command declares MapGroupAttribute, the group prefix is prepended to the
-generated location.", null, false), new XmlParameterComment(@"propertiesNames", @"The names of the properties, from the value returned by the command, matched (case-insensitively)
+generated location.", null, false), new XmlParameterComment(@"propertyNames", @"The names of the properties, from the value returned by the command, matched (case-insensitively)
 to the named placeholders of the route pattern. Prefer declaring them with `nameof`.", null, false)], null));
             cache.Add(@"T:RoyalCode.SmartCommands.MapApiHandlersAttribute", new XmlComment(@"    Indicates that the decorated static partial class will have its API endpoints mapped
 by the source generator.", null, null, null, null, false, null, null, null));

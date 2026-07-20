@@ -15,6 +15,9 @@
 Os pacotes runtime suportam `net8.0`, `net9.0` e `net10.0`. O generator usa `netstandard2.0` e deve ser
 referenciado como analyzer.
 
+`RoyalCode.SmartCommands` já traz `RoyalCode.SmartProblems.ApiResults` transitivamente para os endpoints
+gerados. Adicione `RoyalCode.SmartProblems.Http` somente se o código usar suas integrações HTTP opcionais.
+
 ## 2. Regras invioláveis
 
 1. Declare exatamente um método `[Command]` por classe de comando.

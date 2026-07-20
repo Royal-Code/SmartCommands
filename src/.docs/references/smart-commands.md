@@ -23,6 +23,12 @@ de persistência.
 O pacote do generator é uma dependência de compilação. Handlers gerados continuam utilizáveis fora de
 HTTP: Minimal API é apenas uma superfície opcional sobre o mesmo handler.
 
+`RoyalCode.SmartCommands` referencia `RoyalCode.SmartProblems.ApiResults` transitivamente porque os endpoints
+gerados usam suas unions HTTP (`OkMatch`, `CreatedMatch`, `AcceptedMatch` e `NoContentMatch`) e o metadata
+`ProduceProblems`. O consumidor não precisa adicionar `ApiResults` separadamente. O pacote
+`RoyalCode.SmartProblems.Http` continua opcional e só deve ser referenciado quando suas integrações HTTP ou
+filtros forem usados explicitamente.
+
 ## 2. Comando e handler gerado
 
 Uma classe torna-se comando quando declara exatamente um método anotado com `[Command]`:
@@ -259,4 +265,3 @@ escopo; colisões diagnosticáveis não são renomeadas silenciosamente.
 - [SmartSearch](smartsearch.md)
 - [Arquitetura Feature Slice](../feature-slice-architecture.md)
 - [Arquitetura legada](../legacy-architecture.md)
-

@@ -18,7 +18,7 @@ namespace RoyalCode.SmartCommands;
 /// </para>
 /// <para>
 ///     The route pattern uses named placeholders, like <c>"{ticket}"</c>, matched case-insensitively to the
-///     properties of the value returned by the command, declared in <c>propertiesNames</c>
+///     properties of the value returned by the command, declared in <c>propertyNames</c>
 ///     (prefer <c>nameof</c>). Each placeholder must match exactly one declared property, and every declared
 ///     property must be used by a placeholder; mismatches, duplications and unknown or unreadable properties
 ///     are reported at compile time (RCCMD054). At runtime, each property value is formatted with the
@@ -51,9 +51,9 @@ public class MapAcceptedRouteAttribute : Attribute
     ///     When the command declares <see cref="MapGroupAttribute"/>, the group prefix is prepended to the
     ///     generated location.
     /// </param>
-    /// <param name="propertiesNames">
+    /// <param name="propertyNames">
     ///     The names of the properties, from the value returned by the command, matched (case-insensitively)
     ///     to the named placeholders of the route pattern. Prefer declaring them with <c>nameof</c>.
     /// </param>
-    public MapAcceptedRouteAttribute([StringSyntax("Route")] string endpointRoutePattern, params string[] propertiesNames) { }
+    public MapAcceptedRouteAttribute([StringSyntax("Route")] string endpointRoutePattern, params string[] propertyNames) { }
 }

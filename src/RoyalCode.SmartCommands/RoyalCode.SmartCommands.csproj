@@ -9,6 +9,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="RoyalCode.SmartProblems" Version="$(SmartProblemsVer)" />
+		<PackageReference Include="RoyalCode.SmartProblems.ApiResults" Version="$(SmartProblemsVer)" />
 		<PackageReference Include="RoyalCode.SmartValidations" Version="$(SmartValidationsVer)"/>
 	</ItemGroup>
 

@@ -42,9 +42,8 @@ New-Item -ItemType Directory -Path $packages -Force | Out-Null
 
 [xml]$props = Get-Content -LiteralPath (Join-Path $root 'Directory.Build.props') -Raw
 $versionProperties = $props.Project.PropertyGroup |
-    Where-Object { $null -ne $_.PSObject.Properties['SmartProblemsVer'] } |
+    Where-Object { $null -ne $_.PSObject.Properties['SmartSelectVer'] } |
     Select-Object -First 1
-$smartProblemsVersion = [string]$versionProperties.SmartProblemsVer
 $smartSelectorVersion = [string]$versionProperties.SmartSelectVer
 
 Push-Location $root
@@ -64,7 +63,6 @@ try {
 
     & (Join-Path $PSScriptRoot 'consumer-smoke.ps1') `
         -PackageDirectory $packages `
-        -SmartProblemsVersion $smartProblemsVersion `
         -SmartSelectorVersion $smartSelectorVersion `
         -KeepWorkDirectory:$KeepConsumerWorkDirectory
     if ($LASTEXITCODE -ne 0) { throw 'Consumer smoke failed.' }

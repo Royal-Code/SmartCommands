@@ -1,10 +1,10 @@
 # Plan: `Accepted` e busca por chave alternativa/composta (`smartcommands-accepted-tryfindby`)
 
-## Status: EM EXECUÇÃO - Fases 1-5 concluídas; SmartProblems preview-8.0 e WorkContext 0.10.1 publicados e consumidos; falta a Fase 6 (rollout)
+## Status: CONCLUÍDO (execução técnica) - Fases 1-6 concluídas; SmartProblems preview-8.0 e WorkContext 0.10.1 publicados e consumidos; release do SmartCommands (`0.1.0`) aguarda autorização explícita do mantenedor
 
 ## Progresso
 
-`█████░` **83%** - 5 de 6 fases concluídas
+`██████` **100%** - 6 de 6 fases concluídas (execução técnica; publicação do SmartCommands é ação humana)
 
 | Fase | Estado |
 |---|---|
@@ -13,7 +13,7 @@
 | Fase 3 - `Accepted` no SmartCommands e no generator | Concluída em 2026-07-19; runtime, generator (RCCMD054/055), Demo e docs; verificação pós-revisão com 471 testes verdes; issue do emissor estático do `MapCreatedRoute` corrigida |
 | Fase 4 - Contrato runtime e adapters de `TryFindBy` | Concluída em 2026-07-19 (EnterprisePatterns publicado como 0.10.1; contrato e adapters consumidos pelo SmartCommands) |
 | Fase 5 - Mapeamento `TryFindBy` no generator | Concluída em 2026-07-19; atributo `MapFindBy<TEntity>`, reader/emissão, RCCMD056, Demo (chave simples e composta) e docs; ajustes pós-revisão aplicados; 506 testes verdes; crashes CS8785 corrigidos |
-| Fase 6 - Integração, documentação e preparação de rollout | Pronta para iniciar (Fases 2-5 concluídas) |
+| Fase 6 - Integração, documentação e preparação de rollout | Concluída em 2026-07-19; consumer-smoke por `.nupkg` em net8/9/10, revisão de API/deps, notas de rollout; nada publicado — release do SmartCommands aguarda autorização |
 
 > **Manutenção deste plano:** marque uma tarefa com `- [x]` somente depois de verificar seu critério e registrar
 > a evidência em `Resultado da Fase`. Ao concluir uma fase, atualize estado, barra, matriz de rastreabilidade e riscos.
@@ -556,20 +556,44 @@ Revisão da entrega levantou 7 achados; os válidos foram corrigidos (todos veri
 
 **Tarefas:**
 
-- [ ] Executar build/test limpo de cada repositório alterado e registrar warnings contra seus baselines.
-- [ ] Empacotar localmente SmartProblems, EnterprisePatterns e SmartCommands; consumir os `.nupkg` em projetos mínimos net8/net9/net10.
-- [ ] Testar no mesmo consumer `Accepted`, busca simples/composta, EF, WorkContext, OpenAPI e coexistência com maps antigos.
-- [ ] Revisar API pública e fontes geradas; documentar migração de qualquer assinatura quebrada e dependências mínimas por pacote.
-- [ ] Atualizar todos os resultados de fase, matriz, riscos, diferidos e referências com evidência executada.
-- [ ] Preparar ordem/versões/notas de release; aguardar autorização explícita para versionar, publicar ou atualizar dependentes remotos.
+- [x] Executar build/test limpo de cada repositório alterado e registrar warnings contra seus baselines.
+- [x] Empacotar localmente SmartProblems, EnterprisePatterns e SmartCommands; consumir os `.nupkg` em projetos mínimos net8/net9/net10.
+- [x] Testar no mesmo consumer `Accepted`, busca simples/composta, EF, WorkContext, OpenAPI e coexistência com maps antigos.
+- [x] Revisar API pública e fontes geradas; documentar migração de qualquer assinatura quebrada e dependências mínimas por pacote.
+- [x] Atualizar todos os resultados de fase, matriz, riscos, diferidos e referências com evidência executada.
+- [x] Preparar ordem/versões/notas de release; aguardar autorização explícita para versionar, publicar ou atualizar dependentes remotos.
 
-**Critérios de aceite:** suites verdes; nenhum warning novo; consumers reais compilam e executam nos TFMs anunciados; runtime/OpenAPI concordam; documentação apresenta casos positivos, limitações e migração; nenhuma publicação foi feita sem autorização.
+**Critérios de aceite:** suites verdes; nenhum warning novo; consumers reais compilam a partir dos pacotes nos
+TFMs anunciados; execução HTTP/OpenAPI é validada pela Demo em net10; runtime/OpenAPI concordam; documentação
+apresenta casos positivos, limitações e migração; nenhuma publicação foi feita sem autorização.
 
 **Testes:** builds/testes Release dos repositórios; pack local; consumer-smoke net8/net9/net10; testes HTTP/OpenAPI; inspeção de warnings, API diff e generated diff.
 
 ### Resultado da Fase 6
 
-*a preencher*
+**Concluída em 2026-07-19.** Integração/rollout preparados **sem publicar, versionar ou tocar dependentes remotos** (gate respeitado).
+
+- **Build/test Release (SmartCommands):** `SmartCommands.sln` Release com 0 erros e único warning `NU5104` (dependências RoyalCode em preview — baseline); testes **506/506** (generator 379, Demo 95, EntityFramework 32). SmartProblems e EnterprisePatterns já publicados/validados nas Fases 2/4.
+- **Pack + consumer-smoke automatizado por `.nupkg` (net8/net9/net10):** `eng/verify-distribution.ps1`
+  empacota os quatro pacotes `0.1.0` e chama `eng/consumer-smoke.ps1`, que cria consumers isolados com cache/feed
+  local. O mesmo código compila nos três TFMs e exercita em coexistência: `201` com `MapCreatedRoute`, `MapFind`
+  por ID, `202` com `MapAcceptedRoute` + `MapResponseValues`, `202` sem corpo via
+  `WithResultStatus(Accepted)`, `MapFindBy` simples e composto, referências aos adapters EF/WorkContext e o
+  registro WorkContext. O smoke inspeciona as fontes geradas para confirmar unions, handlers, chamadas de
+  projeção e metadata de OpenAPI, sem `CS8032`/`CS8785`/`AD0001`. Execução HTTP/OpenAPI permanece coberta pela
+  Demo em net10 (mesmos padrões gerados).
+- **Dependência HTTP resolvida:** `OkMatch`/`CreatedMatch`/`AcceptedMatch`/`NoContentMatch` e `ProduceProblems`
+  vivem em `RoyalCode.SmartProblems.ApiResults`; o runtime `RoyalCode.SmartCommands` agora o declara como
+  dependência transitiva. O smoke não referencia `ApiResults` diretamente e comprova o consumo pelo pacote.
+- **API/deps/migração:** revisadas as dependências de cada `.nupkg` (nuspec), a superfície nova (`HttpResultStatus.Accepted`, `MapAcceptedRoute`, `MapFindBy`, `IRepositoryAccessor.FindEntityAsync` por predicado) e a quebrada (novo membro abstrato de `IRepositoryAccessor<TEntity>`). Documentado em `.docs/versions/0.1.0.md` (breaking/migração, novas features, RCCMD024-056, dependências por pacote, `ApiResults` transitivo e sobrescritas exigidas pelas subclasses do adapter EF abstrato).
+- **Notas de rollout:** `.docs/versions/rollout-accepted-tryfindby.md` (ordem SmartProblems → EnterprisePatterns → SmartCommands, versões candidatas, superfície nova/quebrada, requisito do consumidor e o gate). A pasta `.docs/releases/` é ignorada pelo `.gitignore` (padrão `Releases/`), então o documento foi colocado em `.docs/versions/`.
+- **Gate:** nada versionado/publicado; `SCmdVer` permanece `0.1.0`; a release do SmartCommands aguarda autorização explícita.
+- **Revisão final (2026-07-20):** o smoke automatizado foi ampliado com a matriz `Accepted`/`MapFind`/`MapFindBy`
+  e adapters nos três TFMs; `SmartProblems.ApiResults` passou a ser dependência transitiva verificada no pacote;
+  o typo público de `MapAcceptedRoute` foi corrigido; a migração do adapter EF abstrato foi esclarecida; links
+  locais absolutos foram substituídos por relativos/HTTPS e o verificador passou a reportar caminhos inválidos
+  sem lançar. `eng/verify-distribution.ps1 -Configuration Release` passou integralmente: quatro pacotes,
+  layouts, consumers net8/net9/net10, coexistência SmartSelector, 31 documentos e allowlist exclusiva NU5104.
 
 ---
 
@@ -623,12 +647,12 @@ Revisão da entrega levantou 7 achados; os válidos foram corrigidos (todos veri
 |---|---|---|---|---|
 | 202 sugerir processamento concluído | endpoint usa `Accepted` para operação síncrona finalizada | contrato HTTP enganoso | documentação/cenário de fila e escolha explícita por atributo | Mitigado na Fase 3: 202 exige atributo explícito (`WithResultStatus(Accepted)`/`MapAcceptedRoute`), documentado e demonstrado (Demo de agendamento/reindexação) |
 | `Location` insegura ou inválida | concatenação direta de valores de rota | header incorreto/injeção | placeholders nomeados, formatação/escape e testes de valores especiais | Mitigado na Fase 3 e pós-revisão: placeholders validados, literais C# escapados, valores formatados com cultura invariável e escapados por segmento; HTTP cobre espaço, `/`, `?` e `#` |
-| Pacotes dessincronizados | SmartCommands consome match/adapter ainda não publicado | restore/build quebrado | ordem de rollout e PackageReference pinado; aguardar confirmação humana | Mitigado nas Fases 2-4: SmartProblems preview-8.0 e WorkContext 0.10.1 publicados e consumidos; revalidar o rollout na Fase 6 |
+| Pacotes dessincronizados | SmartCommands consome match/adapter ainda não publicado | restore/build quebrado | ordem de rollout e PackageReference pinado; aguardar confirmação humana | Fechado na Fase 6: SmartProblems preview-8.0 e WorkContext 0.10.1 publicados e consumidos; consumer-smoke automatizado por `.nupkg` compila em net8/9/10; `SmartProblems.ApiResults` é transitivo pelo runtime; ordem/versões nas notas de rollout |
 | Abstração de busca vazar EF | `FindCriteria`/`IQueryable` entra no núcleo | acoplamento e adapter WorkContext artificial | DF6 e revisão de API na Fase 4 | Fechado na Fase 4: contrato expõe somente expressão, `FindCriterion` e `CancellationToken` |
 | Projeção causar materialização rastreada | adapter busca entidade e mapeia em memória | custo, tracking e exposição de dados | DF11, SQL/projeção testada e evolução no dono correto | Mitigado na Fase 4 e pós-revisão: projeção no provider, `AsNoTracking()` explícito nos dois caminhos, SQL único/colunas do DTO e teste com entidade aninhada sem tracking |
 | Chave duplicada passar silenciosamente | DF12 e banco sem unique constraint | resultado possivelmente não determinístico | documentar invariante, recomendar constraint e teste de comportamento | Aceito por decisão; mitigar por documentação e constraint |
 | SmartSearch ser adotado por conveniência | tipo de filtro parece reutilizável | dependências/ciclo e escopo excessivos | DF5; exigir evidência e decisão nova | Fechado na Fase 1: evidência registrada, nenhuma dependência introduzida |
-| Generator regredir incrementalidade | novo modelo carrega símbolo/array mutável | cache incorreto e retenção | snapshots/EquatableArray e tracked-step tests | Mitigado nas Fases 3 e 5: campos novos symbol-free (`CommandEndpointModel.Accepted`; `FindByModel`/`FindByPropertyModel` com `EquatableArray`); `PipelineCachingTests` cobre `FindBys` (Cached/Modified); suíte do generator 368 verde, sem CS8785 |
+| Generator regredir incrementalidade | novo modelo carrega símbolo/array mutável | cache incorreto e retenção | snapshots/EquatableArray e tracked-step tests | Mitigado nas Fases 3 e 5: campos novos symbol-free (`CommandEndpointModel.Accepted`; `FindByModel`/`FindByPropertyModel` com `EquatableArray`); `PipelineCachingTests` cobre `FindBys` (Cached/Modified); suíte do generator 379 verde, sem CS8785 |
 | Escopo atravessar muitos repositórios | projeção requer mudança em EnterprisePatterns | atraso e releases encadeadas | Fase 1 identifica menor dono; fases/gates separados | Mitigado: donos por mudança registrados no Resultado da Fase 1 (DF13-DF16); DF16 amplia a release do SmartProblems |
 
 ---

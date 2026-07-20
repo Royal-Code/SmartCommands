@@ -91,7 +91,11 @@ $entityFramework = Read-Package 'RoyalCode.SmartCommands.EntityFramework'
 $workContext = Read-Package 'RoyalCode.SmartCommands.WorkContext'
 $generator = Read-Package 'RoyalCode.SmartCommands.Generators'
 
-Assert-RuntimePackage $core @('RoyalCode.SmartProblems', 'RoyalCode.SmartValidations')
+Assert-RuntimePackage $core @(
+    'RoyalCode.SmartProblems',
+    'RoyalCode.SmartProblems.ApiResults',
+    'RoyalCode.SmartValidations'
+)
 Assert-RuntimePackage $entityFramework @('RoyalCode.SmartCommands', 'Microsoft.EntityFrameworkCore')
 Assert-RuntimePackage $workContext @('RoyalCode.SmartCommands', 'RoyalCode.WorkContext.EntityFramework')
 

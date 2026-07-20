@@ -4,7 +4,7 @@ Nenhum arquivo foi alterado nesta análise.
 
 ## 1. Decisões que ainda bloqueiam o plano
 
-O [plano](/C:/git/RoyalCode/SmartCommands/src/.ai/plans/plan-smartcommands-accepted-tryfindby.md:99) ainda mantém Q1–Q3 abertas, embora as evidências agora sustentem bem:
+O [plano](../../.ai/plans/plan-smartcommands-accepted-tryfindby.md#L99) ainda mantém Q1–Q3 abertas, embora as evidências agora sustentem bem:
 
 - Q1: opção A — propriedades nomeadas no atributo.
 - Q2: opção A — projeção obrigatória para DTO.
@@ -27,7 +27,7 @@ O projeto `RoyalCode.SmartProblems.ApiResults` precisa receber:
 - `AcceptedMatch`
 - `AcceptedMatch<T>`
 
-Eles devem seguir a estrutura de [CreatedMatch](/C:/git/RoyalCode/SmartProblems/src/RoyalCode.SmartProblems.ApiResults/HttpResults/CreatedMatch'0.cs), mas com:
+Eles devem seguir a estrutura de [CreatedMatch](https://github.com/Royal-Code/SmartProblems/blob/main/src/RoyalCode.SmartProblems.ApiResults/HttpResults/CreatedMatch%270.cs), mas com:
 
 - HTTP 202;
 - `Location` opcional;
@@ -80,7 +80,7 @@ Portanto, eu não colocaria projeção ou `ISelectorFactory` no SmartProblems. O
 
 Esta mudança passa a ser obrigatória se Q2 for realmente a opção A.
 
-O [IFinder<TEntity>](/C:/git/RoyalCode/EnterprisePatterns/RoyalCode.EnterprisePatterns/RoyalCode.Repositories.Abstractions/DataServices.cs:92) já oferece:
+O [IFinder<TEntity>](https://github.com/Royal-Code/EnterprisePatterns/blob/releases/unit-of-work/RoyalCode.EnterprisePatterns/RoyalCode.Repositories.Abstractions/DataServices.cs#L92) já oferece:
 
 - entidade por predicado;
 - entidade por propriedade;
@@ -134,7 +134,7 @@ Sem:
 - compilar a expressão;
 - realizar duas consultas.
 
-O repositório já possui a obtenção do seletor em [SelectDtoById](/C:/git/RoyalCode/EnterprisePatterns/RoyalCode.EnterprisePatterns/RoyalCode.Repositories.EntityFramework/SelectDtoById.cs:12). Eu generalizaria essa responsabilidade:
+O repositório já possui a obtenção do seletor em [SelectDtoById](https://github.com/Royal-Code/EnterprisePatterns/blob/releases/unit-of-work/RoyalCode.EnterprisePatterns/RoyalCode.Repositories.EntityFramework/SelectDtoById.cs#L12). Eu generalizaria essa responsabilidade:
 
 ```text
 SelectDto<TEntity, TDto>
@@ -183,7 +183,7 @@ Assim:
 
 A mudança é válida e resolve o mesmo problema já corrigido no SmartCommands.
 
-Hoje [GeneratedSourceConventions](/C:/git/RoyalCode/SmartSelector/src/RoyalCode.SmartSelector.Generators/Generators/GeneratedSourceConventions.cs:191) gera nomes como:
+Hoje [GeneratedSourceConventions](https://github.com/Royal-Code/SmartSelector/blob/main/src/RoyalCode.SmartSelector.Generators/Generators/GeneratedSourceConventions.cs#L191) gera nomes como:
 
 ```text
 RoyalCode.SmartSelector.Demo.Details.Library.BookDetails.AutoProperties.g.cs
@@ -224,7 +224,7 @@ Uma forma segura de migrar é usar o nome completo atual como identidade do hash
 
 ## 6. Onde deve ficar o algoritmo de hint name
 
-Como agora existem pelo menos dois generators RoyalCode precisando da mesma convenção, eu não copiaria o [HintName do SmartCommands](/C:/git/RoyalCode/SmartCommands/src/RoyalCode.SmartCommands.Generators/Generators/HintName.cs:13) para o SmartSelector.
+Como agora existem pelo menos dois generators RoyalCode precisando da mesma convenção, eu não copiaria o [HintName do SmartCommands](../../RoyalCode.SmartCommands.Generators/Generators/HintName.cs#L13) para o SmartSelector.
 
 O algoritmo deve ser movido para:
 
@@ -272,7 +272,7 @@ Ordem de rollout sugerida:
 
 ## 7. Cobertura necessária para os nomes
 
-O SmartSelector já testa DTOs homônimos em namespaces e tipos contenedores diferentes em [GenerationHardeningTests](/C:/git/RoyalCode/SmartSelector/src/RoyalCode.SmartSelector.Tests/Tests/GenerationHardeningTests.cs:6). Esses testes precisam ser adaptados e ampliados com:
+O SmartSelector já testa DTOs homônimos em namespaces e tipos contenedores diferentes em [GenerationHardeningTests](https://github.com/Royal-Code/SmartSelector/blob/main/src/RoyalCode.SmartSelector.Tests/Tests/GenerationHardeningTests.cs#L6). Esses testes precisam ser adaptados e ampliados com:
 
 - mesmo tipo em namespaces diferentes;
 - tipos aninhados homônimos;

@@ -24,7 +24,13 @@ foreach ($file in $files) {
         $pathPart = ($target -split '#', 2)[0]
         if ([string]::IsNullOrWhiteSpace($pathPart)) { continue }
         $decoded = [Uri]::UnescapeDataString($pathPart)
-        $resolved = [System.IO.Path]::GetFullPath((Join-Path $file.DirectoryName $decoded))
+        try {
+            $resolved = [System.IO.Path]::GetFullPath((Join-Path $file.DirectoryName $decoded))
+        }
+        catch {
+            $broken.Add("$($file.FullName) -> $target (invalid local path: $($_.Exception.Message))")
+            continue
+        }
         if (-not (Test-Path -LiteralPath $resolved)) {
             $broken.Add("$($file.FullName) -> $target")
         }
