@@ -36,6 +36,11 @@ public static partial class MapPedidosApi
         group.MapPost("/", CriarPedidoHandleAsync)
             .WithName("criar-pedido");
 
+        group.MapGet("{pedidoId:guid}/itens/{produtoSku}", FindItemPedidoPorSkuByPedidoIdProdutoSkuAsync)
+            .WithName("item-do-pedido-por-sku")
+            .WithDescription("Get an order item by order id and product SKU (composite key)")
+            .WithTags("Pedidos");
+
         return group;
     }
 
@@ -88,5 +93,19 @@ public static partial class MapPedidosApi
 
         var result = await handler.HandleAsync(command, ct);
         return result.CreatedMatch(v => $"pedidos/{(global::System.Uri.EscapeDataString(global::System.Convert.ToString(v.Id, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty))}", v => new CriarPedidoResponse(v.Id, v.Status, v.Total));
+    }
+
+    [ProduceProblems(ProblemCategory.NotFound)]
+    private static async Task<OkMatch<ItemPedidoPorSku>> FindItemPedidoPorSkuByPedidoIdProdutoSkuAsync(
+        Guid PedidoId, 
+        string ProdutoSku, 
+        IRepositoryAccessor<PedidoItem> accessor, 
+        CancellationToken ct)
+    {
+        var findResult = await accessor.FindEntityAsync<ItemPedidoPorSku>(e => e.PedidoId == PedidoId && e.ProdutoSku == ProdutoSku, new global::RoyalCode.SmartProblems.Entities.FindCriterion[] { new global::RoyalCode.SmartProblems.Entities.FindCriterion("PedidoId", PedidoId), new global::RoyalCode.SmartProblems.Entities.FindCriterion("ProdutoSku", ProdutoSku) }, ct);
+        if (findResult.NotFound(out var notfoundProblem))
+            return notfoundProblem;
+
+        return findResult.Entity;
     }
 }

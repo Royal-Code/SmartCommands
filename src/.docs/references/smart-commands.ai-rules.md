@@ -94,7 +94,7 @@ internal Task<Result> ExecutarAsync(
 ## 5. Minimal API
 
 - Verbos: `MapGet`, `MapPost`, `MapPut`, `MapPatch`, `MapDelete`.
-- Casos de leitura: `MapFind` + `EntityReference<TEntity,TId>`; `MapSearch` + `SearchReference<TEntity[,TModel]>`.
+- Casos de leitura: `MapFind` + `EntityReference<TEntity,TId>` (por id); `MapFindBy<TEntity>(route, name, nomes de propriedades)` (por chave alternativa/composta, propriedades↔placeholders de mesmo nome, projeção no provider, `NotFound` nomeia a entidade — RCCMD056); `MapSearch` + `SearchReference<TEntity[,TModel]>`.
 - Grupo: `MapGroup`; sem ele, não há prefixo implícito.
 - Metadata: `WithSummary`, `WithDescription`, `WithAuthorization`, `WithPolicy`, `WithTags`.
 - Filtros: `WithEndpointFilter<TFilter>` repetível; ordem declarada é preservada.

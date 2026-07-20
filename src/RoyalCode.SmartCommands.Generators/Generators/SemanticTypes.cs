@@ -12,8 +12,13 @@ namespace RoyalCode.SmartCommands.Generators.Generators;
 /// </summary>
 internal static class SemanticTypes
 {
-    private static readonly SymbolDisplayFormat NameFormat =
-        SymbolDisplayFormat.MinimallyQualifiedFormat.AddMiscellaneousOptions(
+    private static readonly SymbolDisplayFormat NameFormat = new(
+        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypes,
+        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        miscellaneousOptions:
+            SymbolDisplayMiscellaneousOptions.UseSpecialTypes |
+            SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers |
             SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
     internal static TypeDescriptor CreateDescriptor(ITypeSymbol symbol)

@@ -96,6 +96,7 @@ internal static class KnownAttributes
     internal static readonly AttributeSpec AddHandlersServices = new(CommandsNamespace, "AddHandlersServices");
 
     internal static readonly AttributeSpec MapFind = new(CommandsNamespace, "MapFind");
+    internal static readonly AttributeSpec MapFindBy = new(CommandsNamespace, "MapFindBy", 1);
     internal static readonly AttributeSpec EntityReference = new(CommandsNamespace, "EntityReference", 2);
     internal static readonly AttributeSpec MapSearch = new(CommandsNamespace, "MapSearch");
     internal static readonly AttributeSpec SearchReference1 = new(CommandsNamespace, "SearchReference", 1);

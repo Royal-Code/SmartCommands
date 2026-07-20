@@ -430,6 +430,67 @@ internal sealed record FindModel(
         Tags.IsEmpty ? null : Tags.ToArray());
 }
 
+/// <summary>Uma propriedade da chave de <c>MapFindBy</c> no snapshot symbol-free (nome + tipo).</summary>
+internal sealed record FindByPropertyModel(string Name, TypeSnapshot Type);
+
+internal sealed record FindByModel(
+    TypeSnapshot EntityType,
+    TypeSnapshot ModelType,
+    EquatableArray<FindByPropertyModel> Properties,
+    string EndpointRoutePattern,
+    string EndpointName,
+    string? Description,
+    string? Summary,
+    bool RequiresAuthorization,
+    EquatableArray<string> AuthorizationPolicies,
+    string? GroupName,
+    EquatableArray<string> EndpointFilters,
+    EquatableArray<string> Tags,
+    LocationModel NameLocation) : IMapEndpointModel
+{
+    public string? Group => GroupName;
+
+    // baseado no nome do DTO (identificador simples e seguro) para evitar colisões artificiais; ver
+    // FindByInformation.HandlerMethodName. Precisa produzir exatamente o mesmo nome que a emissão.
+    public string HandlerMethodName =>
+        $"Find{ModelType.Name}By{string.Concat(Properties.Select(p => p.Name))}Async";
+
+    public string SortKey => $"{GroupName}{EndpointName}FindBy{EndpointRoutePattern}";
+
+    bool IEquatable<IMapEndpointModel>.Equals(IMapEndpointModel? other) =>
+        other is FindByModel model && Equals(model);
+
+    internal static FindByModel Create(FindByInformation information) => new(
+        TypeSnapshot.Create(information.EntityType),
+        TypeSnapshot.Create(information.ModelType),
+        new EquatableArray<FindByPropertyModel>(information.Properties.Select(property =>
+            new FindByPropertyModel(property.Name, TypeSnapshot.Create(property.Type)))),
+        information.EndpointRoutePattern,
+        information.EndpointName,
+        information.Description,
+        information.Summary,
+        information.AuthorizationPolicies is not null,
+        new EquatableArray<string>(information.AuthorizationPolicies),
+        information.GroupName,
+        new EquatableArray<string>(information.EndpointFilters),
+        new EquatableArray<string>(information.Tags),
+        LocationModel.Create(information.EndpointNameLocation));
+
+    public IMapEndpointGenerator ToGenerator() => new FindByInformation(
+        PipelineModelConversions.ToDescriptor(EntityType),
+        PipelineModelConversions.ToDescriptor(ModelType),
+        Properties.Select(property =>
+            new FindByProperty(property.Name, PipelineModelConversions.ToDescriptor(property.Type))).ToList(),
+        EndpointRoutePattern,
+        EndpointName,
+        Description,
+        Summary,
+        RequiresAuthorization ? AuthorizationPolicies.ToArray() : null,
+        GroupName,
+        EndpointFilters.IsEmpty ? null : EndpointFilters.ToArray(),
+        Tags.IsEmpty ? null : Tags.ToArray());
+}
+
 internal sealed record SearchFilterParameterModel(
     bool HasWithParameterAttribute,
     ParameterModel Parameter,

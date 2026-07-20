@@ -72,6 +72,7 @@ public static partial class ProgramExtensions
                 repos.Add<Produto>();
                 repos.Add<ProdutoEstoque>();
                 repos.Add<Pedido>();
+                repos.Add<PedidoItem>();
                 repos.Add<Loja>();
             })
             .ConfigureSearches(searches =>

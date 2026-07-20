@@ -91,6 +91,94 @@ public class PipelineCachingTests
     }
 
     [Fact]
+    public void Same_compilation_reuses_findby_model()
+    {
+        const string source =
+            """
+            using System;
+            using RoyalCode.SmartCommands;
+            using RoyalCode.Entities;
+
+            namespace Tests.Caching;
+
+            public class Produto : Entity<Guid> { public string Sku { get; set; } = ""; }
+
+            [MapFindBy<Produto>("{sku}", "by-sku", nameof(Produto.Sku))]
+            public class Details { }
+            """;
+        var compilation = Util.CreateCompilation(source);
+        var driver = Util.CreateTrackedDriver().RunGenerators(compilation);
+
+        driver = driver.RunGenerators(compilation);
+        var outputs = Outputs(driver.GetRunResult(), IncrementalGenerator.TrackingNames.FindBys);
+
+        Assert.NotEmpty(outputs);
+        Assert.All(outputs, output => Assert.Equal(IncrementalStepRunReason.Cached, output.Reason));
+    }
+
+    [Fact]
+    public void Changing_findby_property_invalidates_findby_model()
+    {
+        const string original =
+            """
+            using System;
+            using RoyalCode.SmartCommands;
+            using RoyalCode.Entities;
+
+            namespace Tests.Caching;
+
+            public class Produto : Entity<Guid>
+            {
+                public string Sku { get; set; } = "";
+                public string Nome { get; set; } = "";
+            }
+
+            [MapFindBy<Produto>("{sku}", "by-sku", nameof(Produto.Sku))]
+            public class Details { }
+            """;
+        var changed = original
+            .Replace("{sku}", "{nome}", StringComparison.Ordinal)
+            .Replace("nameof(Produto.Sku)", "nameof(Produto.Nome)", StringComparison.Ordinal);
+
+        var (_, result) = RunChangedCompilation(original, changed);
+
+        AssertReasons(result, IncrementalGenerator.TrackingNames.FindBys, IncrementalStepRunReason.Modified);
+    }
+
+    [Fact]
+    public void Editing_unrelated_tree_keeps_findby_model_cached_or_unchanged()
+    {
+        const string findBySource =
+            """
+            using System;
+            using RoyalCode.SmartCommands;
+            using RoyalCode.Entities;
+
+            namespace Tests.Caching;
+
+            public class Produto : Entity<Guid> { public string Sku { get; set; } = ""; }
+
+            [MapFindBy<Produto>("{sku}", "by-sku", nameof(Produto.Sku))]
+            public class Details { }
+            """;
+        var compilation = Util.CreateCompilation(findBySource, "namespace Tests; public class Unrelated { }");
+        var driver = Util.CreateTrackedDriver().RunGenerators(compilation);
+        var originalSources = GeneratedSources(driver.GetRunResult());
+        var unrelatedTree = compilation.SyntaxTrees.Last();
+        var changedTree = Util.ParseSource("namespace Tests; public class Unrelated { public int Value { get; set; } }");
+        var changedCompilation = compilation.ReplaceSyntaxTree(unrelatedTree, changedTree);
+
+        driver = driver.RunGenerators(changedCompilation);
+        var result = driver.GetRunResult();
+        var outputs = Outputs(result, IncrementalGenerator.TrackingNames.FindBys);
+
+        Assert.NotEmpty(outputs);
+        Assert.All(outputs, output =>
+            Assert.Contains(output.Reason, new[] { IncrementalStepRunReason.Cached, IncrementalStepRunReason.Unchanged }));
+        Assert.Equal(originalSources, GeneratedSources(result));
+    }
+
+    [Fact]
     public void Changing_authorization_policy_item_invalidates_command_model()
     {
         const string original =

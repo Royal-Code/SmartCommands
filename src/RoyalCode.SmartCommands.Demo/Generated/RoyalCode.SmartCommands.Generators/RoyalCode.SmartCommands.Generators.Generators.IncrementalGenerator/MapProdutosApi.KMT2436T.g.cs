@@ -59,6 +59,11 @@ public static partial class MapProdutosApi
         group.MapPost("/{id:guid}/estoque/liberacoes", LiberarReservaEstoqueHandleAsync)
             .WithName("liberar-reserva-estoque");
 
+        group.MapGet("por-sku/{sku}", FindProdutoPorSkuBySkuAsync)
+            .WithName("produto-por-sku")
+            .WithDescription("Get product details by its SKU (alternate key)")
+            .WithTags("Produtos");
+
         group.MapPost("/{id:guid}/estoque", RegistrarEstoqueInicialHandleAsync)
             .WithName("registrar-estoque-inicial");
 
@@ -205,6 +210,19 @@ public static partial class MapProdutosApi
 
         var result = await handler.HandleAsync(produtoId, command, ct);
         return result;
+    }
+
+    [ProduceProblems(ProblemCategory.NotFound)]
+    private static async Task<OkMatch<ProdutoPorSku>> FindProdutoPorSkuBySkuAsync(
+        string Sku, 
+        IRepositoryAccessor<Produto> accessor, 
+        CancellationToken ct)
+    {
+        var findResult = await accessor.FindEntityAsync<ProdutoPorSku>(e => e.Sku == Sku, new global::RoyalCode.SmartProblems.Entities.FindCriterion[] { new global::RoyalCode.SmartProblems.Entities.FindCriterion("Sku", Sku) }, ct);
+        if (findResult.NotFound(out var notfoundProblem))
+            return notfoundProblem;
+
+        return findResult.Entity;
     }
 
     [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.NotFound)]

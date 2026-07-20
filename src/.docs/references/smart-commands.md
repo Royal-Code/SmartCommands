@@ -217,6 +217,26 @@ exclusivos.
 public class ProdutoDetalhes { }
 ```
 
+`MapFindBy<TEntity>` busca por uma chave **alternativa ou composta** — uma ou mais propriedades diretas da
+entidade — em vez do id. Cada propriedade declarada (prefira `nameof`) casa, sem diferenciar caixa, com um
+placeholder de rota de mesmo nome, e o generator deriva o tipo do parâmetro; a busca combina os critérios com
+`AND`, na ordem declarada. A projeção é executada no provider e o `NotFound` nomeia a **entidade** e lista os
+critérios. `MapFindBy` e `MapFind` são independentes (o por ID permanece inalterado); propriedades/placeholders
+ausentes, duplicados, incompatíveis ou não diretos são diagnosticados (RCCMD056).
+
+```csharp
+// chave simples (SKU)
+[MapGroup("produtos")]
+[MapFindBy<Produto>("por-sku/{sku}", "produto-por-sku", nameof(Produto.Sku))]
+public partial class ProdutoPorSku { }
+
+// chave composta
+[MapGroup("pedidos")]
+[MapFindBy<PedidoItem>("{pedidoId:guid}/itens/{produtoSku}", "item-do-pedido",
+    nameof(PedidoItem.PedidoId), nameof(PedidoItem.ProdutoSku))]
+public partial class ItemPedidoPorSku { }
+```
+
 `MapSearch` usa `SearchReference<TEntity>` ou `SearchReference<TEntity,TModel>` e integra o filtro ao mecanismo
 SmartSearch. Métodos `[WithFilter]` podem ajustar os critérios antes da execução. Tags e endpoint filters
 também se aplicam a Find/Search; `WithResultStatus` não.

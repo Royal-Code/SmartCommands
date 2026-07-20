@@ -314,3 +314,25 @@ uma rota estática quando o comando não retorna valor.
 **Rotas de `Location` conflitantes (Fase 3).** O comando declara `MapCreatedRoute` e `MapAcceptedRoute` ao mesmo
 tempo. Cada uma implica um status diferente (`201` e `202`) e apenas uma rota de `Location` pode ser gerada.
 **Correção:** mantenha apenas um dos dois atributos.
+
+## RCCMD056
+**Uso inválido de `MapFindBy` (DF10/Fase 5).** A busca por chave alternativa/composta relaciona propriedades
+diretas da entidade a placeholders de rota de mesmo nome (sem diferenciar caixa). A mensagem detalha o motivo:
+
+- **Propriedades:** ao menos uma é exigida; cada uma precisa existir na entidade, ser declarada uma única vez,
+  ser pública, de instância, legível **por um getter público** e de um tipo acessível ao código gerado e que
+  suporte o operador `==` do filtro (tipos referência, primitivos, enums, `Nullable<T>` de suportado, ou value
+  types que declaram um `operator ==` aplicável aos dois operandos — record struct, `Guid`, `DateTime`, …; um
+  `struct` comum sem `==` ou com operador de assinatura incompatível é rejeitado). O nome não pode colidir com
+  identificadores do handler (`accessor`, `ct`, `e`, `findResult` e `notfoundProblem`); keywords reservadas ou
+  contextuais são escapadas na emissão.
+- **Rota:** placeholder duplicado, opcional, catch-all ou com valor default; correspondência 1:1 divergente
+  (propriedade sem placeholder ou placeholder sem propriedade); constraint incompatível com o tipo da
+  propriedade (ex.: `{sku:int}` sobre `string`).
+- **Comuns:** nome de endpoint/grupo válidos; o DTO decorado precisa ser top-level, não file-local e não
+  genérico.
+
+O binding geral de rota (parsing do valor) continua sendo responsabilidade do ASP.NET Core; o generator valida
+apenas o que emite. Entidades top-level, aninhadas e genéricas fechadas são suportadas quando acessíveis ao
+código gerado. **Correção:** alinhe propriedades e placeholders, por exemplo
+`[MapFindBy<Produto>("por-sku/{sku}", "produto-por-sku", nameof(Produto.Sku))]`.

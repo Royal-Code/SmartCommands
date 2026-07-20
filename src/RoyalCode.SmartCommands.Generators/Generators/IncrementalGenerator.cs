@@ -13,9 +13,11 @@ internal class IncrementalGenerator : IIncrementalGenerator
         public const string AddServices = "AddServices";
         public const string MapApiHandlers = "MapApiHandlers";
         public const string Finds = "Finds";
+        public const string FindBys = "FindBys";
         public const string Searches = "Searches";
         public const string CollectedCommands = "CollectedCommands";
         public const string CollectedFinds = "CollectedFinds";
+        public const string CollectedFindBys = "CollectedFindBys";
         public const string CollectedSearches = "CollectedSearches";
         public const string AddServicesWithCommands = "AddServicesWithCommands";
         public const string MapInformation = "MapInformation";
@@ -28,9 +30,11 @@ internal class IncrementalGenerator : IIncrementalGenerator
             AddServices,
             MapApiHandlers,
             Finds,
+            FindBys,
             Searches,
             CollectedCommands,
             CollectedFinds,
+            CollectedFindBys,
             CollectedSearches,
             AddServicesWithCommands,
             MapInformation,
@@ -73,6 +77,14 @@ internal class IncrementalGenerator : IIncrementalGenerator
             PipelineDiagnostic.Report(spc, candidate.Diagnostics));
         var finds = ValidModels(findCandidates).WithTrackingName(TrackingNames.Finds);
 
+        var findByCandidates = context.SyntaxProvider.ForAttributeWithMetadataName(
+            FindByGenerator.FindByAttributeName,
+            FindByGenerator.Predicate,
+            FindByGenerator.Transform);
+        context.RegisterSourceOutput(findByCandidates, static (spc, candidate) =>
+            PipelineDiagnostic.Report(spc, candidate.Diagnostics));
+        var findBys = ValidModels(findByCandidates).WithTrackingName(TrackingNames.FindBys);
+
         var searchCandidates = context.SyntaxProvider.ForAttributeWithMetadataName(
             SearchGenerator.SearchAttributeName,
             SearchGenerator.Predicate,
@@ -83,6 +95,7 @@ internal class IncrementalGenerator : IIncrementalGenerator
 
         var collectedCommands = commands.Collect().WithTrackingName(TrackingNames.CollectedCommands);
         var collectedFinds = finds.Collect().WithTrackingName(TrackingNames.CollectedFinds);
+        var collectedFindBys = findBys.Collect().WithTrackingName(TrackingNames.CollectedFindBys);
         var collectedSearches = searches.Collect().WithTrackingName(TrackingNames.CollectedSearches);
 
         // Cada comando mantém sua própria saída; somente DI e endpoints são agregados.
@@ -120,6 +133,13 @@ internal class IncrementalGenerator : IIncrementalGenerator
                     .Where(command => command.Endpoint is not null)
                     .Select(command => (IMapEndpointModel)command.Endpoint!)
                     .Concat(findModels.Cast<IMapEndpointModel>());
+            })
+            .Combine(collectedFindBys)
+            .Select(static (source, cancellationToken) =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var (endpoints, findByModels) = source;
+                return endpoints.Concat(findByModels.Cast<IMapEndpointModel>());
             })
             .Combine(collectedSearches)
             .Select(static (source, cancellationToken) =>

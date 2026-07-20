@@ -104,7 +104,7 @@ See `RoyalCode.SmartCommands.Tests` for scenarios covering:
 - Validation-first pipeline (`WithValidateModel`).
 - Additional validation ordering, DI, cancellation and short-circuiting.
 - Decorators sync/async with and without results.
-- Find entities and collections, edit flows, and NotFound problems.
+- Find entities and collections by id (`MapFind`) or by an alternate/composite key (`MapFindBy<TEntity>`), edit flows, and NotFound problems that name the entity.
 - Created and accepted responses with `MapCreatedRoute`, `MapAcceptedRoute`, `MapIdResultValue`, and `MapResponseValues`.
 - HTTP status selection, tags, endpoint filters, Find/Search and OpenAPI metadata.
 

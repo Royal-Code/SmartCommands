@@ -1,10 +1,10 @@
 # Plan: `Accepted` e busca por chave alternativa/composta (`smartcommands-accepted-tryfindby`)
 
-## Status: EM EXECUÇÃO - Fases 1, 2, 3 e 4 concluídas; SmartProblems preview-8.0 e WorkContext 0.10.1 publicados e consumidos
+## Status: EM EXECUÇÃO - Fases 1-5 concluídas; SmartProblems preview-8.0 e WorkContext 0.10.1 publicados e consumidos; falta a Fase 6 (rollout)
 
 ## Progresso
 
-`████░░` **67%** - 4 de 6 fases concluídas
+`█████░` **83%** - 5 de 6 fases concluídas
 
 | Fase | Estado |
 |---|---|
@@ -12,8 +12,8 @@
 | Fase 2 - Resultados HTTP `Accepted` no SmartProblems | Concluída em 2026-07-18; publicada como `1.0.0-preview-8.0` pelo mantenedor |
 | Fase 3 - `Accepted` no SmartCommands e no generator | Concluída em 2026-07-19; runtime, generator (RCCMD054/055), Demo e docs; verificação pós-revisão com 471 testes verdes; issue do emissor estático do `MapCreatedRoute` corrigida |
 | Fase 4 - Contrato runtime e adapters de `TryFindBy` | Concluída em 2026-07-19 (EnterprisePatterns publicado como 0.10.1; contrato e adapters consumidos pelo SmartCommands) |
-| Fase 5 - Mapeamento `TryFindBy` no generator | Pronta para iniciar (Fase 4 concluída) |
-| Fase 6 - Integração, documentação e preparação de rollout | Bloqueada pela Fase 5 |
+| Fase 5 - Mapeamento `TryFindBy` no generator | Concluída em 2026-07-19; atributo `MapFindBy<TEntity>`, reader/emissão, RCCMD056, Demo (chave simples e composta) e docs; ajustes pós-revisão aplicados; 506 testes verdes; crashes CS8785 corrigidos |
+| Fase 6 - Integração, documentação e preparação de rollout | Pronta para iniciar (Fases 2-5 concluídas) |
 
 > **Manutenção deste plano:** marque uma tarefa com `- [x]` somente depois de verificar seu critério e registrar
 > a evidência em `Resultado da Fase`. Ao concluir uma fase, atualize estado, barra, matriz de rastreabilidade e riscos.
@@ -485,13 +485,13 @@ NU1903/NU5104.
 
 **Tarefas:**
 
-- [ ] Criar o atributo definido na DF10 com XML docs e exemplos simples/compostos.
-- [ ] Resolver entidade, propriedades, placeholders, tipos, nulabilidade e acessibilidade via símbolos/TypedConstants; congelar snapshots symbol-free/equatáveis.
-- [ ] Diagnosticar propriedade/placeholder ausente, duplicado, incompatível, não direto ou ambíguo; entrada inválida não chega a DI/emissão.
-- [ ] Emitir chamada ao contrato da Fase 4, retorno DTO conforme DF11, `Ok`/`NotFound`, metadata e filtros/tags comuns.
-- [ ] Preservar ordem determinística, nomes reservados e hint names da DF20; adicionar testes tracked de cache e invalidação seletiva.
-- [ ] Criar casos Demo: SKU simples, chave composta e not found rico; testar rota/query conforme o contrato escolhido.
-- [ ] Atualizar catálogo RCCMD, AnalyzerReleases, README e `.docs/commands.md`.
+- [x] Criar o atributo definido na DF10 com XML docs e exemplos simples/compostos.
+- [x] Resolver entidade, propriedades, placeholders, tipos, nulabilidade e acessibilidade via símbolos/TypedConstants; congelar snapshots symbol-free/equatáveis.
+- [x] Diagnosticar propriedade/placeholder ausente, duplicado, incompatível, não direto ou ambíguo; entrada inválida não chega a DI/emissão.
+- [x] Emitir chamada ao contrato da Fase 4, retorno DTO conforme DF11, `Ok`/`NotFound`, metadata e filtros/tags comuns.
+- [x] Preservar ordem determinística, nomes reservados e hint names da DF20; adicionar testes tracked de cache e invalidação seletiva.
+- [x] Criar casos Demo: SKU simples, chave composta e not found rico; testar rota/query conforme o contrato escolhido.
+- [x] Atualizar catálogo RCCMD, AnalyzerReleases, README e `.docs/commands.md`.
 
 **Critérios de aceite:** simples e composta geram código compilável e determinístico; o tipo do delegate coincide com a propriedade da entidade; problemas listam critérios corretos; OpenAPI documenta parâmetros/respostas; toda entrada inválida conhecida produz diagnóstico, nunca `CS8785`; `MapFind` por ID permanece inalterado.
 
@@ -499,7 +499,50 @@ NU1903/NU5104.
 
 ### Resultado da Fase 5
 
-*a preencher*
+**Concluída em 2026-07-19** (implementação nas Tarefas 1-7 abaixo; ajustes pós-revisão registrados ao final).
+
+**Tarefa 1 — atributo `MapFindByAttribute<TEntity>` (DF10) — concluída.** Criado `RoyalCode.SmartCommands/MapFindByAttribute.cs`: atributo genérico em `TEntity` (`where TEntity : class`), ctor `([StringSyntax("Route")] string endpointRoutePattern, string endpointName, params string[] propertyNames)`, `AttributeUsage(Class, Inherited = false)`. XML docs completas com exemplos simples (SKU) e composto (pedidoId/numero), descrevendo: projeção obrigatória para o DTO decorado (DF11), `NotFound` nomeando a entidade e listando critérios, casamento de propriedades↔placeholders sem diferenciar caixa, e a diagnose RCCMD056. Spec `KnownAttributes.MapFindBy` (aridade 1) registrada. Build do runtime com 0 erros e sem warnings CS novos (apenas NU5104/NU1903 de baseline).
+
+**Tarefas 2, 3 e 4 — reader/snapshot, diagnósticos e emissão — concluídas** (verificadas juntas por serem uma unidade que compila). Espelham o `MapFind` (por ID), acrescentando a dimensão da lista de propriedades da chave:
+- **Reader `FindByGenerator.cs`** (`Transform`/`TransformWorking`): lê a entidade do argumento genérico do atributo, `route`/`name`/`propertiesNames` (params) dos `ConstructorArguments`, description/summary/group/authorization/policy, tags/filtros (DF23) e nega `WithResultStatus` (só de command maps). Resolve cada propriedade na entidade via símbolos (`GetAllMembers`), derivando o tipo com `SemanticTypes.CreateDescriptor` (nulabilidade preservada). Rejeição silenciosa (DF9) para argumentos não constantes/genérico não resolvido.
+- **Diagnósticos (RCCMD056, `InvalidMapFindByUsage`):** propriedade ausente na entidade, duplicada, não pública, estática, não legível (sem getter), de tipo não vinculável/equatável (exige `string` ou value type), com nome reservado pelo handler (`accessor`/`ct`/`e`); placeholder ausente/duplicado/opcional/catch-all/default, correspondência 1:1 placeholder↔propriedade (sem diferenciar caixa) e constraint de rota incompatível com o tipo da propriedade (reusa `RouteConstraintTypes`); além de nome de endpoint/grupo e DTO top-level/não-file-local/não-genérico. Entrada inválida acumula erros e não gera modelo (não chega a DI/emissão).
+- **Snapshot symbol-free** `FindByModel` + `FindByPropertyModel(string Name, TypeSnapshot Type)` (`PipelineModels.cs`), equatáveis (records + `EquatableArray`); registrado o pipeline `findBys`/`collectedFindBys` no `IncrementalGenerator` e concatenado em `mapEndpoints` (mesma agregação, ordenação por `SortKey`, RCCMD030/046/047 comuns). `HandlerMethodName` inclui as propriedades da chave (`Find{Entity}By{Prop1}{Prop2}Async`) para permitir múltiplas chaves alternativas da mesma entidade no mesmo grupo.
+- **Emissão `FindByInformation.cs`:** `MapGet(route, handler)` + `WithName`/tags/filtros/auth comuns; handler `Task<OkMatch<TDto>>` com `[ProduceProblems(ProblemCategory.NotFound)]`, um parâmetro por propriedade (vinculado à rota pelo nome) + `IRepositoryAccessor<TEntity>` + `CancellationToken`; chama a variante por predicado da Fase 4 `accessor.FindEntityAsync<TDto>(e => e.P1 == p1 && …, new FindCriterion[] { … }, ct)` (filtro de igualdade AND na ordem declarada e critérios para o `NotFound` rico, sem analisar a expressão em runtime), `if (findResult.NotFound(out var p)) return p;` e `return findResult.Entity;`. `FindCriterion` é emitido totalmente qualificado (`global::…`) para não depender de using.
+- **Verificação:** build do generator 0 erros; sonda de emissão (chave simples SKU e composta SKU+Lote) sem diagnósticos do transform e **sem erros de compilação da saída** (compila contra os assemblies reais de SmartProblems/SmartCommands); parâmetros derivam o tipo da propriedade (`string Sku`, `int Lote`). RCCMD056 adicionado ao `AnalyzerReleases.Unshipped.md` (build do generator sem RS2000).
+
+**Tarefa 5 — testes de generator + ordem/nomes reservados/hint names — concluída.** `Generators/MapFindByTests.cs` (novo): positivos com `AssertOutputCompiles` (compila a saída) — chave simples (filtro `e => e.Sku == Sku`, critério `FindCriterion("Sku", Sku)`, `OkMatch<TDto>`, `NotFound`/`Entity`), chave composta (AND na ordem, tipos derivados `string Sku`/`int Lote`), sem `MapGroup` (sem prefixo), metadata comum (tags/summary/filtros) e duas chaves distintas da mesma entidade coexistindo (handler names distintos por incluírem as propriedades). Negativos RCCMD056 (theory + fatos, sem fonte): propriedade/placeholder duplicado, propriedade inexistente, propriedade sem placeholder, placeholder sem propriedade, constraint incompatível (`{sku:int}` × `string`), opcional, catch-all, sem propriedades, tipo não vinculável (referência não-string), nome reservado (`accessor`) e `RCCMD052` para `WithResultStatus` em `MapFindBy`. `Incremental/PipelineCachingTests.cs`: `Same_compilation_reuses_findby_model` (Cached) e `Changing_findby_property_invalidates_findby_model` (Modified) sobre a tracking name `FindBys`. **Defeito encontrado e corrigido:** `ValidateFindByRoute` usava `ToDictionary` e lançava `ArgumentException` (→ CS8785) quando a propriedade era declarada duas vezes; trocado por preenchimento defensivo do dicionário (a duplicação já é diagnosticada). Suíte do generator **368/368** verde (era 348; +20 líquidos); nenhum `CS8785`.
+
+**Tarefa 6 — Demo + testes HTTP/OpenAPI — concluída.** Dois comandos `MapFindBy` na Demo, reusando `AutoSelect`/`AutoProperties` (SmartSelector) para a projeção:
+- `Commands/Produtos/ProdutoPorSku.cs` — chave simples: `[MapFindBy<Produto>("por-sku/{sku}", "produto-por-sku", nameof(Produto.Sku))]` → `GET /produtos/por-sku/{sku}`.
+- `Commands/Pedidos/ItemPedidoPorSku.cs` — chave composta: `[MapFindBy<PedidoItem>("{pedidoId:guid}/itens/{produtoSku}", "item-do-pedido-por-sku", nameof(PedidoItem.PedidoId), nameof(PedidoItem.ProdutoSku))]` → `GET /pedidos/{pedidoId}/itens/{produtoSku}`.
+- Registro de repositório: `repos.Add<PedidoItem>()` no `ProgramExtensions.cs` (a entidade é mapeada mas não tinha `DbSet`/repositório; `Context.Set<PedidoItem>()` resolve). Necessário para o `IRepositoryAccessor<PedidoItem>` do adapter WorkContext.
+- `Demo.Tests/DemoFindByTests.cs` (5 testes): chave simples encontrada (projeção do DTO) e ausente (`404` nomeando **Produto**, não o DTO — DF15); chave composta encontrada (semeando produto→estoque→pedido, filtra por `PedidoId` + `ProdutoSku`) e ausente (`404` nomeando **PedidoItem**); OpenAPI declara os parâmetros de rota (`sku`; `pedidoId` + `produtoSku`) e as respostas `200`/`404` (com `application/problem+json`). Suíte Demo **94/94** verde; build da Demo 0 avisos/0 erros.
+
+**Tarefa 7 — documentação — concluída.** `RCCMD056` no catálogo `.docs/diagnostics.md` (motivos e correção) e no `AnalyzerReleases.Unshipped.md`; `.docs/commands.md` (faixa `RCCMD000-RCCMD056`); `README.md` (leitura por id `MapFind` e por chave alternativa/composta `MapFindBy<TEntity>`, `NotFound` nomeando a entidade); `.docs/references/smart-commands.md` (seção 8.4 com exemplos simples e composto) e `smart-commands.ai-rules.md` (regra de leitura por chave). XML docs completas já no atributo (Tarefa 1).
+
+### Conclusão da Fase 5 (2026-07-19)
+
+`MapFindBy<TEntity>` entregue ponta a ponta, reusando o pipeline comum de `MapFind`/agregação/emissão sem caminho paralelo, e consumindo o contrato por predicado do `IRepositoryAccessor<TEntity>` da Fase 4.
+
+- **Superfície:** atributo genérico `MapFindByAttribute<TEntity>(route, name, params props)`; leitura semântica com derivação de tipo/nulabilidade; diagnóstico único `RCCMD056`; snapshot symbol-free equatável; emissão de handler `GET` → `OkMatch<TDto>` com filtro de igualdade AND + `FindCriterion[]` na ordem declarada, `NotFound` rico nomeando a entidade e projeção no provider (sem materializar/rastrear).
+- **`MapFind` por ID inalterado** (critério de aceite): nenhum teste anterior regrediu.
+- **Defeito corrigido durante a fase:** crash `ToDictionary` (→ CS8785) em rota com propriedade duplicada.
+- **Verificação global:** `SmartCommands.sln` Debug com 0 erros e sem avisos novos vs baseline (apenas NU5104/NU1903); testes **494/494** (generator 368, Demo 94, EntityFramework 32); nenhum `CS8785`/`AD0001`.
+- **Pendências para a Fase 6:** empacotamento/rollout e a matriz de integração cruzada (Accepted × TryFindBy) ficam na Fase 6; nada publicado nesta fase.
+
+### Ajustes pós-revisão da Fase 5 (2026-07-19)
+
+Revisão da entrega levantou 7 achados; os válidos foram corrigidos (todos verificados contra o código):
+
+1. **Validação de igualdade (Alta) — corrigido.** A regra "`string` ou value type" era permissiva (aceitava `struct` sem `operator ==`, gerando código que não compila) e restritiva (rejeitava tipos referência vinculáveis, ex.: `IParsable<T>`). Substituída por `SupportsEquality`: aceita tipos referência (o `==` sempre compila; binding é do ASP.NET), primitivos, enums, `Nullable<T>` de suportado e value types cujo `op_Equality` é semanticamente aplicável aos dois operandos emitidos (record struct, `Guid`, `DateTime`, …); rejeita `struct` sem `==`, operador de assinatura incompatível e `dynamic` (não permitido em expression tree). Passou a validar somente a responsabilidade do generator (DF7).
+2. **Getter não público (Alta) — corrigido.** `GetKeyPropertyProblem` agora exige getter público (espelha `GetResponsePropertyProblem`) e checa acessibilidade do tipo (`IsEmittableType`); `public string Sku { private get; set; }` vira RCCMD056 sem emissão.
+3. **Identificadores e formas de tipo seguros (Média-alta) — corrigido.** Propriedades que são keywords reservadas ou contextuais são escapadas com `@` na emissão (parâmetro/filtro/valor), preservando o nome real no critério e no binding de rota. A formatação semântica passou a preservar a cadeia de tipos contêineres; entidades aninhadas e genéricas fechadas são emitidas e compiladas, em vez de artificialmente proibidas.
+4. **Colisões artificiais no nome do handler (Média) — corrigido.** O nome do método passou a se basear no **DTO** (`Find{Dto}By{Props}Async`), identificador simples e seguro (o DTO é validado top-level/não-genérico e há no máximo um `MapFindBy` por DTO): elimina colisões `[A,BC]`/`[AB,C]` e entre dois DTOs que projetam a mesma entidade pela mesma chave; colisões reais seguem em RCCMD047.
+5. **Cobertura de testes (Média) — ampliada.** Generator: struct sem `==`, operador de igualdade incompatível, record struct, tipo referência vinculável, getter privado, keywords reservada/contextual (`@class`/`@await`), entidades aninhada/genérica fechada, nomes internos reservados e chaves de nomes concatenados que coexistem por DTOs distintos. HTTP: `Guid` malformado (rota não casa → 404) e `ProblemDetails` **estruturado** (desserializa `entity`, os critérios como extension data e a ordem no `detail`), simples e composto. Incremental: mudança sem relação mantém `FindBys` Cached/Unchanged.
+6. **Typo na API pública (Baixa) — corrigido.** Parâmetro `propertiesNames` → `propertyNames` (o generator lê por posição; sem impacto funcional).
+7. **Texto do resultado (Baixa) — corrigido.** Esta seção começava com "Em execução"; agora "Concluída".
+
+**Verificação após os ajustes:** `SmartCommands.sln` Release 0 erros e sem avisos novos vs baseline; testes **506/506** (generator 379, Demo 95, EntityFramework 32); nenhum `CS8785`.
 
 ---
 
@@ -585,7 +628,7 @@ NU1903/NU5104.
 | Projeção causar materialização rastreada | adapter busca entidade e mapeia em memória | custo, tracking e exposição de dados | DF11, SQL/projeção testada e evolução no dono correto | Mitigado na Fase 4 e pós-revisão: projeção no provider, `AsNoTracking()` explícito nos dois caminhos, SQL único/colunas do DTO e teste com entidade aninhada sem tracking |
 | Chave duplicada passar silenciosamente | DF12 e banco sem unique constraint | resultado possivelmente não determinístico | documentar invariante, recomendar constraint e teste de comportamento | Aceito por decisão; mitigar por documentação e constraint |
 | SmartSearch ser adotado por conveniência | tipo de filtro parece reutilizável | dependências/ciclo e escopo excessivos | DF5; exigir evidência e decisão nova | Fechado na Fase 1: evidência registrada, nenhuma dependência introduzida |
-| Generator regredir incrementalidade | novo modelo carrega símbolo/array mutável | cache incorreto e retenção | snapshots/EquatableArray e tracked-step tests | Mitigado na Fase 3: o novo campo `Accepted` do `CommandEndpointModel` é `MapCreatedModel`/`EquatableArray` symbol-free; suíte do generator (348, incl. `PipelineCachingTests`) verde |
+| Generator regredir incrementalidade | novo modelo carrega símbolo/array mutável | cache incorreto e retenção | snapshots/EquatableArray e tracked-step tests | Mitigado nas Fases 3 e 5: campos novos symbol-free (`CommandEndpointModel.Accepted`; `FindByModel`/`FindByPropertyModel` com `EquatableArray`); `PipelineCachingTests` cobre `FindBys` (Cached/Modified); suíte do generator 368 verde, sem CS8785 |
 | Escopo atravessar muitos repositórios | projeção requer mudança em EnterprisePatterns | atraso e releases encadeadas | Fase 1 identifica menor dono; fases/gates separados | Mitigado: donos por mudança registrados no Resultado da Fase 1 (DF13-DF16); DF16 amplia a release do SmartProblems |
 
 ---

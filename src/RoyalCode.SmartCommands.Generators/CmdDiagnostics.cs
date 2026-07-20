@@ -455,6 +455,14 @@ internal static class CmdDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor InvalidMapFindByUsage = new(
+        id: "RCCMD056",
+        title: "Invalid use of the MapFindBy attribute",
+        messageFormat: "Invalid use of MapFindByAttribute: {0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> Descriptors =
         new[]
         {
@@ -514,6 +522,7 @@ internal static class CmdDiagnostics
             ConflictingResultStatus,
             InvalidAcceptedRoute,
             ConflictingLocationRoutes,
+            InvalidMapFindByUsage,
         }
         .ToDictionary(descriptor => descriptor.Id, StringComparer.Ordinal);
 
