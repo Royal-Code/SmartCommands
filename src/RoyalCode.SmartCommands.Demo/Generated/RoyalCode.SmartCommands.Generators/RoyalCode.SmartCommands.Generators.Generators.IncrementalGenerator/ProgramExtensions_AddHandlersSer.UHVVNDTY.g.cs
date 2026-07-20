@@ -25,12 +25,14 @@ public static partial class ProgramExtensions
         services.AddTransient<ILiberarReservaEstoqueHandler, LiberarReservaEstoqueHandler<TContext>>();
         services.AddTransient<IRegistrarEstoqueInicialHandler, RegistrarEstoqueInicialHandler<TContext>>();
         services.AddTransient<IReservarEstoqueHandler, ReservarEstoqueHandler<TContext>>();
+        services.AddTransient<IAgendarImportacaoLojaHandler, AgendarImportacaoLojaHandler>();
         services.AddTransient<ICriarLojaHandler, CriarLojaHandler>();
         services.AddTransient<IExcluirLojaHandler, ExcluirLojaHandler>();
         services.AddTransient<IImportarLojaHandler, ImportarLojaHandler>();
         services.AddTransient<IInvalidarCacheLojasHandler, InvalidarCacheLojasHandler>();
         services.AddTransient<IRelatorioLojasHandler, RelatorioLojasHandler>();
         services.AddTransient<IRenomearLojaHandler, RenomearLojaHandler>();
+        services.AddTransient<ISolicitarReindexacaoLojasHandler, SolicitarReindexacaoLojasHandler>();
         services.AddTransient<IRegistrarVisualizacaoHandler, RegistrarVisualizacaoHandler>();
         services.AddTransient<ICancelarPedidoHandler, CancelarPedidoHandler<TContext>>();
         services.AddTransient<ICriarPedidoHandler, CriarPedidoHandler<TContext>>();

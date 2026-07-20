@@ -4,7 +4,13 @@
 `plan-smartcommands-accepted-tryfindby`. Fora do escopo daquele plano; a Fase 3 dele deve
 considerar esta correção ao compartilhar ou espelhar o emissor para `MapAcceptedRoute`.
 
-**Status:** registrado; correção não implementada.
+**Status:** RESOLVIDO em 2026-07-19, junto com a Fase 3. `GenerateCreatedMatchInvoke`
+(`MapInformation.cs`) passou a receber o `ReturnModel` e, quando `returnModel.ValueType is null`
+(comando sem valor, rota necessariamente estática), emite a rota como **string literal**
+(`result.CreatedMatch("rota-estatica")`) em vez de lambda. A mesma lógica de rota é compartilhada
+com o emissor do `MapAcceptedRoute` via os helpers `BuildStaticRouteLiteral`/`BuildRouteInterpolationBody`.
+Regressão coberta pelo teste `MapCreatedRoute_estatica_sem_valor_emite_string_literal_e_compila`
+(compila o código gerado com `AssertOutputCompiles`).
 
 ## Descrição
 

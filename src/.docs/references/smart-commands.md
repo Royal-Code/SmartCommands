@@ -192,11 +192,17 @@ Sem seleção explícita, o generator infere o status conforme verbo e retorno. 
 ```csharp
 [WithResultStatus(HttpResultStatus.Ok)]
 [WithResultStatus(HttpResultStatus.Created)]
+[WithResultStatus(HttpResultStatus.Accepted)]
 [WithResultStatus(HttpResultStatus.NoContent)]
 ```
 
 `Created` pode responder sem `Location`; adicione `MapCreatedRoute("{id}", nameof(Produto.Id))` para construir
-a localização com placeholders nomeados. `NoContent` descarta somente o valor de sucesso de `Result<T>` e
+a localização com placeholders nomeados. `Accepted` (`202`) responde que a requisição foi aceita para
+processamento; a `Location` é **opcional**: `WithResultStatus(Accepted)` sozinho responde sem header, e
+`MapAcceptedRoute("status/{id}", nameof(Ticket.Id))` acrescenta a `Location` (as mesmas regras de placeholders
+do `MapCreatedRoute`). Como a `Location` do `202` é opcional, um comando que retorna `Result` (sem valor) usa
+uma rota estática — `MapAcceptedRoute("status")` — e responde sem corpo. `MapCreatedRoute` e `MapAcceptedRoute`
+são mutuamente exclusivos (RCCMD055). `NoContent` descarta somente o valor de sucesso de `Result<T>` e
 preserva respostas de problema. `MapIdResultValue` e `MapResponseValues` moldam o corpo, mas são mutuamente
 exclusivos.
 

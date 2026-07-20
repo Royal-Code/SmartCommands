@@ -288,14 +288,29 @@ acessíveis. **Correção:** implemente `IEndpointFilter` em uma classe concreta
 consumidor.
 
 ## RCCMD052
-**Uso inválido de `WithResultStatus` (DF23).** O valor não é um `HttpResultStatus` conhecido (`Ok`, `Created`
-ou `NoContent`), ou o atributo foi aplicado a uma classe de `MapFind`/`MapSearch` — ele vale apenas para
-command maps; nas demais superfícies seria ignorado em silêncio. **Correção:** use um valor do enum em um
+**Uso inválido de `WithResultStatus` (DF23).** O valor não é um `HttpResultStatus` conhecido (`Ok`, `Created`,
+`Accepted` ou `NoContent`), ou o atributo foi aplicado a uma classe de `MapFind`/`MapSearch` — ele vale apenas
+para command maps; nas demais superfícies seria ignorado em silêncio. **Correção:** use um valor do enum em um
 comando mapeado por verbo HTTP.
 
 ## RCCMD053
 **Conflito entre o status explícito e um mapeamento de resposta (DF23).** `MapCreatedRoute` implica `Created`
-e não pode ser combinado com `Ok`/`NoContent` explícitos; `NoContent` não pode ser combinado com
-`MapIdResultValue`/`MapResponseValues`, que declaram um corpo de resposta. **Correção:** remova o atributo
-conflitante ou escolha um status compatível — `Created` explícito pode coexistir com `MapCreatedRoute`
-(redundante) e com as projeções de corpo.
+e `MapAcceptedRoute` implica `Accepted`; nenhum pode ser combinado com um `WithResultStatus` de outro status.
+`NoContent` não pode ser combinado com `MapIdResultValue`/`MapResponseValues`, que declaram um corpo de
+resposta. **Correção:** remova o atributo conflitante ou escolha um status compatível — `Created` explícito
+pode coexistir com `MapCreatedRoute` e `Accepted` explícito com `MapAcceptedRoute` (redundantes), inclusive com
+as projeções de corpo.
+
+## RCCMD054
+**Pattern inválido em `MapAcceptedRoute` (DF17/Fase 3).** Segue exatamente as mesmas regras do `MapCreatedRoute`
+(ver [RCCMD050](#rccmd050)): placeholders nomeados casados, sem diferenciar maiúsculas, com as propriedades
+declaradas (prefira `nameof`); constraints/defaults/opcionais/catch-all, duplicações, quantidade divergente,
+placeholder sem propriedade ou propriedade inexistente/não legível são reportados. Como a `Location` do `202`
+é opcional, um comando que retorna `Result` (sem valor) exige uma rota estática, sem placeholders. **Correção:**
+alinhe placeholders e propriedades, por exemplo `[MapAcceptedRoute("status/{id}", nameof(Ticket.Id))]`, ou use
+uma rota estática quando o comando não retorna valor.
+
+## RCCMD055
+**Rotas de `Location` conflitantes (Fase 3).** O comando declara `MapCreatedRoute` e `MapAcceptedRoute` ao mesmo
+tempo. Cada uma implica um status diferente (`201` e `202`) e apenas uma rota de `Location` pode ser gerada.
+**Correção:** mantenha apenas um dos dois atributos.

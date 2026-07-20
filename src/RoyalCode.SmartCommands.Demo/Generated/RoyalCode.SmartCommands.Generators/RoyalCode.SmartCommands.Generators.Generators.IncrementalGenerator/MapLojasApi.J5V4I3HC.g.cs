@@ -17,6 +17,11 @@ public static partial class MapLojasApi
     {
         var group = builder.MapGroup("lojas");
 
+        group.MapPost("/agendamentos", AgendarImportacaoLojaHandleAsync)
+            .WithName("agendar-importacao-loja")
+            .WithSummary("Agendar Importação de Loja")
+            .WithTags("Lojas");
+
         group.MapDelete("/{id:int}", ExcluirLojaHandleAsync)
             .WithName("excluir-loja")
             .Produces(204)
@@ -48,7 +53,26 @@ public static partial class MapLojasApi
             .AddEndpointFilter<global::RoyalCode.SmartCommands.Demo.Filters.FiltroAuditoria>()
             .AddEndpointFilter<global::RoyalCode.SmartCommands.Demo.Filters.FiltroCarimbo>();
 
+        group.MapPost("/reindexacoes", SolicitarReindexacaoLojasHandle)
+            .WithName("solicitar-reindexacao-lojas")
+            .Produces(202)
+            .WithSummary("Solicitar Reindexação de Lojas")
+            .WithTags("Lojas", "Administracao");
+
         return group;
+    }
+
+    [ProduceProblems(ProblemCategory.InvalidParameter)]
+    private static async Task<AcceptedMatch<AgendarImportacaoLojaResponse>> AgendarImportacaoLojaHandleAsync(
+        IAgendarImportacaoLojaHandler handler, 
+        AgendarImportacaoLoja? command, 
+        CancellationToken ct)
+    {
+        if (command is null)
+            return Problems.InvalidParameter("The request body is required.");
+
+        var result = await handler.HandleAsync(command, ct);
+        return new AcceptedMatch<AgendarImportacaoLojaResponse>(result.Match<IResult>(v => TypedResults.Accepted($"lojas/agendamentos/{v.Id}/status", new AgendarImportacaoLojaResponse(v.Id, v.Nome)), static problems => new MatchErrorResult(problems)));
     }
 
     [ProduceProblems(ProblemCategory.NotFound)]
@@ -120,5 +144,14 @@ public static partial class MapLojasApi
 
         var result = await handler.HandleAsync(lojaId, command, ct);
         return (Result)result;
+    }
+
+    private static AcceptedMatch SolicitarReindexacaoLojasHandle(
+        ISolicitarReindexacaoLojasHandler handler)
+    {
+        var command = new SolicitarReindexacaoLojas();
+
+        var result = handler.Handle(command);
+        return result.AcceptedMatch("lojas/reindexacoes/status");
     }
 }

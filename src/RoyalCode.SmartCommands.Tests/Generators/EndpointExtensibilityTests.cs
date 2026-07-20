@@ -753,4 +753,409 @@ public class EndpointExtensibilityTests
         Assert.DoesNotContain(generated, source => source.Contains("WithTags"));
         Assert.DoesNotContain(generated, source => source.Contains("AddEndpointFilter"));
     }
+
+    // ------------------------------------------------------------------
+    // Fase 3: MapAcceptedRoute e WithResultStatus(Accepted) — 202 com Location opcional
+    // ------------------------------------------------------------------
+
+    [Fact]
+    public void MapAcceptedRoute_com_valor_emite_AcceptedMatch_generico_com_Location()
+    {
+        const string code =
+            """
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Phase3.AcceptedRoute;
+
+            public sealed class Ticket
+            {
+                public int Id { get; set; }
+            }
+
+            [MapGroup("tickets")]
+            [MapPost("/", "agendar-ticket")]
+            [MapAcceptedRoute("status/{id}", nameof(Ticket.Id))]
+            public class AgendarTicket
+            {
+                public int Value { get; set; }
+
+                [Command]
+                public Result<Ticket> Execute() => new Ticket { Id = 7 };
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertOutputCompiles(output);
+
+        var generated = GeneratedSources(output);
+        Assert.Contains(generated, source =>
+            source.Contains("AcceptedMatch<Ticket>") &&
+            source.Contains("result.AcceptedMatch(v => $\"tickets/status/{v.Id}\")"));
+    }
+
+    [Fact]
+    public void MapAcceptedRoute_sem_valor_usa_rota_estatica_literal_e_anuncia_202()
+    {
+        const string code =
+            """
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Phase3.AcceptedStaticRoute;
+
+            [MapGroup("envios")]
+            [MapPost("/", "agendar-envio")]
+            [MapAcceptedRoute("status")]
+            public class AgendarEnvio
+            {
+                public int Value { get; set; }
+
+                [Command]
+                public Result Execute() => Result.Ok();
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertOutputCompiles(output);
+
+        var generated = GeneratedSources(output);
+        // plain Result: o overload não-genérico AcceptedMatch(this Result, string?) exige a rota como
+        // string literal (nunca uma lambda); a metadata 202 vazia é anunciada por Produces
+        Assert.Contains(generated, source =>
+            source.Contains("static AcceptedMatch AgendarEnvioHandle(") &&
+            source.Contains("result.AcceptedMatch(\"envios/status\")") &&
+            source.Contains(".Produces(202)"));
+    }
+
+    [Fact]
+    public void MapAcceptedRoute_com_MapIdResultValue_projeta_via_construtor_e_Match()
+    {
+        const string code =
+            """
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Phase3.AcceptedRouteWithId;
+
+            public sealed class Ticket
+            {
+                public int Id { get; set; }
+            }
+
+            [MapGroup("tickets")]
+            [MapPost("/", "agendar-ticket")]
+            [MapAcceptedRoute("status/{id}", nameof(Ticket.Id)), MapIdResultValue]
+            public class AgendarTicket
+            {
+                public int Value { get; set; }
+
+                [Command]
+                public Result<Ticket> Execute() => new Ticket { Id = 7 };
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertOutputCompiles(output);
+
+        // 202 não tem overload de extensão com selector: usa o construtor + Match, formando Location e
+        // projeção do mesmo valor de sucesso
+        Assert.Contains(GeneratedSources(output), source =>
+            source.Contains("AcceptedMatch<int>") &&
+            source.Contains("new AcceptedMatch<int>(result.Match<IResult>(") &&
+            source.Contains("v => TypedResults.Accepted($\"tickets/status/{v.Id}\", v.Id)"));
+    }
+
+    [Fact]
+    public void Accepted_explicito_sem_MapAcceptedRoute_responde_202_sem_Location()
+    {
+        const string code =
+            """
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Phase3.AcceptedStatus;
+
+            public sealed class Ticket
+            {
+                public int Id { get; set; }
+            }
+
+            [MapPost("/tickets", "agendar-ticket")]
+            [WithResultStatus(HttpResultStatus.Accepted)]
+            public class AgendarTicket
+            {
+                public int Value { get; set; }
+
+                [Command]
+                public Result<Ticket> Execute() => new Ticket { Id = 7 };
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertOutputCompiles(output);
+
+        var generated = GeneratedSources(output);
+        // a Location do 202 é opcional: a extensão AcceptedMatch<T>() basta, sem o truque do TypedResults
+        Assert.Contains(generated, source =>
+            source.Contains("AcceptedMatch<Ticket>") &&
+            source.Contains("return result.AcceptedMatch();"));
+    }
+
+    [Fact]
+    public void Accepted_explicito_sem_valor_usa_o_AcceptedMatch_nao_generico()
+    {
+        const string code =
+            """
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Phase3.AcceptedNoValue;
+
+            [MapPost("/tickets", "agendar-ticket")]
+            [WithResultStatus(HttpResultStatus.Accepted)]
+            public class AgendarTicket
+            {
+                public int Value { get; set; }
+
+                [Command]
+                public Result Execute() => Result.Ok();
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertOutputCompiles(output);
+
+        Assert.Contains(GeneratedSources(output), source =>
+            source.Contains("static AcceptedMatch AgendarTicketHandle(") &&
+            source.Contains("return result.AcceptedMatch();") &&
+            source.Contains(".Produces(202)"));
+    }
+
+    [Fact]
+    public void Accepted_explicito_com_MapIdResultValue_projeta_o_id_via_Map_sem_Location()
+    {
+        const string code =
+            """
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Phase3.AcceptedWithId;
+
+            public sealed class Ticket
+            {
+                public int Id { get; set; }
+            }
+
+            [MapPost("/tickets", "agendar-ticket")]
+            [WithResultStatus(HttpResultStatus.Accepted), MapIdResultValue]
+            public class AgendarTicket
+            {
+                public int Value { get; set; }
+
+                [Command]
+                public Result<Ticket> Execute() => new Ticket { Id = 7 };
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertOutputCompiles(output);
+
+        // sem Location, o valor original não é necessário depois da projeção: Map antes, AcceptedMatch depois
+        Assert.Contains(GeneratedSources(output), source =>
+            source.Contains("AcceptedMatch<int>") &&
+            source.Contains("return result.Map(v => v.Id).AcceptedMatch();"));
+    }
+
+    [Theory]
+    [InlineData("status/{id:int}", new[] { "Id" }, "must be a simple name")]
+    [InlineData("status/{id}/{id}", new[] { "Id" }, "occurs more than once")]
+    [InlineData("status/{id}/{extra}", new[] { "Id" }, "placeholder(s)")]
+    [InlineData("status/{missing}", new[] { "Missing" }, "was not found on the returned value type")]
+    public void MapAcceptedRoute_invalido_produz_RCCMD054(string pattern, string[] properties, string reasonFragment)
+    {
+        var propertiesLiteral = string.Join(", ", properties.Select(p => $"\"{p}\""));
+        var code =
+            $$"""
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Phase3.AcceptedInvalid;
+
+            public sealed class Ticket
+            {
+                public int Id { get; set; }
+            }
+
+            [MapGroup("tickets")]
+            [MapPost("/", "agendar-ticket")]
+            [MapAcceptedRoute("{{pattern}}", {{propertiesLiteral}})]
+            public class AgendarTicket
+            {
+                public int Value { get; set; }
+
+                [Command]
+                public Result<Ticket> Execute() => new Ticket { Id = 7 };
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.Contains(diagnostics, d => d.Id == "RCCMD054" &&
+            d.GetMessage().Contains(reasonFragment, StringComparison.Ordinal));
+        Assert.DoesNotContain(diagnostics, d => d.Id == "CS8785");
+        Assert.DoesNotContain(GeneratedSources(output), source => source.Contains("AcceptedMatch"));
+    }
+
+    [Fact]
+    public void MapCreatedRoute_e_MapAcceptedRoute_juntos_produz_RCCMD055()
+    {
+        const string code =
+            """
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Phase3.BothRoutes;
+
+            public sealed class Ticket
+            {
+                public int Id { get; set; }
+            }
+
+            [MapGroup("tickets")]
+            [MapPost("/", "agendar-ticket")]
+            [MapCreatedRoute("{id}", nameof(Ticket.Id))]
+            [MapAcceptedRoute("status/{id}", nameof(Ticket.Id))]
+            public class AgendarTicket
+            {
+                public int Value { get; set; }
+
+                [Command]
+                public Result<Ticket> Execute() => new Ticket { Id = 7 };
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.Contains(diagnostics, d => d.Id == "RCCMD055" &&
+            d.GetMessage().Contains("only one location route", StringComparison.Ordinal));
+        Assert.DoesNotContain(diagnostics, d => d.Id == "CS8785");
+        Assert.DoesNotContain(GeneratedSources(output), source => source.Contains("MapPost("));
+    }
+
+    [Theory]
+    [InlineData("HttpResultStatus.Ok", "MapAcceptedRoute")]
+    [InlineData("HttpResultStatus.Created", "MapAcceptedRoute")]
+    [InlineData("HttpResultStatus.NoContent", "MapAcceptedRoute")]
+    public void Status_explicito_conflita_com_MapAcceptedRoute_produz_RCCMD053(string status, string conflictFragment)
+    {
+        var code =
+            $$"""
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Phase3.AcceptedStatusConflict;
+
+            public sealed class Ticket
+            {
+                public int Id { get; set; }
+            }
+
+            [MapGroup("tickets")]
+            [MapPost("/", "agendar-ticket")]
+            [WithResultStatus({{status}})]
+            [MapAcceptedRoute("status/{id}", nameof(Ticket.Id))]
+            public class AgendarTicket
+            {
+                public int Value { get; set; }
+
+                [Command]
+                public Result<Ticket> Execute() => new Ticket { Id = 7 };
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.Contains(diagnostics, d => d.Id == "RCCMD053" &&
+            d.GetMessage().Contains(conflictFragment, StringComparison.Ordinal));
+        Assert.DoesNotContain(diagnostics, d => d.Id == "CS8785");
+        Assert.DoesNotContain(GeneratedSources(output), source => source.Contains("MapPost("));
+    }
+
+    [Fact]
+    public void MapCreatedRoute_estatica_sem_valor_emite_string_literal_e_compila()
+    {
+        // regressão do defeito latente (issue-mapcreatedroute-result-rota-estatica): uma rota estática de
+        // MapCreatedRoute sobre um comando sem valor de sucesso emitia uma lambda para o overload
+        // não-genérico CreatedMatch(this Result, string), que não compila (CS1660).
+        const string code =
+            """
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Phase3.CreatedStaticNoValue;
+
+            [MapGroup("things")]
+            [MapPost("/", "create-thing")]
+            [MapCreatedRoute("done")]
+            public class CreateThing
+            {
+                public int Value { get; set; }
+
+                [Command]
+                public Result Execute() => Result.Ok();
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertOutputCompiles(output);
+
+        Assert.Contains(GeneratedSources(output), source =>
+            source.Contains("static CreatedMatch CreateThingHandle(") &&
+            source.Contains("result.CreatedMatch(\"things/done\")"));
+    }
 }

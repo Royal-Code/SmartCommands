@@ -1,19 +1,19 @@
 # Plan: `Accepted` e busca por chave alternativa/composta (`smartcommands-accepted-tryfindby`)
 
-## Status: EM EXECUÇÃO - Fases 1-2 concluídas; release do SmartProblems aguardando autorização
+## Status: EM EXECUÇÃO - Fases 1, 2, 3 e 4 concluídas; SmartProblems preview-8.0 e WorkContext 0.10.0 publicados e consumidos
 
 ## Progresso
 
-`██░░░░` **33%** - 2 de 6 fases concluídas
+`████░░` **67%** - 4 de 6 fases concluídas
 
 | Fase | Estado |
 |---|---|
 | Fase 1 - Baseline, viabilidade e decisões de contrato | Concluída em 2026-07-18; evidências no Resultado da Fase 1 |
-| Fase 2 - Resultados HTTP `Accepted` no SmartProblems | Concluída em 2026-07-18 (código no working tree, sem commit); gate de release preparado |
-| Fase 3 - `Accepted` no SmartCommands e no generator | Bloqueada pela release do SmartProblems com `AcceptedMatch` (gate da Fase 2) |
-| Fase 4 - Contrato runtime e adapters de `TryFindBy` | Pronta para iniciar (Fase 1 e DFs 10-16 fechadas); exige antes a extensão no EnterprisePatterns (DF13-DF14) |
-| Fase 5 - Mapeamento `TryFindBy` no generator | Bloqueada pela Fase 4 |
-| Fase 6 - Integração, documentação e preparação de rollout | Bloqueada pelas Fases 2-5 |
+| Fase 2 - Resultados HTTP `Accepted` no SmartProblems | Concluída em 2026-07-18; publicada como `1.0.0-preview-8.0` pelo mantenedor |
+| Fase 3 - `Accepted` no SmartCommands e no generator | Concluída em 2026-07-19; runtime, generator (RCCMD054/055), Demo e docs; 463 testes verdes; issue do emissor estático do `MapCreatedRoute` corrigida |
+| Fase 4 - Contrato runtime e adapters de `TryFindBy` | Concluída em 2026-07-19 (EnterprisePatterns publicado como 0.10.0; contrato e adapters no SmartCommands em working tree) |
+| Fase 5 - Mapeamento `TryFindBy` no generator | Pronta para iniciar (Fase 4 concluída) |
+| Fase 6 - Integração, documentação e preparação de rollout | Bloqueada pela Fase 5 |
 
 > **Manutenção deste plano:** marque uma tarefa com `- [x]` somente depois de verificar seu critério e registrar
 > a evidência em `Resultado da Fase`. Ao concluir uma fase, atualize estado, barra, matriz de rastreabilidade e riscos.
@@ -365,14 +365,14 @@ Assinaturas candidatas (validadas contra a estrutura de `CreatedMatch'0/'1` e `N
 
 **Tarefas:**
 
-- [ ] Adicionar `Accepted` a `HttpResultStatus` e cobrir igualdade/invalidação dos snapshots que carregam o enum.
-- [ ] Criar `MapAcceptedRouteAttribute` com placeholders nomeados e validações equivalentes às invariantes próprias de `MapCreatedRoute`.
-- [ ] Definir e testar os três casos de rota do `MapAcceptedRoute`: `Result` com rota estática (válido, emite `string`), `Result` com placeholders (diagnóstico) e `Result<T>` com placeholders das propriedades de `T`; coordenar com a correção do emissor de `MapCreatedRoute` registrada à parte, ao compartilhar ou espelhar a emissão.
-- [ ] Emitir `AcceptedMatch`/`AcceptedMatch<T>` conforme retorno e `Location`, preservando inferência quando nenhum atributo explícito for usado.
-- [ ] Diagnosticar conflitos com outros status/routes, propriedades ausentes/inacessíveis/incompatíveis e valores de enum desconhecidos sem gerar fonte parcial.
-- [ ] Produzir `.Produces(202)`/metadata tipada coerente e manter a documentação de problemas.
-- [ ] Criar Demo de comando enfileirado sem corpo e com DTO de acompanhamento, ambos com problemas e rota opcional.
-- [ ] Atualizar XML docs, README, `.docs/commands.md`, catálogo RCCMD e AnalyzerReleases.
+- [x] Adicionar `Accepted` a `HttpResultStatus` e cobrir igualdade/invalidação dos snapshots que carregam o enum.
+- [x] Criar `MapAcceptedRouteAttribute` com placeholders nomeados e validações equivalentes às invariantes próprias de `MapCreatedRoute`.
+- [x] Definir e testar os três casos de rota do `MapAcceptedRoute`: `Result` com rota estática (válido, emite `string`), `Result` com placeholders (diagnóstico) e `Result<T>` com placeholders das propriedades de `T`; coordenar com a correção do emissor de `MapCreatedRoute` registrada à parte, ao compartilhar ou espelhar a emissão.
+- [x] Emitir `AcceptedMatch`/`AcceptedMatch<T>` conforme retorno e `Location`, preservando inferência quando nenhum atributo explícito for usado.
+- [x] Diagnosticar conflitos com outros status/routes, propriedades ausentes/inacessíveis/incompatíveis e valores de enum desconhecidos sem gerar fonte parcial.
+- [x] Produzir `.Produces(202)`/metadata tipada coerente e manter a documentação de problemas.
+- [x] Criar Demo de comando enfileirado sem corpo e com DTO de acompanhamento, ambos com problemas e rota opcional.
+- [x] Atualizar XML docs, README, `.docs/commands.md`, catálogo RCCMD e AnalyzerReleases.
 
 **Critérios de aceite:** 202 funciona para `Result` e `Result<T>` com/sem `Location`; conflitos produzem RCCMD localizado sem `CS8785`; runtime e OpenAPI concordam; nenhum tipo de operação é obrigatório; maps/status anteriores não regressam.
 
@@ -380,7 +380,29 @@ Assinaturas candidatas (validadas contra a estrutura de `CreatedMatch'0/'1` e `N
 
 ### Resultado da Fase 3
 
-*a preencher*
+**Concluída em 2026-07-19.** 202 Accepted integrado ao mesmo mecanismo de status da Fase 10, sem caminho paralelo.
+
+**Runtime (`RoyalCode.SmartCommands`):**
+- `HttpResultStatus.Accepted = 202` (`HttpResultStatus.cs`), com XML docs.
+- `MapAcceptedRouteAttribute` (`MapAcceptedRouteAttribute.cs`): ctor `([StringSyntax("Route")] string, params string[])`, docs deixando explícito que a `Location` do 202 é opcional e que `Result` sem valor exige rota estática.
+
+**Generator:**
+- `KnownAttributes.MapAcceptedRoute`; `HttpResultStatusModel.Accepted`; `ReadResultStatus` mapeia `202`.
+- `CmdDiagnostics`: **RCCMD054** (`Invalid MapAcceptedRoute pattern`) e **RCCMD055** (`Conflicting location route attributes`), ambos registrados no dicionário de descritores e no `AnalyzerReleases.Unshipped.md`.
+- `ReadMap` (`CommandHandlerGenerator.cs`): bloco de leitura do `MapAcceptedRoute` espelhando o do `MapCreatedRoute`; `ValidateCreatedRoute` renomeado/parametrizado para **`ValidateLocationRoute(attribute, attributeName, descriptor, …)`** — a mesma validação serve os dois atributos, com mensagem/categoria parametrizadas. RCCMD055 quando ambas as rotas coexistem; RCCMD053 estendido para `Accepted` em ambas as direções.
+- **Threading do snapshot symbol-free:** `CommandEndpointModel` (`PipelineModels.cs`) ganhou o campo `Accepted` (capturado em `Create`, reconstruído em `ToInformation`). *Sem esse campo, a `MapInformation` reconstruída na emissão perdia o `AcceptedInformation` e o endpoint caía no `OkMatch` — bug encontrado e corrigido durante a Fase 3.*
+- Emissão (`MapInformation.cs`): `AcceptedInformation`; `ProducesAccepted`; `DiscoveryReturnType` → `AcceptedMatch`/`AcceptedMatch<T>`; `.Produces(202)` para o 202 sem corpo (metadata vazia descartada pelo ApiExplorer, igual ao 204). Como o `AcceptedMatch` **não** expõe extensão com `selector` (ao contrário do `CreatedMatch`), as projeções `MapIdResultValue`/`MapResponseValues` **com Location** usam o construtor + `Match` (`new AcceptedMatch<T>(result.Match<IResult>(v => TypedResults.Accepted(<loc>, <proj>), static problems => new MatchErrorResult(problems)))`); **sem Location**, `Map` antes + `AcceptedMatch()`.
+
+**Correção do emissor estático do `MapCreatedRoute` (issue registrada):** `GenerateCreatedMatchInvoke` passou a receber `ReturnModel` e, quando o comando não retorna valor (rota estática), emite `result.CreatedMatch("rota")` como **string literal** (antes emitia sempre uma lambda `v => $"…"`, que não compilava no overload não-genérico `CreatedMatch(this Result, string)` — CS1660). Coberto por teste de regressão.
+
+**Demo (`RoyalCode.SmartCommands.Demo`):** `AgendarImportacaoLoja` (`Result<Loja>` + `MapAcceptedRoute` dinâmico + `MapResponseValues` → 202 com Location e corpo projetado) e `SolicitarReindexacaoLojas` (`Result` + `MapAcceptedRoute` estático → 202 com Location fixo, sem corpo).
+
+**Testes (463 verdes, 0 falhas):**
+- Generator (`EndpointExtensibilityTests`, 348 no projeto): emissão positiva (Location dinâmica/estática, sem Location, projeções por Id/Response), RCCMD054 (theory), RCCMD055, RCCMD053 com `MapAcceptedRoute` (theory Ok/Created/NoContent) e regressão do emissor estático do `MapCreatedRoute`. `AssertOutputCompiles` compila o código gerado contra o `AcceptedMatch` real do pacote.
+- Demo.Tests (88): HTTP `202` com Location + corpo projetado e `202` estático sem corpo (`DemoHttpExtensibilityTests`); OpenAPI declara `202` com/sem `content` (`DemoOpenApiTests`).
+- EntityFramework.Tests (27) sem regressão.
+
+**Build:** solução com 0 erros; sem novos avisos vs baseline (apenas os `NU5104` pré-existentes dos pacotes preview pinados).
 
 ---
 
@@ -394,12 +416,12 @@ Assinaturas candidatas (validadas contra a estrutura de `CreatedMatch'0/'1` e `N
 
 **Tarefas:**
 
-- [ ] Definir assinatura(s) de `IRepositoryAccessor<TEntity>` conforme DFs 10-16, com XML docs, nullable correto e `CancellationToken` obrigatório.
-- [ ] Representar múltiplos critérios e dados do `NotFound` sem reflection/string parsing em runtime quando o generator já conhece símbolos.
-- [ ] Implementar adapter EF sobre `TryFindByAsync`/composição/projeção existente, preservando query filters e execução assíncrona no provider.
-- [ ] Implementar adapter WorkContext sobre `IRepository<TEntity>`; a projeção por predicado é adicionada antes no EnterprisePatterns conforme DFs 13-15 (incluindo o alinhamento por ID da DF16), e a release é consumida sem fallback silencioso para materialização rastreada.
-- [ ] Garantir paridade de simples/composta, null, conversões, not found, duplicidade conforme DF12, cancelamento e projeção conforme DF11.
-- [ ] Documentar breaking changes e atualizar todos os fakes/implementações de `IRepositoryAccessor<TEntity>` na solução.
+- [x] Definir assinatura(s) de `IRepositoryAccessor<TEntity>` conforme DFs 10-16, com XML docs, nullable correto e `CancellationToken` obrigatório.
+- [x] Representar múltiplos critérios e dados do `NotFound` sem reflection/string parsing em runtime quando o generator já conhece símbolos.
+- [x] Implementar adapter EF sobre `TryFindByAsync`/composição/projeção existente, preservando query filters e execução assíncrona no provider.
+- [x] Implementar adapter WorkContext sobre `IRepository<TEntity>`; a projeção por predicado é adicionada antes no EnterprisePatterns conforme DFs 13-15 (incluindo o alinhamento por ID da DF16), e a release é consumida sem fallback silencioso para materialização rastreada.
+- [x] Garantir paridade de simples/composta, null, conversões, not found, duplicidade conforme DF12, cancelamento e projeção conforme DF11.
+- [x] Documentar breaking changes e atualizar todos os fakes/implementações de `IRepositoryAccessor<TEntity>` na solução.
 
 **Critérios de aceite:** núcleo permanece provider-agnostic; EF e WorkContext observam o mesmo contrato e resultado; não há N+1/materialização de coleção; projeção não expõe entidade conforme DF11; cancelamento e problemas são idênticos; APIs públicas possuem XML docs e validação.
 
@@ -407,7 +429,32 @@ Assinaturas candidatas (validadas contra a estrutura de `CreatedMatch'0/'1` e `N
 
 ### Resultado da Fase 4
 
-*a preencher*
+**Resultado parcial (2026-07-19) — pré-requisito no EnterprisePatterns concluído.** Repositório EnterprisePatterns (`releases/unit-of-work` @ `4f5ad89` + working tree; nada commitado), consumindo `SmartProblems 1.0.0-preview-8.0` publicado pelo mantenedor. As tarefas do lado SmartCommands permanecem abertas e dependem da release do pacote de persistência.
+
+**Entregas no EnterprisePatterns:**
+
+- **DF13 — `IFinder<TEntity>` ampliado (breaking):** `Task<FindResult<TDto>> FindAsync<TDto>(Expression<Func<TEntity, bool>> filter, IReadOnlyList<FindCriterion> criteria, CancellationToken ct = default)` como método abstrato novo; a sobrecarga de conveniência (DF14, sem `criteria`) é **default interface method** delegando à `FindCriteriaExtractor` — implementadores externos de `IRepository<TEntity>` precisam implementar somente a variante explícita. Breaking documentado para o rollout do pacote.
+- **`SelectDto<TEntity, TDto>`** (novo) generaliza a resolução/cache do seletor via `ISelectorFactory` com `GetSelector`/`Select`/`SelectWhere`; `SelectDtoById` passou a delegar, preservando sua API pública.
+- **Repository EF:** ambas as sobrecargas implementadas com `Where(filter).Select(selector).FirstOrDefaultAsync(ct)` no provider e `FindResult<TDto>.ProjectedFrom<TEntity>` (DF15); a conveniência analisa a expressão **somente no miss** (paridade com `TryFindByAsync` do SmartProblems EF).
+- **DF16 — caminho por ID alinhado:** `EFExtensions.TryFindAsync<TEntity, TDto, TId>` agora usa `FindResult<TDto, TId>.ProjectedFrom<TEntity>(dto, id.Value)`; o `NotFound` nomeia a entidade (mudança de mensagem para a nota de release).
+- **`WorkContextExtensions`:** forwarders novos `FindAsync<TEntity, TDto>(filter[, criteria], ct)` para paridade da borda `IWorkContext`.
+- **Correções colaterais:** (a) `Repositories.Abstractions` recebeu referência direta `RoyalCode.SmartProblems $(ProbVer)` — antes o pacote vinha transitivo (preview-7) via SmartValidations, o que quebrava o build com a nova API; (b) o projeto órfão `RoyalCode.Commands.Tests` (fontes referenciando projetos `Commands` removidos) foi retirado da solução, sanando a falha pré-existente do baseline.
+
+**Verificação:** build da solução completa com 0 erros e somente warnings pré-existentes (NU1903 `Microsoft.OpenApi`, NU5104 estável→preview); `Persistence.Tests` **34/34** (21 baseline + 13 novos) e `OperationHint.Tests` 12/12. Testes novos (`FindDtoByFilterTests`): chave simples, criteria explícitos, composta com `NotFound` nomeando `Person` e critérios na ordem declarada, conveniência com extração best-effort e degradação em `||`, valor nullable, duplicata via `FirstOrDefault`, cancelamento propagado, query filter global preservado, `ChangeTracker` vazio, SQL com consulta única projetando apenas colunas do DTO (`ToQueryString`), seletor ausente com erro claro e DF16 por ID nomeando a entidade. Nota de teste: o modelo do `DefaultDbContext` é cacheado pelo EF entre containers com opções idênticas — o cenário de query filter usa um `DbContext` de teste próprio para não herdar o modelo cacheado (pegadinha pré-existente da infraestrutura `AddSqliteInMemoryWorkContextDefault`, registrada aqui como aviso operacional).
+
+**Gate:** release do pacote de persistência (breaking do `IFinder<TEntity>`; `PersistVer` atual 0.9.0 — nova versão a definir pelo mantenedor) aguardando autorização; após publicada e o `WorkContextVer` do SmartCommands atualizado, as tarefas restantes desta fase (contrato `IRepositoryAccessor<TEntity>` e adapters) podem prosseguir.
+
+---
+
+**Conclusão da fase (2026-07-19) — lado SmartCommands.** Gate cumprido pelo mantenedor: EnterprisePatterns publicado como **WorkContext 0.10.0** e SmartCommands atualizado (`WorkContextVer 0.10.0`, `SmartProblemsVer 1.0.0-preview-8.0` no `Directory.Build.props`).
+
+- **`IRepositoryAccessor<TEntity>` (breaking):** novo método `FindEntityAsync<TDto>(Expression<Func<TEntity, bool>> filter, IReadOnlyList<FindCriterion> criteria, CancellationToken ct)` — somente a variante explícita, conforme DF14 (o generator sempre conhece os critérios); XML docs completas; nenhum tipo EF/`IQueryable`/SmartSearch no contrato (DF6 preservada).
+- **Adapter EF (`RepositoryAdapter<TEntity, TContext>`):** método abstrato novo seguindo o padrão existente do DTO-por-ID (a projeção é conhecimento da aplicação neste pacote), mais um **helper protegido** `FindEntityAsync<TDto>(filter, criteria, selector, ct)` que executa `Where(filter).Select(selector).FirstOrDefaultAsync(ct)` no provider (consulta única, sem tracking, query filters preservados por partir de `Context.Set<TEntity>()`) e retorna `FindResult<TDto>.ProjectedFrom<TEntity>` (DF15).
+- **Adapter WorkContext (interno):** delega a `IRepository<TEntity>.FindAsync<TDto>(filter, criteria, ct)` da release 0.10.0 — sem fallback para materialização.
+- **Implementadores atualizados:** varredura na solução encontrou apenas o adapter interno do WorkContext e a subclasse de teste `GadgetRepository` (EF tests); ambos atualizados. O Demo consome via DI do pacote WorkContext, sem subclasses próprias.
+- **Testes:** `EntityFramework.Tests` 27/27 (3 novos em `RepositoryAdapterTests`: projeção por predicado sem tracking, `NotFound` nomeando `Gadget` com critérios na ordem declarada, cancelamento propagado); `Demo.Tests` 86/86 (3 novos em `RepositoryAccessorFindByFilterTests` exercitando o adapter WorkContext ponta a ponta pela DI da Demo com SQLite: encontrado, `NotFound` nomeando `Produto` e cancelamento); `Tests` 333/333 inalterados. Paridade de duplicata/null/query filter/SQL-único já comprovada na suíte do EnterprisePatterns (13 testes) para o mesmo caminho consumido pelo adapter WorkContext.
+- **Build:** `SmartCommands.sln` Release com 0 erros e os mesmos 3 warnings NU5104 únicos do baseline (apenas as versões preview nas mensagens mudaram).
+- **Docs:** `.docs/entity-framework.md` atualizado com a nova operação e o helper do adapter EF. Breaking change do `IRepositoryAccessor<TEntity>` documentada aqui para a nota de release do SmartCommands.
 
 ---
 
@@ -514,14 +561,14 @@ Assinaturas candidatas (validadas contra a estrutura de `CreatedMatch'0/'1` e `N
 
 | Risco | Gatilho | Impacto | Mitigação | Estado |
 |---|---|---|---|---|
-| 202 sugerir processamento concluído | endpoint usa `Accepted` para operação síncrona finalizada | contrato HTTP enganoso | documentação/cenário de fila e escolha explícita por atributo | Aberto |
-| `Location` insegura ou inválida | concatenação direta de valores de rota | header incorreto/injeção | placeholders nomeados, formatação/escape e testes de valores especiais | Aberto |
+| 202 sugerir processamento concluído | endpoint usa `Accepted` para operação síncrona finalizada | contrato HTTP enganoso | documentação/cenário de fila e escolha explícita por atributo | Mitigado na Fase 3: 202 exige atributo explícito (`WithResultStatus(Accepted)`/`MapAcceptedRoute`), documentado e demonstrado (Demo de agendamento/reindexação) |
+| `Location` insegura ou inválida | concatenação direta de valores de rota | header incorreto/injeção | placeholders nomeados, formatação/escape e testes de valores especiais | Mitigado na Fase 3: placeholders nomeados validados (RCCMD054), rota escapada por `SymbolDisplay.FormatLiteral`, HTTP testa o header (dinâmico e estático) |
 | Pacotes dessincronizados | SmartCommands consome match/adapter ainda não publicado | restore/build quebrado | ordem de rollout e PackageReference pinado; aguardar confirmação humana | Aberto |
 | Abstração de busca vazar EF | `FindCriteria`/`IQueryable` entra no núcleo | acoplamento e adapter WorkContext artificial | DF6 e revisão de API na Fase 4 | Aberto |
 | Projeção causar materialização rastreada | adapter busca entidade e mapeia em memória | custo, tracking e exposição de dados | DF11, SQL/projeção testada e evolução no dono correto | Aberto; sonda da Fase 1 comprovou o caminho sem tracking e com SELECT restrito ao DTO |
 | Chave duplicada passar silenciosamente | DF12 e banco sem unique constraint | resultado possivelmente não determinístico | documentar invariante, recomendar constraint e teste de comportamento | Aceito por decisão; mitigar por documentação e constraint |
 | SmartSearch ser adotado por conveniência | tipo de filtro parece reutilizável | dependências/ciclo e escopo excessivos | DF5; exigir evidência e decisão nova | Fechado na Fase 1: evidência registrada, nenhuma dependência introduzida |
-| Generator regredir incrementalidade | novo modelo carrega símbolo/array mutável | cache incorreto e retenção | snapshots/EquatableArray e tracked-step tests | Aberto |
+| Generator regredir incrementalidade | novo modelo carrega símbolo/array mutável | cache incorreto e retenção | snapshots/EquatableArray e tracked-step tests | Mitigado na Fase 3: o novo campo `Accepted` do `CommandEndpointModel` é `MapCreatedModel`/`EquatableArray` symbol-free; suíte do generator (348, incl. `PipelineCachingTests`) verde |
 | Escopo atravessar muitos repositórios | projeção requer mudança em EnterprisePatterns | atraso e releases encadeadas | Fase 1 identifica menor dono; fases/gates separados | Mitigado: donos por mudança registrados no Resultado da Fase 1 (DF13-DF16); DF16 amplia a release do SmartProblems |
 
 ---

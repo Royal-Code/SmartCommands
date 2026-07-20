@@ -1615,6 +1615,7 @@ internal static class CommandHandlerGenerator
         string? groupName = null;
         string[]? authorizationPolicies = null;
         MapCreatedInformation? createdInformation = null;
+        MapCreatedInformation? acceptedInformation = null;
         TypeDescriptor? idResultValueType = null;
         MapResponseValuesInformation? responseValues = null;
 
@@ -1769,8 +1770,10 @@ internal static class CommandHandlerGenerator
 
             // DF17: somente placeholders nomeados, casados sem diferenciar maiúsculas com as propriedades
             // declaradas; quantidade, nome, duplicação e propriedade incompatível são diagnosticados
-            ValidateCreatedRoute(
+            ValidateLocationRoute(
                 createdRouteAttr!,
+                "MapCreatedRoute",
+                CmdDiagnostics.InvalidCreatedRoute,
                 createdRoutePattern,
                 propertiesNames,
                 valueReturnType,
@@ -1779,6 +1782,61 @@ internal static class CommandHandlerGenerator
                 cancellationToken);
 
             createdInformation = new MapCreatedInformation(createdRoutePattern, propertiesNames);
+        }
+
+        // tenta obter MapAcceptedRoute — mesma forma do MapCreatedRoute (route pattern, params propriedades);
+        // a Location do 202 é opcional, e um comando sem valor de sucesso exige rota estática (RCCMD054)
+        if (KnownAttributes.TryGet(commandType, KnownAttributes.MapAcceptedRoute, out var acceptedRouteAttr))
+        {
+            if (acceptedRouteAttr!.ConstructorArguments.Length == 0 ||
+                acceptedRouteAttr.ConstructorArguments[0].Kind == TypedConstantKind.Error)
+                return null;
+
+            var acceptedRoutePattern = KnownAttributes.GetString(acceptedRouteAttr.ConstructorArguments[0]);
+            if (acceptedRoutePattern is null)
+            {
+                AddInvalidEndpointMetadataDiagnostic(
+                    acceptedRouteAttr, "MapAcceptedRoute", "a non-null route pattern", method, errors, cancellationToken);
+                return null;
+            }
+
+            string[] acceptedPropertiesNames = [];
+            if (acceptedRouteAttr.ConstructorArguments.Length > 1)
+            {
+                var propertiesArgument = acceptedRouteAttr.ConstructorArguments[1];
+                if (propertiesArgument.Kind == TypedConstantKind.Error)
+                    return null;
+                if (!KnownAttributes.TryGetStrings(propertiesArgument, out acceptedPropertiesNames))
+                {
+                    AddInvalidEndpointMetadataDiagnostic(
+                        acceptedRouteAttr, "MapAcceptedRoute", "a non-null array of property names", method, errors,
+                        cancellationToken);
+                    return null;
+                }
+            }
+
+            ValidateLocationRoute(
+                acceptedRouteAttr!,
+                "MapAcceptedRoute",
+                CmdDiagnostics.InvalidAcceptedRoute,
+                acceptedRoutePattern,
+                acceptedPropertiesNames,
+                valueReturnType,
+                method,
+                errors,
+                cancellationToken);
+
+            acceptedInformation = new MapCreatedInformation(acceptedRoutePattern, acceptedPropertiesNames);
+        }
+
+        // as duas rotas de Location são mutuamente exclusivas: cada uma implica um status diferente
+        if (createdInformation is not null && acceptedInformation is not null)
+        {
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.ConflictingLocationRoutes,
+                attributeLocation,
+                commandType.Name));
+            return null;
         }
 
         // MapIdResultValue e MapResponseValues são mapeamentos de resposta mutuamente exclusivos;
@@ -1916,8 +1974,9 @@ internal static class CommandHandlerGenerator
         }
 
         // DF23: conflitos entre o status explícito e os mapeamentos de resposta são erro, nunca prioridade
-        // silenciosa — MapCreatedRoute implica Created; NoContent não pode declarar corpo de resposta.
-        if (resultStatus is HttpResultStatusModel.Ok or HttpResultStatusModel.NoContent &&
+        // silenciosa — MapCreatedRoute implica Created; MapAcceptedRoute implica Accepted; NoContent não
+        // pode declarar corpo de resposta.
+        if (resultStatus is HttpResultStatusModel.Ok or HttpResultStatusModel.Accepted or HttpResultStatusModel.NoContent &&
             createdInformation is not null)
         {
             errors.Add(DiagnosticInfo.Create(
@@ -1925,6 +1984,17 @@ internal static class CommandHandlerGenerator
                 GetResultStatusLocation(commandType, cancellationToken, attributeLocation),
                 resultStatus.ToString()!,
                 "MapCreatedRoute, which implies Created"));
+            return null;
+        }
+
+        if (resultStatus is HttpResultStatusModel.Ok or HttpResultStatusModel.Created or HttpResultStatusModel.NoContent &&
+            acceptedInformation is not null)
+        {
+            errors.Add(DiagnosticInfo.Create(
+                CmdDiagnostics.ConflictingResultStatus,
+                GetResultStatusLocation(commandType, cancellationToken, attributeLocation),
+                resultStatus.ToString()!,
+                "MapAcceptedRoute, which implies Accepted"));
             return null;
         }
 
@@ -1950,6 +2020,7 @@ internal static class CommandHandlerGenerator
             Summary = summary,
             GroupName = groupName,
             CreatedInformation = createdInformation,
+            AcceptedInformation = acceptedInformation,
             IdResultValueType = idResultValueType,
             ResponseValues = responseValues,
             AuthorizationPolicies = authorizationPolicies,
@@ -1969,12 +2040,16 @@ internal static class CommandHandlerGenerator
             : fallback;
 
     /// <summary>
-    /// DF17: valida o pattern do <c>MapCreatedRoute</c> — somente placeholders nomeados simples, sem
-    /// duplicação, na mesma quantidade das propriedades declaradas, cada placeholder casando (sem diferenciar
-    /// maiúsculas) com uma propriedade legível existente no tipo de valor retornado.
+    /// DF17: valida o pattern de uma rota de Location (<c>MapCreatedRoute</c> ou <c>MapAcceptedRoute</c>) —
+    /// somente placeholders nomeados simples, sem duplicação, na mesma quantidade das propriedades declaradas,
+    /// cada placeholder casando (sem diferenciar maiúsculas) com uma propriedade legível existente no tipo de
+    /// valor retornado. O <paramref name="attributeName"/> e o <paramref name="descriptor"/> parametrizam a
+    /// mensagem e a categoria do diagnóstico para cada atributo.
     /// </summary>
-    private static void ValidateCreatedRoute(
+    private static void ValidateLocationRoute(
         AttributeData attribute,
+        string attributeName,
+        DiagnosticDescriptor descriptor,
         string routePattern,
         string[] propertiesNames,
         ITypeSymbol? valueReturnType,
@@ -1986,7 +2061,7 @@ internal static class CommandHandlerGenerator
         var placeholders = RoutePatternParser.Parse(routePattern);
 
         void Fail(string reason) =>
-            errors.Add(DiagnosticInfo.Create(CmdDiagnostics.InvalidCreatedRoute, location, routePattern, reason));
+            errors.Add(DiagnosticInfo.Create(descriptor, location, routePattern, reason));
 
         foreach (var placeholder in placeholders)
         {
@@ -2023,7 +2098,7 @@ internal static class CommandHandlerGenerator
             if (!propertiesNames.Any(name => string.Equals(name, placeholder.Name, StringComparison.OrdinalIgnoreCase)))
             {
                 Fail($"the placeholder '{{{placeholder.Name}}}' does not match any declared property; " +
-                    "MapCreatedRoute uses named placeholders (e.g. \"{id}\") matched, case-insensitively, " +
+                    $"{attributeName} uses named placeholders (e.g. \"{{id}}\") matched, case-insensitively, " +
                     "to properties declared with nameof");
             }
         }

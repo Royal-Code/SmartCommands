@@ -27,6 +27,15 @@ public enum HttpResultStatus
     Created = 201,
 
     /// <summary>
+    ///     <c>202 Accepted</c>: the request was accepted for processing, but the processing has not been
+    ///     completed. A <c>Result</c> responds without a body; a <c>Result&lt;T&gt;</c> responds with the
+    ///     success value as the body. The <c>Location</c> header is produced only when the command also
+    ///     declares <see cref="MapAcceptedRouteAttribute"/>. Problems are always preserved and produce
+    ///     their regular status codes.
+    /// </summary>
+    Accepted = 202,
+
+    /// <summary>
     ///     <c>204 No Content</c>: the success value of a <c>Result&lt;T&gt;</c> is deliberately discarded and
     ///     the response has no body. Problems are always preserved and produce their regular status codes.
     /// </summary>

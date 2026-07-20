@@ -439,6 +439,22 @@ internal static class CmdDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor InvalidAcceptedRoute = new(
+        id: "RCCMD054",
+        title: "Invalid MapAcceptedRoute pattern",
+        messageFormat: "The MapAcceptedRoute pattern '{0}' is invalid: {1}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor ConflictingLocationRoutes = new(
+        id: "RCCMD055",
+        title: "Conflicting location route attributes",
+        messageFormat: "The command type '{0}' declares both MapCreatedRoute and MapAcceptedRoute; use only one location route",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> Descriptors =
         new[]
         {
@@ -496,6 +512,8 @@ internal static class CmdDiagnostics
             InvalidEndpointFilter,
             InvalidResultStatus,
             ConflictingResultStatus,
+            InvalidAcceptedRoute,
+            ConflictingLocationRoutes,
         }
         .ToDictionary(descriptor => descriptor.Id, StringComparer.Ordinal);
 

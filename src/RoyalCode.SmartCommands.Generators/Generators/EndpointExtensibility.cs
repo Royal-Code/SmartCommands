@@ -13,6 +13,7 @@ internal enum HttpResultStatusModel
 {
     Ok,
     Created,
+    Accepted,
     NoContent,
 }
 
@@ -161,11 +162,12 @@ internal static class EndpointExtensibility
             return null; // argumento não constante/incompleto: o compilador já reporta (DF9)
         }
 
-        // o valor do enum público usa os códigos HTTP (200/201/204)
+        // o valor do enum público usa os códigos HTTP (200/201/202/204)
         return attribute.ConstructorArguments[0].Value switch
         {
             200 => HttpResultStatusModel.Ok,
             201 => HttpResultStatusModel.Created,
+            202 => HttpResultStatusModel.Accepted,
             204 => HttpResultStatusModel.NoContent,
             _ => Unknown(),
         };
@@ -175,7 +177,7 @@ internal static class EndpointExtensibility
             errors.Add(DiagnosticInfo.Create(
                 CmdDiagnostics.InvalidResultStatus,
                 location,
-                "the value is not a known HttpResultStatus (Ok, Created or NoContent)"));
+                "the value is not a known HttpResultStatus (Ok, Created, Accepted or NoContent)"));
             return null;
         }
     }

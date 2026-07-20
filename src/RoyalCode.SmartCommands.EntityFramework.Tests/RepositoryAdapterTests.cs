@@ -26,6 +26,23 @@ public class RepositoryAdapterTests
 
             return new FindResult<TDto, TId>((TDto)(object)new GadgetNome { Nome = gadget.Nome }, id.Value);
         }
+
+        public override Task<FindResult<TDto>> FindEntityAsync<TDto>(
+            System.Linq.Expressions.Expression<Func<Gadget, bool>> filter,
+            IReadOnlyList<FindCriterion> criteria,
+            CancellationToken ct)
+        {
+            // o teste projeta somente para GadgetNome; o helper protegido executa a
+            // consulta única no provider e gera o NotFound nomeando a entidade
+            System.Linq.Expressions.Expression<Func<Gadget, GadgetNome>> selector =
+                g => new GadgetNome { Nome = g.Nome };
+
+            return FindEntityAsync(
+                filter,
+                criteria,
+                (System.Linq.Expressions.Expression<Func<Gadget, TDto>>)(object)selector,
+                ct);
+        }
     }
 
     [Fact]
@@ -90,5 +107,61 @@ public class RepositoryAdapterTests
     public void Contexto_nulo_lanca_argumentnull()
     {
         Assert.Throws<ArgumentNullException>(() => new GadgetRepository(null!));
+    }
+
+    [Fact]
+    public async Task Projecao_por_predicado_encontra_e_projeta()
+    {
+        using var database = new SqliteDatabase();
+        database.SeedGadget("g1");
+
+        using var db = database.CreateContext();
+        var repository = new GadgetRepository(db);
+
+        var found = await repository.FindEntityAsync<GadgetNome>(
+            g => g.Nome == "g1",
+            [new FindCriterion(nameof(Gadget.Nome), "g1")],
+            CancellationToken.None);
+
+        Assert.False(found.NotFound(out _));
+        Assert.Equal("g1", found.Entity!.Nome);
+        Assert.Empty(db.ChangeTracker.Entries());
+    }
+
+    [Fact]
+    public async Task Projecao_por_predicado_notfound_nomeia_a_entidade_com_criterios_na_ordem()
+    {
+        using var database = new SqliteDatabase();
+
+        using var db = database.CreateContext();
+        var repository = new GadgetRepository(db);
+
+        var found = await repository.FindEntityAsync<GadgetNome>(
+            g => g.Nome == "nope" && g.Versao == 7,
+            [new FindCriterion(nameof(Gadget.Nome), "nope"), new FindCriterion(nameof(Gadget.Versao), 7)],
+            CancellationToken.None);
+
+        Assert.True(found.NotFound(out var problem));
+        Assert.Equal(ProblemCategory.NotFound, problem!.Category);
+        Assert.Equal("The record of 'Gadget' with Nome 'nope', Versao '7' was not found", problem.Detail);
+        Assert.Equal(nameof(Gadget), problem.Extensions!["entity"]);
+    }
+
+    [Fact]
+    public async Task Projecao_por_predicado_propaga_cancelamento()
+    {
+        using var database = new SqliteDatabase();
+        database.SeedGadget("g1");
+
+        using var db = database.CreateContext();
+        var repository = new GadgetRepository(db);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            repository.FindEntityAsync<GadgetNome>(
+                g => g.Nome == "g1",
+                [new FindCriterion(nameof(Gadget.Nome), "g1")],
+                cts.Token));
     }
 }

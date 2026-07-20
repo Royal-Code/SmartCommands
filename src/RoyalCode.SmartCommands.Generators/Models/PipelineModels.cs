@@ -270,6 +270,7 @@ internal sealed record CommandEndpointModel(
     string? Description,
     string? Summary,
     MapCreatedModel? Created,
+    MapCreatedModel? Accepted,
     TypeSnapshot? IdResultValueType,
     MapResponseValuesModel? ResponseValues,
     bool RequiresAuthorization,
@@ -306,6 +307,11 @@ internal sealed record CommandEndpointModel(
             : new MapCreatedModel(
                 information.CreatedInformation.RoutePattern,
                 new EquatableArray<string>(information.CreatedInformation.PropertiesNames)),
+        information.AcceptedInformation is null
+            ? null
+            : new MapCreatedModel(
+                information.AcceptedInformation.RoutePattern,
+                new EquatableArray<string>(information.AcceptedInformation.PropertiesNames)),
         information.IdResultValueType is null ? null : TypeSnapshot.Create(information.IdResultValueType),
         information.ResponseValues is null
             ? null
@@ -332,6 +338,9 @@ internal sealed record CommandEndpointModel(
             CreatedInformation = Created is null
                 ? null
                 : new MapCreatedInformation(Created.RoutePattern, Created.PropertyNames.ToArray()),
+            AcceptedInformation = Accepted is null
+                ? null
+                : new MapCreatedInformation(Accepted.RoutePattern, Accepted.PropertyNames.ToArray()),
             IdResultValueType = IdResultValueType is null
                 ? null
                 : PipelineModelConversions.ToDescriptor(IdResultValueType),

@@ -82,6 +82,47 @@ public class DemoHttpExtensibilityTests
 	}
 
 	[Fact]
+	public async Task Accepted_com_MapAcceptedRoute_responde_202_com_Location_e_corpo_projetado()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var accepted = await client.PostAsJsonAsync("/lojas/agendamentos", new
+		{
+			Nome = "Loja Agendada",
+			Endereco = "Rua E, 5"
+		});
+
+		// 202 com Location montado a partir do valor de sucesso e corpo projetado por MapResponseValues
+		Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+
+		var body = await accepted.Content.ReadApiJsonAsync<LojaResponse>();
+		Assert.NotNull(body);
+		Assert.True(body.Id > 0);
+		Assert.Equal("Loja Agendada", body.Nome);
+
+		Assert.NotNull(accepted.Headers.Location);
+		Assert.Equal($"lojas/agendamentos/{body.Id}/status", accepted.Headers.Location!.OriginalString);
+	}
+
+	[Fact]
+	public async Task Accepted_com_rota_estatica_e_Result_responde_202_com_Location_fixo_sem_corpo()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var accepted = await client.PostAsJsonAsync("/lojas/reindexacoes", new { });
+
+		// 202 sem corpo (Result sem valor) e com Location estático
+		Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+		Assert.Equal(0, accepted.Content.Headers.ContentLength ?? 0);
+		Assert.NotNull(accepted.Headers.Location);
+		Assert.Equal("lojas/reindexacoes/status", accepted.Headers.Location!.OriginalString);
+	}
+
+	[Fact]
 	public async Task Ok_explicito_sobrescreve_a_inferencia_de_NoContent_do_Delete()
 	{
 		using var app = new DemoApiFactory();

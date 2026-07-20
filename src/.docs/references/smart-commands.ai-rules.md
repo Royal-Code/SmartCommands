@@ -29,8 +29,9 @@ referenciado como analyzer.
 7. `[WithTransaction]` exige uma unidade de trabalho e apenas força transação; não a desliga.
 8. `[WithRetryOnConcurrency]` exige `WithWorkContext`. Validators adicionais executam uma vez, antes do retry.
 9. Não use simultaneamente `MapIdResultValue` e `MapResponseValues`.
-10. `MapCreatedRoute` usa placeholders nomeados, como `"{id}"`, casados com propriedades declaradas por
-    `nameof`; o formato posicional `"{0}"` é inválido.
+10. `MapCreatedRoute` e `MapAcceptedRoute` usam placeholders nomeados, como `"{id}"`, casados com propriedades
+    declaradas por `nameof`; o formato posicional `"{0}"` é inválido. Os dois são mutuamente exclusivos
+    (RCCMD055) e a `Location` do `202` é opcional (rota estática ou nenhuma para comandos sem valor).
 11. `WithResultStatus` vale somente para command maps. Find/Search mantêm seus contratos próprios.
 12. Código que recebe RCCMD deve corrigir a declaração; não contorne o generator nem edite `.g.cs`.
 
@@ -97,9 +98,11 @@ internal Task<Result> ExecutarAsync(
 - Grupo: `MapGroup`; sem ele, não há prefixo implícito.
 - Metadata: `WithSummary`, `WithDescription`, `WithAuthorization`, `WithPolicy`, `WithTags`.
 - Filtros: `WithEndpointFilter<TFilter>` repetível; ordem declarada é preservada.
-- Status explícito: `WithResultStatus(HttpResultStatus.Ok|Created|NoContent)`.
+- Status explícito: `WithResultStatus(HttpResultStatus.Ok|Created|Accepted|NoContent)`.
 - `NoContent` pode descartar o valor de sucesso de `Result<T>`, mas nunca descarta problemas.
 - `Created` sem `MapCreatedRoute` responde 201 sem `Location`; use `MapCreatedRoute` para produzir `Location`.
+- `Accepted` responde 202; a `Location` é opcional — `MapAcceptedRoute` a produz (rota estática quando o
+  comando retorna `Result` sem valor); `Result` sem valor responde 202 sem corpo.
 
 ## 6. Registro
 

@@ -27,6 +27,13 @@ internal sealed class MapInformation : IEquatable<MapInformation>
 
     public MapCreatedInformation? CreatedInformation { get; set; }
 
+    /// <summary>
+    /// A rota de Location do <c>MapAcceptedRoute</c> (DF17/Fase 3); reusa a estrutura de
+    /// <see cref="MapCreatedInformation"/>. Mutuamente exclusiva com <see cref="CreatedInformation"/>
+    /// (RCCMD055). <see langword="null"/> quando o comando não declara Location de 202.
+    /// </summary>
+    public MapCreatedInformation? AcceptedInformation { get; set; }
+
     public TypeDescriptor? IdResultValueType { get; set; }
 
     public bool MapIdResultValue => IdResultValueType is not null;
@@ -67,6 +74,7 @@ internal sealed class MapInformation : IEquatable<MapInformation>
             Summary == other.Summary &&
             GroupName == other.GroupName &&
             Equals(CreatedInformation, other.CreatedInformation) &&
+            Equals(AcceptedInformation, other.AcceptedInformation) &&
             Equals(IdResultValueType, other.IdResultValueType) &&
             Equals(ResponseValues, other.ResponseValues) &&
             EditRouteParameterName == other.EditRouteParameterName &&
@@ -94,6 +102,7 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         hashCode = hashCode * -1521134295 + (Summary?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (GroupName?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (CreatedInformation?.GetHashCode() ?? 0);
+        hashCode = hashCode * -1521134295 + (AcceptedInformation?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (IdResultValueType?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (ResponseValues?.GetHashCode() ?? 0);
         hashCode = hashCode * -1521134295 + (EditRouteParameterName?.GetHashCode() ?? 0);
@@ -127,7 +136,8 @@ internal sealed class MapInformation : IEquatable<MapInformation>
             this,
             handlerMethodName,
             withOpenApi,
-            ProducesNoContent(this, returnModel));
+            ProducesNoContent(this, returnModel),
+            ProducesAccepted(this) && returnModel.ValueType is null);
         var invokeCommand = new Command(methodInvoke);
         commands.Add(invokeCommand);
 
@@ -164,11 +174,22 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         mapInfo.CreatedInformation is not null ||
         mapInfo.ResultStatus == HttpResultStatusModel.Created;
 
+    /// <summary>
+    /// O endpoint responde 202 Accepted: <c>MapAcceptedRoute</c> (com Location, opcional) ou seleção
+    /// explícita (DF23, sem Location). Diferentemente do 201, a Location do 202 é opcional. Conflitos com
+    /// <c>Ok</c>/<c>Created</c>/<c>NoContent</c> e com <c>MapCreatedRoute</c> são diagnosticados no transform
+    /// (RCCMD053/RCCMD055) e não chegam aqui.
+    /// </summary>
+    private static bool ProducesAccepted(MapInformation mapInfo) =>
+        mapInfo.AcceptedInformation is not null ||
+        mapInfo.ResultStatus == HttpResultStatusModel.Accepted;
+
     private static MethodInvokeGenerator GenerateMapMethodInvoke(
         MapInformation mapInfo,
         string handlerMethodName,
         bool withOpenApi,
-        bool producesNoContent)
+        bool producesNoContent,
+        bool producesBodylessAccepted)
     {
         // os valores vêm dos TypedConstants (sem aspas); a emissão os formata como literais C#
         var methodInvoke = new MethodInvokeGenerator("group", $"Map{mapInfo.HttpMethod}");
@@ -186,6 +207,16 @@ internal sealed class MapInformation : IEquatable<MapInformation>
             // a metadata 204 do NoContentMatch não declara content-type e é descartada pelo ApiExplorer;
             // o Produces explícito garante a resposta de sucesso no OpenAPI
             methodInvoke = new MethodInvokeGenerator(methodInvoke, "Produces", "204")
+            {
+                LineIdent = true
+            };
+        }
+
+        if (producesBodylessAccepted)
+        {
+            // o AcceptedMatch (não-genérico) declara a metadata 202 sem content-type, descartada pelo
+            // ApiExplorer exatamente como o 204; o Produces explícito garante a resposta no OpenAPI
+            methodInvoke = new MethodInvokeGenerator(methodInvoke, "Produces", "202")
             {
                 LineIdent = true
             };
@@ -355,15 +386,33 @@ internal sealed class MapInformation : IEquatable<MapInformation>
                 mapInfo.CreatedInformation,
                 mapInfo,
                 commandInfo,
+                returnModel,
                 resultVarName);
             var returnCommand = new ReturnCommand(createdInvoke);
             method.Commands.Add(returnCommand);
+        }
+        // se houver informações para retornar accepted (Location), então invoca AcceptedMatch
+        else if (mapInfo.AcceptedInformation is not null)
+        {
+            var acceptedInvoke = GenerateAcceptedMatchInvoke(
+                mapInfo.AcceptedInformation,
+                mapInfo,
+                commandInfo,
+                returnModel,
+                resultVarName);
+            method.Commands.Add(new ReturnCommand(acceptedInvoke));
         }
         // Created explícito sem MapCreatedRoute (DF23): 201 sem Location
         else if (mapInfo.ResultStatus == HttpResultStatusModel.Created)
         {
             method.Commands.Add(new ReturnCommand(
                 GenerateCreatedWithoutLocation(mapInfo, commandInfo, returnModel, resultVarName)));
+        }
+        // Accepted explícito sem MapAcceptedRoute (DF23): 202 sem Location (opcional para o 202)
+        else if (mapInfo.ResultStatus == HttpResultStatusModel.Accepted)
+        {
+            method.Commands.Add(new ReturnCommand(
+                GenerateAcceptedWithoutLocation(mapInfo, commandInfo, returnModel, resultVarName)));
         }
         // NoContent explícito com Result<T> (DF23): descarta deliberadamente o valor de sucesso,
         // preservando os problemas (conversão Result<T> -> Result do SmartProblems)
@@ -499,7 +548,8 @@ internal sealed class MapInformation : IEquatable<MapInformation>
             }
         }
 
-        // verifica se deve retornar CreatedMatch ou OkMatch (MapCreatedRoute ou Created explícito, DF23)
+        // verifica se deve retornar CreatedMatch, AcceptedMatch ou OkMatch (MapCreatedRoute/MapAcceptedRoute
+        // ou status explícito, DF23)
         if (ProducesCreated(mapInfo))
         {
             // se tipo de valor, então retornará CreatedMatch<T>
@@ -507,6 +557,14 @@ internal sealed class MapInformation : IEquatable<MapInformation>
             typeDescriptor = hasValueType
                 ? valueType!.Wrap("CreatedMatch", ns)
                 : new TypeDescriptor("CreatedMatch", [ns]);
+        }
+        else if (ProducesAccepted(mapInfo))
+        {
+            // se tipo de valor, então retornará AcceptedMatch<T>
+            // se não tiver tipo de valor, então retornará AcceptedMatch
+            typeDescriptor = hasValueType
+                ? valueType!.Wrap("AcceptedMatch", ns)
+                : new TypeDescriptor("AcceptedMatch", [ns]);
         }
         else
         {
@@ -527,39 +585,23 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         MapCreatedInformation createdInfo,
         MapInformation mapInfo,
         CommandHandlerInformation commandInfo,
+        ReturnModel returnModel,
         string varName)
     {
         // cria invocação do método CreatedMatch
         var methodInvoke = new MethodInvokeGenerator(varName, "CreatedMatch");
 
-        // montando a rota
-
-        // primeiro monta a rota com o nome do grupo (quando houver) e o padrão do atributo MapCreatedRoute
-        var routeTemplate = mapInfo.GroupName is null
-            ? createdInfo.RoutePattern
-            : CombineRoutePatterns(mapInfo.GroupName, createdInfo.RoutePattern);
-
-        // escapa o conteúdo literal da string interpolada (aspas, contrabarras e chaves); os
-        // placeholders nomeados são escapados junto (viram {{name}}) e depois convertidos em interpolação
-        var routeLiteral = SymbolDisplay.FormatLiteral(routeTemplate, quote: true);
-        var escapedRoute = routeLiteral.Substring(1, routeLiteral.Length - 2)
-            .Replace("{", "{{")
-            .Replace("}", "}}");
-
-        // DF17: cada placeholder nomeado do pattern vira a interpolação da propriedade declarada que casa
-        // com ele (sem diferenciar maiúsculas); o transform já garantiu correspondência única e válida
-        foreach (var placeholder in RoutePatternParser.Parse(createdInfo.RoutePattern))
+        // sem valor de sucesso (plain Result + rota estática): o único overload não-genérico é
+        // CreatedMatch(this Result, string), que exige a rota como string literal — nunca uma lambda
+        // (uma lambda aqui não compila: CS1660). Sem valor não há placeholder nem projeção possível.
+        if (returnModel.ValueType is null)
         {
-            var propertyName = createdInfo.PropertiesNames.FirstOrDefault(name =>
-                string.Equals(name, placeholder.Name, StringComparison.OrdinalIgnoreCase));
-            if (propertyName is null)
-                continue;
-
-            escapedRoute = escapedRoute.Replace($"{{{{{placeholder.Name}}}}}", $"{{v.{propertyName}}}");
+            methodInvoke.AddArgument(new StringValueNode(BuildStaticRouteLiteral(createdInfo, mapInfo)));
+            return methodInvoke;
         }
 
-        // adiciona o parâmetro da rota como expressão lambda
-        methodInvoke.AddArgument(new StringValueNode($"v => $\"{escapedRoute}\""));
+        // com valor: a rota é uma lambda interpolada sobre o valor de sucesso ('v')
+        methodInvoke.AddArgument(new StringValueNode($"v => $\"{BuildRouteInterpolationBody(createdInfo, mapInfo)}\""));
 
         // verifica se tem mapeamento de retorno
 
@@ -578,12 +620,169 @@ internal sealed class MapInformation : IEquatable<MapInformation>
     }
 
     /// <summary>
-    /// Junta o prefixo de <c>MapGroup</c> ao padrão de <c>MapCreatedRoute</c>, normalizando somente a barra
-    /// criada na fronteira entre os dois valores. A validade dos padrões continua sendo responsabilidade do
-    /// roteamento do ASP.NET Core.
+    /// <para>
+    ///     Emissão do <c>AcceptedMatch</c>/<c>AcceptedMatch&lt;T&gt;</c> com Location (MapAcceptedRoute).
+    ///     Diferentemente do 201, o 202 não expõe overloads de extensão com <c>selector</c>; por isso as
+    ///     projeções de <c>MapIdResultValue</c>/<c>MapResponseValues</c> usam o construtor + <c>Match</c>,
+    ///     formando a Location e a projeção a partir do mesmo valor de sucesso.
+    /// </para>
+    /// <para>
+    ///     Sem valor de sucesso (plain Result), a rota é estática e usa a extensão
+    ///     <c>AcceptedMatch(this Result, string?)</c> com a rota literal.
+    /// </para>
+    /// </summary>
+    private static ValueNode GenerateAcceptedMatchInvoke(
+        MapCreatedInformation acceptedInfo,
+        MapInformation mapInfo,
+        CommandHandlerInformation commandInfo,
+        ReturnModel returnModel,
+        string varName)
+    {
+        // sem valor de sucesso (plain Result + rota estática): AcceptedMatch(this Result, string?)
+        if (returnModel.ValueType is null)
+        {
+            var noValueInvoke = new MethodInvokeGenerator(varName, "AcceptedMatch");
+            noValueInvoke.AddArgument(new StringValueNode(BuildStaticRouteLiteral(acceptedInfo, mapInfo)));
+            return noValueInvoke;
+        }
+
+        var hasPlaceholders = RoutePatternParser.Parse(acceptedInfo.RoutePattern).Count > 0;
+
+        // a Location como expressão sobre o valor de sucesso 'v' (rota dinâmica) ou literal (rota estática)
+        var locationExpression = hasPlaceholders
+            ? $"$\"{BuildRouteInterpolationBody(acceptedInfo, mapInfo)}\""
+            : BuildStaticRouteLiteral(acceptedInfo, mapInfo);
+
+        // com projeção por Id: sem overload de extensão com selector, usa o construtor + Match
+        if (mapInfo.MapIdResultValue)
+        {
+            return new StringValueNode(
+                $"new AcceptedMatch<{mapInfo.IdResultValueType!.Name}>({varName}.Match<IResult>(" +
+                $"v => TypedResults.Accepted({locationExpression}, v.Id), " +
+                "static problems => new MatchErrorResult(problems)))");
+        }
+
+        // com projeção por MapResponseValues: idem, projetando para o tipo Response gerado
+        if (mapInfo.ResponseValues is not null)
+        {
+            return new StringValueNode(
+                $"new AcceptedMatch<{commandInfo.ModelType.Name}Response>({varName}.Match<IResult>(" +
+                $"v => TypedResults.Accepted({locationExpression}, " +
+                $"{BuildResponseConstructorExpression(mapInfo.ResponseValues, commandInfo.ModelType.Name)}), " +
+                "static problems => new MatchErrorResult(problems)))");
+        }
+
+        // sem projeção: extensão AcceptedMatch<T>(this Result<T>, Func|string)
+        var invoke = new MethodInvokeGenerator(varName, "AcceptedMatch");
+        invoke.AddArgument(new StringValueNode(hasPlaceholders
+            ? $"v => $\"{BuildRouteInterpolationBody(acceptedInfo, mapInfo)}\""
+            : BuildStaticRouteLiteral(acceptedInfo, mapInfo)));
+        return invoke;
+    }
+
+    /// <summary>
+    /// Emissão do 202 sem Location (DF23): a Location do 202 é opcional, então as extensões
+    /// <c>AcceptedMatch()</c>/<c>AcceptedMatch&lt;T&gt;()</c> bastam. As projeções de
+    /// <c>MapIdResultValue</c>/<c>MapResponseValues</c> são aplicadas antes por <c>Map</c> (sem Location,
+    /// não é preciso o valor original depois da projeção), exatamente como no 201 sem Location.
+    /// </summary>
+    private static ValueNode GenerateAcceptedWithoutLocation(
+        MapInformation mapInfo,
+        CommandHandlerInformation commandInfo,
+        ReturnModel returnModel,
+        string resultVarName)
+    {
+        // plain Result -> AcceptedMatch(this Result, string? = null)
+        if (returnModel.ValueType is null)
+            return new StringValueNode($"{resultVarName}.AcceptedMatch()");
+
+        string source;
+        if (mapInfo.MapIdResultValue)
+        {
+            source = $"{resultVarName}.Map(v => v.Id)";
+        }
+        else if (mapInfo.ResponseValues is not null)
+        {
+            source = $"{resultVarName}.Map(v => " +
+                $"{BuildResponseConstructorExpression(mapInfo.ResponseValues, commandInfo.ModelType.Name)})";
+        }
+        else
+        {
+            source = resultVarName;
+        }
+
+        // AcceptedMatch<T>(this Result<T>, string? = null) — 202 sem Location
+        return new StringValueNode($"{source}.AcceptedMatch()");
+    }
+
+    /// <summary>
+    /// A rota de Location como string literal C# (grupo + pattern), sem placeholders — usada quando o comando
+    /// não retorna valor de sucesso (rota necessariamente estática) ou quando a rota é estática.
+    /// </summary>
+    private static string BuildStaticRouteLiteral(MapCreatedInformation info, MapInformation mapInfo)
+    {
+        var routeTemplate = mapInfo.GroupName is null
+            ? info.RoutePattern
+            : CombineRoutePatterns(mapInfo.GroupName, info.RoutePattern);
+
+        return SymbolDisplay.FormatLiteral(routeTemplate, quote: true);
+    }
+
+    /// <summary>
+    /// O corpo de uma string interpolada C# (sem as aspas nem o <c>$</c>) da rota de Location (grupo +
+    /// pattern), com cada placeholder nomeado convertido em interpolação da propriedade declarada que casa
+    /// com ele (<c>{v.Prop}</c>, sem diferenciar maiúsculas). O transform já garantiu a correspondência.
+    /// </summary>
+    private static string BuildRouteInterpolationBody(MapCreatedInformation info, MapInformation mapInfo)
+    {
+        var routeTemplate = mapInfo.GroupName is null
+            ? info.RoutePattern
+            : CombineRoutePatterns(mapInfo.GroupName, info.RoutePattern);
+
+        // escapa o conteúdo literal da string interpolada (aspas, contrabarras e chaves); os
+        // placeholders nomeados são escapados junto (viram {{name}}) e depois convertidos em interpolação
+        var routeLiteral = SymbolDisplay.FormatLiteral(routeTemplate, quote: true);
+        var escapedRoute = routeLiteral.Substring(1, routeLiteral.Length - 2)
+            .Replace("{", "{{")
+            .Replace("}", "}}");
+
+        foreach (var placeholder in RoutePatternParser.Parse(info.RoutePattern))
+        {
+            var propertyName = info.PropertiesNames.FirstOrDefault(name =>
+                string.Equals(name, placeholder.Name, StringComparison.OrdinalIgnoreCase));
+            if (propertyName is null)
+                continue;
+
+            escapedRoute = escapedRoute.Replace($"{{{{{placeholder.Name}}}}}", $"{{v.{propertyName}}}");
+        }
+
+        return escapedRoute;
+    }
+
+    /// <summary>
+    /// Junta o prefixo de <c>MapGroup</c> ao padrão de <c>MapCreatedRoute</c>/<c>MapAcceptedRoute</c>,
+    /// normalizando somente a barra criada na fronteira entre os dois valores. A validade dos padrões
+    /// continua sendo responsabilidade do roteamento do ASP.NET Core.
     /// </summary>
     private static string CombineRoutePatterns(string groupName, string routePattern) =>
         $"{groupName.TrimEnd('/')}/{routePattern.TrimStart('/')}";
+
+    /// <summary>
+    /// A expressão do construtor da resposta gerada — <c>new NomeCommandResponse(v.Prop1, v.Prop2, ...)</c> —
+    /// sobre o valor de sucesso <c>v</c>. Compartilhada entre a projeção via <c>Map</c> e a via <c>Match</c>.
+    /// </summary>
+    private static string BuildResponseConstructorExpression(
+        MapResponseValuesInformation responseValues,
+        string modelTypeName)
+    {
+        StringBuilder sb = new();
+        sb.Append("new ").Append(modelTypeName).Append("Response(");
+        foreach (var prop in responseValues.PropertiesNames)
+            sb.Append("v.").Append(prop.Name).Append(", ");
+        sb.Remove(sb.Length - 2, 2);
+        sb.Append(')');
+        return sb.ToString();
+    }
 
     private static void AddResponseValuesParameter(
         MethodInvokeGenerator methodInvoke,
@@ -591,19 +790,8 @@ internal sealed class MapInformation : IEquatable<MapInformation>
         string modelTypeName)
     {
         // deverá gerar algo como: v => new NomeCommandResponse(v.Prop1, v.Prop2, ...)
-        StringBuilder sb = new();
-        sb.Append("v => new ");
-        sb.Append(modelTypeName);
-        sb.Append("Response(");
-        foreach (var prop in responseValues.PropertiesNames)
-        {
-            sb.Append($"v.{prop.Name}, ");
-        }
-
-        sb.Remove(sb.Length - 2, 2);
-        sb.Append(")");
-
-        methodInvoke.AddArgument(new StringValueNode(sb.ToString()));
+        methodInvoke.AddArgument(new StringValueNode(
+            "v => " + BuildResponseConstructorExpression(responseValues, modelTypeName)));
     }
 
     private static MethodInvokeGenerator GenerateMapIdInvoke(string varName)

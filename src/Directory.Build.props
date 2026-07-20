@@ -19,10 +19,10 @@
 		<PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
 	</PropertyGroup>
 	<PropertyGroup>
-		<SmartProblemsVer>1.0.0-preview-7.0</SmartProblemsVer>
-		<SmartValidationsVer>1.0.0-preview-7.0</SmartValidationsVer>
-		<WorkContextVer>0.9.0</WorkContextVer>
-		<SmartSearchVer>0.11.0</SmartSearchVer>
+		<SmartProblemsVer>1.0.0-preview-8.0</SmartProblemsVer>
+		<SmartValidationsVer>1.0.0-preview-8.0</SmartValidationsVer>
+		<WorkContextVer>0.10.1</WorkContextVer>
+		<SmartSearchVer>0.11.1</SmartSearchVer>
 		<SmartSelectVer>0.5.2</SmartSelectVer>
 		<ExSrcGenVer>0.4.0</ExSrcGenVer>
 	</PropertyGroup>

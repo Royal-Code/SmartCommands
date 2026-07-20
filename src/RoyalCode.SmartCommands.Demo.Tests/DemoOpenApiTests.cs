@@ -107,6 +107,22 @@ public class DemoOpenApiTests
 			"Respostas do DELETE /lojas/cache: " +
 			string.Join(", ", invalidarCacheResponses.EnumerateObject().Select(p => p.Name)));
 		Assert.False(invalidarCacheResponses.TryGetProperty("204", out _));
+
+		// POST /lojas/agendamentos — MapAcceptedRoute com valor: 202 com corpo projetado (AcceptedMatch<T>)
+		var agendar = GetPath(paths, "/lojas/agendamentos").GetProperty("post");
+		var agendarResponses = agendar.GetProperty("responses");
+		Assert.True(agendarResponses.TryGetProperty("202", out var accepted202),
+			"Respostas do POST /lojas/agendamentos: " +
+			string.Join(", ", agendarResponses.EnumerateObject().Select(p => p.Name)));
+		Assert.True(accepted202.TryGetProperty("content", out _));
+
+		// POST /lojas/reindexacoes — MapAcceptedRoute estático sobre Result: 202 sem corpo (Produces(202))
+		var reindexar = GetPath(paths, "/lojas/reindexacoes").GetProperty("post");
+		var reindexarResponses = reindexar.GetProperty("responses");
+		Assert.True(reindexarResponses.TryGetProperty("202", out var accepted202NoBody),
+			"Respostas do POST /lojas/reindexacoes: " +
+			string.Join(", ", reindexarResponses.EnumerateObject().Select(p => p.Name)));
+		Assert.False(accepted202NoBody.TryGetProperty("content", out _));
 	}
 
 	private static void AssertProblemDetailsResponse(JsonElement responses, string statusCode)

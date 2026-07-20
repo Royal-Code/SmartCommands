@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RoyalCode.SmartProblems.Entities;
+using System.Linq.Expressions;
 
 namespace RoyalCode.SmartCommands.EntityFramework.Adapters;
 
@@ -60,4 +61,68 @@ public abstract class RepositoryAdapter<TEntity, TContext> : IRepositoryAccessor
     /// </returns>
     public abstract Task<FindResult<TDto, TId>> FindEntityAsync<TDto, TId>(Id<TEntity, TId> id, CancellationToken ct)
         where TDto : class;
+
+    /// <summary>
+    /// <para>
+    ///     Finds an entity by a filter expression (alternate/composite key) and projects it to a DTO type.
+    /// </para>
+    /// <para>
+    ///     Implement it with the protected
+    ///     <see cref="FindEntityAsync{TDto}(Expression{Func{TEntity, bool}}, IReadOnlyList{FindCriterion}, Expression{Func{TEntity, TDto}}, CancellationToken)"/>
+    ///     helper, supplying the projection expression: the query runs in the provider, without
+    ///     materializing or tracking the entity, and the not-found problem names the entity.
+    /// </para>
+    /// </summary>
+    /// <typeparam name="TDto">The DTO type to project to.</typeparam>
+    /// <param name="filter">The filter expression to apply.</param>
+    /// <param name="criteria">The criteria used by the filter, in declaration order, for the not-found problem.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// A <see cref="FindResult{TDto}"/> containing the projected DTO when found or a result with a NotFound problem.
+    /// </returns>
+    public abstract Task<FindResult<TDto>> FindEntityAsync<TDto>(
+        Expression<Func<TEntity, bool>> filter,
+        IReadOnlyList<FindCriterion> criteria,
+        CancellationToken ct)
+        where TDto : class;
+
+    /// <summary>
+    /// <para>
+    ///     Executes the filtered projection in the provider (<c>Where(filter).Select(selector).FirstOrDefaultAsync</c>):
+    ///     a single query, selecting only the DTO columns, without tracking the entity.
+    /// </para>
+    /// <para>
+    ///     When no row matches, the result carries a rich not-found problem generated from the
+    ///     <paramref name="criteria"/>, naming the entity (<typeparamref name="TEntity"/>) instead of the DTO.
+    /// </para>
+    /// </summary>
+    /// <typeparam name="TDto">The DTO type to project to.</typeparam>
+    /// <param name="filter">The filter expression to apply.</param>
+    /// <param name="criteria">The criteria used by the filter, in declaration order, for the not-found problem.</param>
+    /// <param name="selector">The projection expression from the entity to the DTO, translatable by the provider.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// A <see cref="FindResult{TDto}"/> containing the projected DTO when found or a result with a NotFound problem.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">
+    ///     If <paramref name="filter"/>, <paramref name="criteria"/> or <paramref name="selector"/> is null.
+    /// </exception>
+    protected async Task<FindResult<TDto>> FindEntityAsync<TDto>(
+        Expression<Func<TEntity, bool>> filter,
+        IReadOnlyList<FindCriterion> criteria,
+        Expression<Func<TEntity, TDto>> selector,
+        CancellationToken ct)
+        where TDto : class
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+        ArgumentNullException.ThrowIfNull(criteria);
+        ArgumentNullException.ThrowIfNull(selector);
+
+        var dto = await Context.Set<TEntity>()
+            .Where(filter)
+            .Select(selector)
+            .FirstOrDefaultAsync(ct);
+
+        return FindResult<TDto>.ProjectedFrom<TEntity>(dto, criteria);
+    }
 }

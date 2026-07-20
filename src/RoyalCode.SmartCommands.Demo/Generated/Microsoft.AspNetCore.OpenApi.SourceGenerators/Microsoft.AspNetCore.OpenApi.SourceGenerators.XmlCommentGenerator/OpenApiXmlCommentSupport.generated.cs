@@ -150,6 +150,11 @@ WithResultStatusAttribute.
             cache.Add(@"F:RoyalCode.SmartCommands.HttpResultStatus.Created", new XmlComment(@"`201 Created`: the resource was created. The `Location` header is produced only when the
             command also declares MapCreatedRouteAttribute; without it, the response is a
             `201` without `Location`.", null, null, null, null, false, null, null, null));
+            cache.Add(@"F:RoyalCode.SmartCommands.HttpResultStatus.Accepted", new XmlComment(@"`202 Accepted`: the request was accepted for processing, but the processing has not been
+            completed. A `Result` responds without a body; a `Result&lt;T&gt;` responds with the
+            success value as the body. The `Location` header is produced only when the command also
+            declares MapAcceptedRouteAttribute. Problems are always preserved and produce
+            their regular status codes.", null, null, null, null, false, null, null, null));
             cache.Add(@"F:RoyalCode.SmartCommands.HttpResultStatus.NoContent", new XmlComment(@"`204 No Content`: the success value of a `Result&lt;T&gt;` is deliberately discarded and
             the response has no body. Problems are always preserved and produce their regular status codes.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.IDecorator`2", new XmlComment(@"    A decorator that wraps the execution of a command marked with WithDecoratorsAttribute,
@@ -170,6 +175,13 @@ This operation must not apply changes to the database immediately. It must take 
 Even if the entity is not found, the method must return a result object with the NotFound problem.", null, false, null, [new XmlParameterComment(@"id", @"The identifier of the entity.", null, false), new XmlParameterComment(@"ct", @"Cancellation token.", null, false)], null));
             cache.Add(@"M:RoyalCode.SmartCommands.IRepositoryAccessor`1.FindEntityAsync``2(RoyalCode.SmartProblems.Entities.Id{`0,``1},System.Threading.CancellationToken)", new XmlComment(@"Finds an entity by its identifier and select a DTO (Data Transfer Object) representation of it.", null, null, @"A result that represents the entity find by the identifier.
 Even if the entity is not found, the method must return a result object with the NotFound problem.", null, false, null, [new XmlParameterComment(@"id", @"The identifier of the entity.", null, false), new XmlParameterComment(@"ct", @"Cancellation token.", null, false)], null));
+            cache.Add(@"M:RoyalCode.SmartCommands.IRepositoryAccessor`1.FindEntityAsync``1(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}},System.Collections.Generic.IReadOnlyList{RoyalCode.SmartProblems.Entities.FindCriterion},System.Threading.CancellationToken)", new XmlComment(@"    Finds an entity by a filter expression (alternate/composite key) and selects a DTO
+(Data Transfer Object) representation of it. The projection must be executed by the
+provider, without materializing or tracking the entity.
+    When the entity is not found, the criteria generate a rich not-found
+problem naming the entity, without analyzing the filter expression at runtime — the
+generated code already knows the properties and values used by the filter.", null, null, @"A result that represents the DTO selected from the entity found by the filter.
+Even if the entity is not found, the method must return a result object with the NotFound problem.", null, false, null, [new XmlParameterComment(@"filter", @"The filter expression to apply.", null, false), new XmlParameterComment(@"criteria", @"The criteria used by the filter, in declaration order, for the not-found problem.", null, false), new XmlParameterComment(@"ct", @"Cancellation token.", null, false)], null));
             cache.Add(@"T:RoyalCode.SmartCommands.IsEntityAttribute", new XmlComment(@"    Explicitly marks a command method parameter, or a property of the command class, as representing an entity,
 overriding the automatic entity detection performed by the source generator.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.IUnitOfWorkAccessor`1", new XmlComment(@"A service that provides access to the unit of work.", null, null, null, null, false, null, null, null));
@@ -180,6 +192,34 @@ true for commands annotated with [WithTransaction]). The adapter owns only the
 transaction it started here; transactions opened directly by the user belong to the user.", null, null, null, null, false, null, [new XmlParameterComment(@"requireTransaction", @"When `true`, a transaction is always started, regardless of the adapter option.", null, false), new XmlParameterComment(@"ct", @"Cancellation token.", null, false)], null));
             cache.Add(@"M:RoyalCode.SmartCommands.IUnitOfWorkAccessor`1.CompleteAsync(System.Threading.CancellationToken)", new XmlComment(@"Invoked when the unit of work is about to complete.
 At this point, the unit of work should be committed (or the save changes should be called).", null, null, @"The result of the operation.", null, false, null, null, null));
+            cache.Add(@"T:RoyalCode.SmartCommands.MapAcceptedRouteAttribute", new XmlComment(@"    Used with a command map (like MapPostAttribute) so the generated endpoint returns a
+202 Accepted response with a Location header pointing to a resource that can be used
+to monitor the accepted request. Declaring this attribute implies
+HttpResultStatus.Accepted; combine it with
+WithResultStatusAttribute only for the same status.
+    Unlike 201 Created, the Location of a 202 is optional:
+WithResultStatusAttribute with HttpResultStatus.Accepted alone responds
+202 without the header. The response body follows the command result: Result responds
+without a body and Result&lt;T&gt; responds with the success value.
+    The route pattern uses named placeholders, like ""{ticket}"", matched case-insensitively to the
+properties of the value returned by the command, declared in propertiesNames
+(prefer nameof). Each placeholder must match exactly one declared property, and every declared
+property must be used by a placeholder; mismatches, duplications and unknown or unreadable properties
+are reported at compile time (RCCMD054). A command returning a plain Result has no success
+value, so the pattern must be a static route, without placeholders.
+    Example:
+          ```[MapGroup(""api/envios"")]
+[MapPost(""/"", ""agendar-envio"")]
+[MapAcceptedRoute(""status/{protocolo}"", nameof(EnvioAgendado.Protocolo))]
+public class AgendarEnvio
+{
+    // the generated handler responds 202 with Location ""api/envios/status/{value.Protocolo}""
+}```", null, null, null, null, false, null, null, null));
+            cache.Add(@"M:RoyalCode.SmartCommands.MapAcceptedRouteAttribute.#ctor(System.String,System.String[])", new XmlComment(@"Initializes a new instance of the MapAcceptedRouteAttribute class.", null, null, null, null, false, null, [new XmlParameterComment(@"endpointRoutePattern", @"The route pattern used to build the `Location` header, with named placeholders,
+e.g. `""status/{ticket}""`, or a static route when the command returns a plain `Result`.
+When the command declares MapGroupAttribute, the group prefix is prepended to the
+generated location.", null, false), new XmlParameterComment(@"propertiesNames", @"The names of the properties, from the value returned by the command, matched (case-insensitively)
+to the named placeholders of the route pattern. Prefer declaring them with `nameof`.", null, false)], null));
             cache.Add(@"T:RoyalCode.SmartCommands.MapApiHandlersAttribute", new XmlComment(@"    Indicates that the decorated static partial class will have its API endpoints mapped
 by the source generator.", null, null, null, null, false, null, null, null));
             cache.Add(@"T:RoyalCode.SmartCommands.MapCreatedRouteAttribute", new XmlComment(@"    Used with MapPostAttribute so the generated endpoint returns a 201 Created response

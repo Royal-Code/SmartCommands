@@ -15,7 +15,12 @@ o `RepositoryAdapter<TEntity, TContext>` expõe o contexto tipado a subclasses.
   `BeginAsync(requireTransaction: true, ct)` e a transação é criada mesmo com a opção desligada.
 - `RepositoryAdapter<TEntity, TContext>`: base para repositórios com projeção; expõe
   `protected TContext Context` para que subclasses implementem
-  `FindEntityAsync<TDto, TId>` com o contexto tipado, sem guardar uma segunda referência.
+  `FindEntityAsync<TDto, TId>` (por ID) e `FindEntityAsync<TDto>(filter, criteria, ct)`
+  (chave alternativa/composta) com o contexto tipado, sem guardar uma segunda referência.
+  Para a busca por predicado, o helper protegido
+  `FindEntityAsync<TDto>(filter, criteria, selector, ct)` executa a projeção no provider
+  (consulta única, somente colunas do DTO, sem tracking) e gera o `NotFound` nomeando a
+  entidade a partir dos critérios declarados.
 - `AddUnitOfWorkAccessor<TContext>()` / `AddUnitOfWorkAccessor<TContextBase, TContextImpl>()`:
   registram o accessor no DI (scoped).
 
@@ -84,7 +89,9 @@ transação física descartada:
 - `DbContextAccessorTests`: sucesso/commit único, falha inesperada relançada após rollback,
   falha no commit, falha no rollback (`AggregateException` com as duas), cancelamento
   preservado com cleanup em token próprio e conflito otimista real (dois contextos).
-- `RepositoryAdapterTests`: find e projeção usando o `Context` tipado herdado.
+- `RepositoryAdapterTests`: find e projeção usando o `Context` tipado herdado, incluindo a
+  busca por predicado (encontrado sem tracking, `NotFound` nomeando a entidade com critérios
+  na ordem declarada e cancelamento propagado).
 - `GeneratedHandlerTests`: o generator roda como analyzer sobre o projeto de teste; o handler
   gerado real é consumido direto do DI (uso fora de HTTP).
 - `HttpBoundaryTests`: Minimal API **gerada** por `MapApiHandlers`, com TestServer; 201 para sucesso, 409 pelo `Result` para

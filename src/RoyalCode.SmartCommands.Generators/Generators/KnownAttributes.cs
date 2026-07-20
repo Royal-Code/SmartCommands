@@ -80,6 +80,7 @@ internal static class KnownAttributes
     internal static readonly AttributeSpec MapGet = new(CommandsNamespace, "MapGet");
     internal static readonly AttributeSpec MapGroup = new(CommandsNamespace, "MapGroup");
     internal static readonly AttributeSpec MapCreatedRoute = new(CommandsNamespace, "MapCreatedRoute");
+    internal static readonly AttributeSpec MapAcceptedRoute = new(CommandsNamespace, "MapAcceptedRoute");
     internal static readonly AttributeSpec MapIdResultValue = new(CommandsNamespace, "MapIdResultValue");
     internal static readonly AttributeSpec MapResponseValues = new(CommandsNamespace, "MapResponseValues");
     internal static readonly AttributeSpec WithDescription = new(CommandsNamespace, "WithDescription");
