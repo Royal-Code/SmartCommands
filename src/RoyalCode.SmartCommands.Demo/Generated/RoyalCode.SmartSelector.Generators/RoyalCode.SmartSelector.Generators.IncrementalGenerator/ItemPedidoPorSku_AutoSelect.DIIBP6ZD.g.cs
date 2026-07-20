@@ -11,11 +11,11 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Pedidos;
 
 public partial class ItemPedidoPorSku
 {
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     private static Func<PedidoItem, ItemPedidoPorSku>? selectPedidoItemFunc;
 
     /// <summary>Projection expression that creates a new <see cref="ItemPedidoPorSku"/> from a <see cref="PedidoItem"/>.</summary>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public static Expression<Func<PedidoItem, ItemPedidoPorSku>> SelectPedidoItemExpression { get; } = a => new ItemPedidoPorSku
     {
         Id = a.Id,
@@ -31,6 +31,6 @@ public partial class ItemPedidoPorSku
     /// <summary>Creates a new <see cref="ItemPedidoPorSku"/> projected from a <see cref="PedidoItem"/> instance.</summary>
     /// <param name="pedidoItem">The source instance to project.</param>
     /// <returns>A new <see cref="ItemPedidoPorSku"/> instance.</returns>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public static ItemPedidoPorSku From(PedidoItem pedidoItem) => (selectPedidoItemFunc ??= SelectPedidoItemExpression.Compile())(pedidoItem);
 }

@@ -9,7 +9,7 @@ using RoyalCode.SmartCommands.Demo.Domain;
 namespace RoyalCode.SmartCommands.Demo.Commands.Estoques;
 
 /// <summary>Generated extension methods to project <see cref="ProdutoEstoque"/> instances into <see cref="ProdutoEstoqueDetalhes"/> instances.</summary>
-[global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+[global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
 public static class ProdutoEstoqueDetalhes_Extensions
 {
     /// <summary>Projects the <see cref="ProdutoEstoque"/> query into <see cref="ProdutoEstoqueDetalhes"/>.</summary>

@@ -2221,7 +2221,7 @@ internal static class CommandHandlerGenerator
         // classes homônimas em namespaces diferentes gerem fontes distintas
         var interfaceGen = new ClassGenerator(i.HandlerInterfaceName, i.Namespace, "interface")
         {
-            FileName = HintName.Create(
+            FileName = GeneratedHintName.Create(
                 $"{i.Namespace}.{i.HandlerInterfaceName}",
                 i.HandlerInterfaceName)
         };
@@ -2250,7 +2250,7 @@ internal static class CommandHandlerGenerator
         // cria classe que implementa o handler; o hint name usa o nome completo (namespace + tipo)
         var handlerGen = new ClassGenerator(i.HandlerImplementationName, $"{i.Namespace}.Internals")
         {
-            FileName = HintName.Create(
+            FileName = GeneratedHintName.Create(
                 $"{i.Namespace}.Internals.{i.HandlerImplementationName}",
                 i.HandlerImplementationName)
         };
@@ -2617,7 +2617,7 @@ internal static class CommandHandlerGenerator
 
         var partialClass = new ClassGenerator(i.ModelType.Name, i.Namespace)
         {
-            FileName = HintName.Create(
+            FileName = GeneratedHintName.Create(
                 $"{i.Namespace}.{i.ModelType.Name}_WasValidated",
                 $"{i.ModelType.Name}_WasValidated")
         };

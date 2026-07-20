@@ -10,34 +10,34 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Pedidos;
 public partial class ItemPedidoPorSku
 {
     /// <summary>Generated property, projected from the source type.</summary>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public Guid Id { get; set; }
 
     /// <summary>Generated property, projected from the source type.</summary>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public Guid PedidoId { get; set; }
 
     /// <summary>Generated property, projected from the source type.</summary>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public Guid ProdutoId { get; set; }
 
     /// <summary>Generated property, projected from the source type.</summary>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public string ProdutoNome { get; set; }
 
     /// <summary>Generated property, projected from the source type.</summary>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public string ProdutoSku { get; set; }
 
     /// <summary>Generated property, projected from the source type.</summary>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public int Quantidade { get; set; }
 
     /// <summary>Generated property, projected from the source type.</summary>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public decimal PrecoUnitario { get; set; }
 
     /// <summary>Generated property, projected from the source type.</summary>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public decimal Total { get; set; }
 }

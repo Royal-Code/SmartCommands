@@ -101,7 +101,7 @@ internal static class MapApiHandlersGenerator
                 classNamespace: left.ClassType.Namespaces[0],
                 methodName: $"Map{safeGroupName}Group");
             var hintIdentity = $"{left.ClassType.Namespaces[0]}.{className}";
-            classGenerator.FileName = HintName.Create(hintIdentity, className);
+            classGenerator.FileName = GeneratedHintName.Create(hintIdentity, className);
 
             // comando que cria o group
             // deve gerar algo como: var group = builder.MapGroup("MyGroup")

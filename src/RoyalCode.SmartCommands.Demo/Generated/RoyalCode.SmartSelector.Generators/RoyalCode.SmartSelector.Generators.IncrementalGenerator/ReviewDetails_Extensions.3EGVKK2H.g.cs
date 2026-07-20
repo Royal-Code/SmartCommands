@@ -9,7 +9,7 @@ using RoyalCode.SmartCommands.Tests.Models;
 namespace RoyalCode.SmartCommands.Demo.Commands.Movies;
 
 /// <summary>Generated extension methods to project <see cref="Review"/> instances into <see cref="ReviewDetails"/> instances.</summary>
-[global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+[global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
 public static class ReviewDetails_Extensions
 {
     /// <summary>Projects the <see cref="Review"/> query into <see cref="ReviewDetails"/>.</summary>

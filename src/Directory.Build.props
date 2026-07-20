@@ -23,8 +23,8 @@
 		<SmartValidationsVer>1.0.0-preview-8.0</SmartValidationsVer>
 		<WorkContextVer>0.10.1</WorkContextVer>
 		<SmartSearchVer>0.11.1</SmartSearchVer>
-		<SmartSelectVer>0.5.2</SmartSelectVer>
-		<ExSrcGenVer>0.4.0</ExSrcGenVer>
+		<SmartSelectVer>0.5.3</SmartSelectVer>
+		<ExSrcGenVer>0.4.1</ExSrcGenVer>
 	</PropertyGroup>
 	<PropertyGroup>
 		<CodeAnalysisVer>4.14.0</CodeAnalysisVer>

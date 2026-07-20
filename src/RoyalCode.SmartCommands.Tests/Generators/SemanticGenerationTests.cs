@@ -3,6 +3,7 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using RoyalCode.Extensions.SourceGenerator;
 using RoyalCode.SmartCommands.Generators.Generators;
 using Xunit;
 
@@ -263,8 +264,8 @@ public class SemanticGenerationTests
     public void Hint_name_has_bounded_length_and_uses_full_identity_for_uniqueness()
     {
         var readableName = new string('T', 200);
-        var first = HintName.Create($"Tests.Semantic.First.{readableName}", readableName);
-        var second = HintName.Create($"Tests.Semantic.Second.{readableName}", readableName);
+        var first = GeneratedHintName.Create($"Tests.Semantic.First.{readableName}", readableName);
+        var second = GeneratedHintName.Create($"Tests.Semantic.Second.{readableName}", readableName);
 
         Assert.NotEqual(first, second);
         Assert.True(first.Length <= 46, $"Hint name too long: {first}");

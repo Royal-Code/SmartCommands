@@ -11,11 +11,11 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Movies;
 
 public partial class ReviewDetails
 {
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     private static Func<Review, ReviewDetails>? selectReviewFunc;
 
     /// <summary>Projection expression that creates a new <see cref="ReviewDetails"/> from a <see cref="Review"/>.</summary>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public static Expression<Func<Review, ReviewDetails>> SelectReviewExpression { get; } = a => new ReviewDetails
     {
         Id = a.Id,
@@ -28,6 +28,6 @@ public partial class ReviewDetails
     /// <summary>Creates a new <see cref="ReviewDetails"/> projected from a <see cref="Review"/> instance.</summary>
     /// <param name="review">The source instance to project.</param>
     /// <returns>A new <see cref="ReviewDetails"/> instance.</returns>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public static ReviewDetails From(Review review) => (selectReviewFunc ??= SelectReviewExpression.Compile())(review);
 }

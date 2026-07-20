@@ -832,7 +832,7 @@ internal sealed class MapInformation : IEquatable<MapInformation>
     {
         var responseClass = new ResponsePocoGenerator($"{commandInfo.ModelType.Name}Response", commandInfo.Namespace)
         {
-            FileName = HintName.Create(
+            FileName = GeneratedHintName.Create(
                 $"{commandInfo.Namespace}.{commandInfo.ModelType.Name}Response",
                 $"{commandInfo.ModelType.Name}Response")
         };

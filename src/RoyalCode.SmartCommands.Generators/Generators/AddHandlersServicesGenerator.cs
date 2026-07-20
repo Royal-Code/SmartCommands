@@ -168,7 +168,7 @@ internal static class AddHandlersServicesGenerator
         classGenerator.Methods.Add(method);
 
         var hintIdentity = $"{left.ClassType.Namespaces[0]}.{left.ClassType.Name}_AddHandlersServices";
-        classGenerator.FileName = HintName.Create(hintIdentity, $"{left.ClassType.Name}_AddHandlersServices");
+        classGenerator.FileName = GeneratedHintName.Create(hintIdentity, $"{left.ClassType.Name}_AddHandlersServices");
         GeneratedFileHeader.AddTo(classGenerator);
         classGenerator.Generate(spc);
 

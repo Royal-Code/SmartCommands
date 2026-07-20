@@ -11,11 +11,11 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Produtos;
 
 public partial class ProdutoPorSku
 {
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     private static Func<Produto, ProdutoPorSku>? selectProdutoFunc;
 
     /// <summary>Projection expression that creates a new <see cref="ProdutoPorSku"/> from a <see cref="Produto"/>.</summary>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public static Expression<Func<Produto, ProdutoPorSku>> SelectProdutoExpression { get; } = a => new ProdutoPorSku
     {
         Id = a.Id,
@@ -30,6 +30,6 @@ public partial class ProdutoPorSku
     /// <summary>Creates a new <see cref="ProdutoPorSku"/> projected from a <see cref="Produto"/> instance.</summary>
     /// <param name="produto">The source instance to project.</param>
     /// <returns>A new <see cref="ProdutoPorSku"/> instance.</returns>
-    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.2.0")]
+    [global::System.CodeDom.Compiler.GeneratedCode("RoyalCode.SmartSelector.Generators", "0.5.3.0")]
     public static ProdutoPorSku From(Produto produto) => (selectProdutoFunc ??= SelectProdutoExpression.Compile())(produto);
 }
