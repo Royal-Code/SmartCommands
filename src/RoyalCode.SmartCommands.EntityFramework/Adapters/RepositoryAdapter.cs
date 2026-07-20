@@ -119,6 +119,7 @@ public abstract class RepositoryAdapter<TEntity, TContext> : IRepositoryAccessor
         ArgumentNullException.ThrowIfNull(selector);
 
         var dto = await Context.Set<TEntity>()
+            .AsNoTracking()
             .Where(filter)
             .Select(selector)
             .FirstOrDefaultAsync(ct);

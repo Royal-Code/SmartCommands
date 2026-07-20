@@ -12,7 +12,8 @@ namespace RoyalCode.SmartCommands;
 ///     properties of the value returned by the command, declared in <c>propertiesNames</c>
 ///     (prefer <c>nameof</c>). Each placeholder must match exactly one declared property, and every declared
 ///     property must be used by a placeholder; mismatches, duplications and unknown or unreadable properties
-///     are reported at compile time (RCCMD050).
+///     are reported at compile time (RCCMD050). At runtime, each property value is formatted with the
+///     invariant culture and URI-escaped as one path segment before it is inserted into the <c>Location</c>.
 /// </para>
 /// <para>Example:</para>
 /// <para>

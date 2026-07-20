@@ -753,7 +753,17 @@ internal sealed class MapInformation : IEquatable<MapInformation>
             if (propertyName is null)
                 continue;
 
-            escapedRoute = escapedRoute.Replace($"{{{{{placeholder.Name}}}}}", $"{{v.{propertyName}}}");
+            // A propriedade representa um único segmento da Location. Formata com cultura invariável e
+            // escapa o valor em runtime; SymbolDisplay.FormatLiteral acima protege apenas o literal C# e
+            // não impede que '/', '?', '#', espaços ou a cultura corrente alterem a URI produzida.
+            var valueExpression =
+                $"global::System.Uri.EscapeDataString(" +
+                $"global::System.Convert.ToString(v.{propertyName}, " +
+                "global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)";
+
+            escapedRoute = escapedRoute.Replace(
+                $"{{{{{placeholder.Name}}}}}",
+                $"{{({valueExpression})}}");
         }
 
         return escapedRoute;

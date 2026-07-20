@@ -1,7 +1,10 @@
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using RoyalCode.SmartCommands.EntityFramework.Adapters;
 using RoyalCode.SmartCommands.EntityFramework.Tests.Support;
 using RoyalCode.SmartProblems;
 using RoyalCode.SmartProblems.Entities;
+using System.Data.Common;
+using System.Linq.Expressions;
 
 namespace RoyalCode.SmartCommands.EntityFramework.Tests;
 
@@ -28,20 +31,46 @@ public class RepositoryAdapterTests
         }
 
         public override Task<FindResult<TDto>> FindEntityAsync<TDto>(
-            System.Linq.Expressions.Expression<Func<Gadget, bool>> filter,
+            Expression<Func<Gadget, bool>> filter,
             IReadOnlyList<FindCriterion> criteria,
             CancellationToken ct)
         {
-            // o teste projeta somente para GadgetNome; o helper protegido executa a
-            // consulta única no provider e gera o NotFound nomeando a entidade
-            System.Linq.Expressions.Expression<Func<Gadget, GadgetNome>> selector =
-                g => new GadgetNome { Nome = g.Nome };
+            // O helper protegido executa a consulta única no provider e gera o NotFound nomeando
+            // a entidade. GadgetEnvelope exercita explicitamente uma projeção que contém entidade.
+            Expression<Func<Gadget, TDto>> selector;
+            if (typeof(TDto) == typeof(GadgetEnvelope))
+            {
+                Expression<Func<Gadget, GadgetEnvelope>> envelope =
+                    g => new GadgetEnvelope { Entity = g };
+                selector = (Expression<Func<Gadget, TDto>>)(object)envelope;
+            }
+            else
+            {
+                Expression<Func<Gadget, GadgetNome>> name =
+                    g => new GadgetNome { Nome = g.Nome };
+                selector = (Expression<Func<Gadget, TDto>>)(object)name;
+            }
 
             return FindEntityAsync(
                 filter,
                 criteria,
-                (System.Linq.Expressions.Expression<Func<Gadget, TDto>>)(object)selector,
+                selector,
                 ct);
+        }
+    }
+
+    private sealed class QueryCaptureInterceptor : DbCommandInterceptor
+    {
+        public List<string> Commands { get; } = [];
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            Commands.Add(command.CommandText);
+            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
         }
     }
 
@@ -163,5 +192,101 @@ public class RepositoryAdapterTests
                 g => g.Nome == "g1",
                 [new FindCriterion(nameof(Gadget.Nome), "g1")],
                 cts.Token));
+    }
+
+    [Fact]
+    public async Task Projecao_por_predicado_preserva_query_filter()
+    {
+        using var database = new SqliteDatabase();
+        database.SeedGadget("Hidden");
+
+        using var db = database.CreateContext();
+        var repository = new GadgetRepository(db);
+
+        var found = await repository.FindEntityAsync<GadgetNome>(
+            g => g.Nome == "Hidden",
+            [new FindCriterion(nameof(Gadget.Nome), "Hidden")],
+            CancellationToken.None);
+
+        Assert.True(found.NotFound(out _));
+    }
+
+    [Fact]
+    public async Task Projecao_por_predicado_com_duplicatas_retorna_a_primeira()
+    {
+        using var database = new SqliteDatabase();
+        database.SeedGadget("duplicate");
+        database.SeedGadget("duplicate");
+
+        using var db = database.CreateContext();
+        var repository = new GadgetRepository(db);
+
+        var found = await repository.FindEntityAsync<GadgetNome>(
+            g => g.Nome == "duplicate",
+            [new FindCriterion(nameof(Gadget.Nome), "duplicate")],
+            CancellationToken.None);
+
+        Assert.True(found.Found);
+        Assert.Equal("duplicate", found.Entity!.Nome);
+    }
+
+    [Fact]
+    public async Task Projecao_por_predicado_preserva_criterio_nulo_no_notfound()
+    {
+        using var database = new SqliteDatabase();
+        using var db = database.CreateContext();
+        var repository = new GadgetRepository(db);
+        string? name = null;
+
+        var found = await repository.FindEntityAsync<GadgetNome>(
+            g => g.Nome == name,
+            [new FindCriterion(nameof(Gadget.Nome), name)],
+            CancellationToken.None);
+
+        Assert.True(found.NotFound(out var problem));
+        Assert.True(problem!.Extensions!.ContainsKey(nameof(Gadget.Nome)));
+        Assert.Null(problem.Extensions[nameof(Gadget.Nome)]);
+    }
+
+    [Fact]
+    public async Task Projecao_por_predicado_executa_uma_query_com_apenas_as_colunas_do_dto()
+    {
+        using var database = new SqliteDatabase();
+        database.SeedGadget("g1");
+        var interceptor = new QueryCaptureInterceptor();
+
+        using var db = database.CreateContext(interceptor);
+        var repository = new GadgetRepository(db);
+
+        var found = await repository.FindEntityAsync<GadgetNome>(
+            g => g.Nome == "g1",
+            [new FindCriterion(nameof(Gadget.Nome), "g1")],
+            CancellationToken.None);
+
+        Assert.True(found.Found);
+        var command = Assert.Single(interceptor.Commands);
+        var selectClause = command[..command.IndexOf("FROM", StringComparison.OrdinalIgnoreCase)];
+        Assert.Contains("Nome", selectClause);
+        Assert.DoesNotContain("Versao", selectClause);
+        Assert.DoesNotContain("Id", selectClause);
+    }
+
+    [Fact]
+    public async Task Projecao_que_contem_entidade_continua_sem_tracking()
+    {
+        using var database = new SqliteDatabase();
+        database.SeedGadget("g1");
+
+        using var db = database.CreateContext();
+        var repository = new GadgetRepository(db);
+
+        var found = await repository.FindEntityAsync<GadgetEnvelope>(
+            g => g.Nome == "g1",
+            [new FindCriterion(nameof(Gadget.Nome), "g1")],
+            CancellationToken.None);
+
+        Assert.True(found.Found);
+        Assert.Equal("g1", found.Entity!.Entity.Nome);
+        Assert.Empty(db.ChangeTracker.Entries());
     }
 }

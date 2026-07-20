@@ -300,7 +300,7 @@ public static partial class MapApiSomeApi
             return Problems.InvalidParameter("The request body is required.");
 
         var result = await handler.HandleAsync(command, ct);
-        return result.CreatedMatch(v => $"api/some/{v.Id}");
+        return result.CreatedMatch(v => $"api/some/{(global::System.Uri.EscapeDataString(global::System.Convert.ToString(v.Id, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty))}");
     }
 }
 

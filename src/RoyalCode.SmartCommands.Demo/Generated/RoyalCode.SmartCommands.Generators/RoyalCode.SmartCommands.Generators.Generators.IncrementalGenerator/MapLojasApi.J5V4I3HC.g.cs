@@ -72,7 +72,7 @@ public static partial class MapLojasApi
             return Problems.InvalidParameter("The request body is required.");
 
         var result = await handler.HandleAsync(command, ct);
-        return new AcceptedMatch<AgendarImportacaoLojaResponse>(result.Match<IResult>(v => TypedResults.Accepted($"lojas/agendamentos/{v.Id}/status", new AgendarImportacaoLojaResponse(v.Id, v.Nome)), static problems => new MatchErrorResult(problems)));
+        return new AcceptedMatch<AgendarImportacaoLojaResponse>(result.Match<IResult>(v => TypedResults.Accepted($"lojas/agendamentos/{(global::System.Uri.EscapeDataString(global::System.Convert.ToString(v.Id, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty))}/{(global::System.Uri.EscapeDataString(global::System.Convert.ToString(v.Nome, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty))}/status", new AgendarImportacaoLojaResponse(v.Id, v.Nome)), static problems => new MatchErrorResult(problems)));
     }
 
     [ProduceProblems(ProblemCategory.NotFound)]
@@ -119,7 +119,7 @@ public static partial class MapLojasApi
             return Problems.InvalidParameter("The request body is required.");
 
         var result = await handler.HandleAsync(command, ct);
-        return result.CreatedMatch(v => $"lojas/{v.Id}", v => new CriarLojaResponse(v.Id, v.Nome));
+        return result.CreatedMatch(v => $"lojas/{(global::System.Uri.EscapeDataString(global::System.Convert.ToString(v.Id, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty))}", v => new CriarLojaResponse(v.Id, v.Nome));
     }
 
     private static async Task<OkMatch<RelatorioLojasResultado>> RelatorioLojasHandleAsync(

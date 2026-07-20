@@ -22,6 +22,15 @@ public class GadgetNome
     public string Nome { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Projeção que contém a entidade para comprovar que o adapter aplica no-tracking mesmo quando o
+/// seletor inclui uma instância de tipo entidade no resultado.
+/// </summary>
+public class GadgetEnvelope
+{
+    public Gadget Entity { get; set; } = null!;
+}
+
 public class TestDbContext : DbContext
 {
     public TestDbContext(DbContextOptions<TestDbContext> options) : base(options) { }
@@ -35,6 +44,7 @@ public class TestDbContext : DbContext
             entity.HasKey(g => g.Id);
             entity.Property(g => g.Nome).IsRequired();
             entity.Property(g => g.Versao).IsConcurrencyToken();
+            entity.HasQueryFilter(g => g.Nome != "Hidden");
         });
     }
 }

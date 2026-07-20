@@ -567,7 +567,9 @@ public class EndpointExtensibilityTests
         AssertOutputCompiles(output);
 
         Assert.Contains(GeneratedSources(output), source =>
-            source.Contains("CreatedMatch(v => $\"things/{v.Id}\")"));
+            source.Contains("CreatedMatch(v => $\"things/") &&
+            source.Contains("Uri.EscapeDataString") &&
+            source.Contains("Convert.ToString(v.Id"));
     }
 
     [Theory]
@@ -796,7 +798,10 @@ public class EndpointExtensibilityTests
         var generated = GeneratedSources(output);
         Assert.Contains(generated, source =>
             source.Contains("AcceptedMatch<Ticket>") &&
-            source.Contains("result.AcceptedMatch(v => $\"tickets/status/{v.Id}\")"));
+            source.Contains("result.AcceptedMatch(v => $\"tickets/status/") &&
+            source.Contains("Uri.EscapeDataString") &&
+            source.Contains("Convert.ToString(v.Id") &&
+            source.Contains("CultureInfo.InvariantCulture"));
     }
 
     [Fact]
@@ -878,7 +883,10 @@ public class EndpointExtensibilityTests
         Assert.Contains(GeneratedSources(output), source =>
             source.Contains("AcceptedMatch<int>") &&
             source.Contains("new AcceptedMatch<int>(result.Match<IResult>(") &&
-            source.Contains("v => TypedResults.Accepted($\"tickets/status/{v.Id}\", v.Id)"));
+            source.Contains("v => TypedResults.Accepted($\"tickets/status/") &&
+            source.Contains("Uri.EscapeDataString") &&
+            source.Contains("Convert.ToString(v.Id") &&
+            source.Contains(", v.Id)"));
     }
 
     [Fact]
@@ -955,6 +963,45 @@ public class EndpointExtensibilityTests
             source.Contains("static AcceptedMatch AgendarTicketHandle(") &&
             source.Contains("return result.AcceptedMatch();") &&
             source.Contains(".Produces(202)"));
+    }
+
+    [Fact]
+    public void Accepted_assincrono_propaga_o_CancellationToken_ao_handler()
+    {
+        const string code =
+            """
+            using System.Threading;
+            using System.Threading.Tasks;
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Phase3.AcceptedCancellation;
+
+            [MapPost("/jobs", "queue-job")]
+            [WithResultStatus(HttpResultStatus.Accepted)]
+            public class QueueJob
+            {
+                [Command]
+                public async Task<Result> Execute(CancellationToken ct)
+                {
+                    await Task.Yield();
+                    ct.ThrowIfCancellationRequested();
+                    return Result.Ok();
+                }
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+
+        Util.Compile(code, out var output, out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        AssertOutputCompiles(output);
+        Assert.Contains(GeneratedSources(output), source =>
+            source.Contains("static async Task<AcceptedMatch> QueueJobHandleAsync(") &&
+            source.Contains("await handler.HandleAsync(command, ct)") &&
+            source.Contains("return result.AcceptedMatch();"));
     }
 
     [Fact]

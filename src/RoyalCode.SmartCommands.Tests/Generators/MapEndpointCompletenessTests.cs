@@ -636,7 +636,10 @@ public class MapEndpointCompletenessTests
 
         // a Location interpola as propriedades declaradas, na caixa exata do C#
         Assert.Contains(GeneratedSources(output), source =>
-            source.Contains("CreatedMatch(v => $\"things/{v.Id}/detail/{v.Slug}\")"));
+            source.Contains("CreatedMatch(v => $\"things/") &&
+            source.Contains("Convert.ToString(v.Id") &&
+            source.Contains("/detail/") &&
+            source.Contains("Convert.ToString(v.Slug"));
     }
 
     [Theory]
@@ -674,7 +677,9 @@ public class MapEndpointCompletenessTests
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
         AssertOutputCompiles(output);
         Assert.Contains(GeneratedSources(output), source =>
-            source.Contains("CreatedMatch(v => $\"things/{v.Id}\")"));
+            source.Contains("CreatedMatch(v => $\"things/") &&
+            source.Contains("Uri.EscapeDataString") &&
+            source.Contains("Convert.ToString(v.Id"));
     }
 
     // ------------------------------------------------------------------

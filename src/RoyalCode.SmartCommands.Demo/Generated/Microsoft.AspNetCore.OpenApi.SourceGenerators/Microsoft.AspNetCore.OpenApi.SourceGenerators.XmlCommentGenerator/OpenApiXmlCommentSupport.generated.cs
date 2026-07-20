@@ -205,8 +205,10 @@ without a body and Result&lt;T&gt; responds with the success value.
 properties of the value returned by the command, declared in propertiesNames
 (prefer nameof). Each placeholder must match exactly one declared property, and every declared
 property must be used by a placeholder; mismatches, duplications and unknown or unreadable properties
-are reported at compile time (RCCMD054). A command returning a plain Result has no success
-value, so the pattern must be a static route, without placeholders.
+are reported at compile time (RCCMD054). At runtime, each property value is formatted with the
+invariant culture and URI-escaped as one path segment before it is inserted into the Location.
+A command returning a plain Result has no success value, so the pattern must be a static route,
+without placeholders.
     Example:
           ```[MapGroup(""api/envios"")]
 [MapPost(""/"", ""agendar-envio"")]
@@ -228,7 +230,8 @@ with a Location header pointing to the created resource, instead of the default 
 properties of the value returned by the command, declared in propertiesNames
 (prefer nameof). Each placeholder must match exactly one declared property, and every declared
 property must be used by a placeholder; mismatches, duplications and unknown or unreadable properties
-are reported at compile time (RCCMD050).
+are reported at compile time (RCCMD050). At runtime, each property value is formatted with the
+invariant culture and URI-escaped as one path segment before it is inserted into the Location.
     Example:
           ```[MapGroup(""api/products"")]
 [MapPost(""/"", ""create-product"")]

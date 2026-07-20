@@ -87,6 +87,6 @@ public static partial class MapPedidosApi
             return Problems.InvalidParameter("The request body is required.");
 
         var result = await handler.HandleAsync(command, ct);
-        return result.CreatedMatch(v => $"pedidos/{v.Id}", v => new CriarPedidoResponse(v.Id, v.Status, v.Total));
+        return result.CreatedMatch(v => $"pedidos/{(global::System.Uri.EscapeDataString(global::System.Convert.ToString(v.Id, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty))}", v => new CriarPedidoResponse(v.Id, v.Status, v.Total));
     }
 }

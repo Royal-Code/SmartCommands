@@ -150,6 +150,46 @@ public class PipelineCachingTests
     }
 
     [Fact]
+    public void Changing_accepted_location_invalidates_command_model_and_generated_source()
+    {
+        const string originalSource =
+            """
+            using RoyalCode.SmartCommands;
+            using RoyalCode.SmartProblems;
+
+            namespace Tests.Caching;
+
+            public sealed class Ticket
+            {
+                public int Id { get; set; }
+            }
+
+            [MapPost("/jobs", "queue-job")]
+            [MapAcceptedRoute("status/{id}", nameof(Ticket.Id))]
+            public class QueueJob
+            {
+                [Command]
+                public Result<Ticket> Execute() => new Ticket { Id = 7 };
+            }
+
+            [MapApiHandlers]
+            public static partial class Endpoints { }
+            """;
+        var changedSource = originalSource.Replace("status/{id}", "tracking/{id}", StringComparison.Ordinal);
+        var original = Util.CreateCompilation(originalSource);
+        var driver = Util.CreateTrackedDriver().RunGenerators(original);
+        var originalGenerated = GeneratedSources(driver.GetRunResult());
+        var changed = original.ReplaceSyntaxTree(original.SyntaxTrees.Single(), Util.ParseSource(changedSource));
+
+        driver = driver.RunGenerators(changed);
+        var result = driver.GetRunResult();
+
+        AssertReasons(result, IncrementalGenerator.TrackingNames.Commands, IncrementalStepRunReason.Modified);
+        Assert.False(originalGenerated.SequenceEqual(GeneratedSources(result)),
+            "changing the Accepted Location must change the generated source");
+    }
+
+    [Fact]
     public void Changing_tags_invalidates_find_model_and_generated_source()
     {
         const string originalSource =

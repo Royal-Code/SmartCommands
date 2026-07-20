@@ -13,7 +13,7 @@ namespace RoyalCode.SmartCommands.Demo.Commands.Lojas;
 /// </summary>
 [MapGroup("lojas")]
 [MapPost("/agendamentos", "agendar-importacao-loja")]
-[MapAcceptedRoute("agendamentos/{id}/status", nameof(Loja.Id))]
+[MapAcceptedRoute("agendamentos/{id}/{nome}/status", nameof(Loja.Id), nameof(Loja.Nome))]
 [MapResponseValues(nameof(Loja.Id), nameof(Loja.Nome))]
 [WithTags("Lojas")]
 [WithSummary("Agendar Importação de Loja")]

@@ -190,7 +190,7 @@ public static partial class MapProdutosApi
             return Problems.InvalidParameter("The request body is required.");
 
         var result = await handler.HandleAsync(command, ct);
-        return result.CreatedMatch(v => $"produtos/{v.Id}", v => new CriarProduto2Response(v.Id, v.Nome, v.Sku));
+        return result.CreatedMatch(v => $"produtos/{(global::System.Uri.EscapeDataString(global::System.Convert.ToString(v.Id, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty))}", v => new CriarProduto2Response(v.Id, v.Nome, v.Sku));
     }
 
     [ProduceProblems(ProblemCategory.InvalidParameter, ProblemCategory.NotFound)]

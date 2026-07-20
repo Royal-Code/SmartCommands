@@ -90,7 +90,7 @@ public class DemoHttpExtensibilityTests
 
 		var accepted = await client.PostAsJsonAsync("/lojas/agendamentos", new
 		{
-			Nome = "Loja Agendada",
+			Nome = "Loja Agendada / Sul?#",
 			Endereco = "Rua E, 5"
 		});
 
@@ -100,10 +100,29 @@ public class DemoHttpExtensibilityTests
 		var body = await accepted.Content.ReadApiJsonAsync<LojaResponse>();
 		Assert.NotNull(body);
 		Assert.True(body.Id > 0);
-		Assert.Equal("Loja Agendada", body.Nome);
+		Assert.Equal("Loja Agendada / Sul?#", body.Nome);
 
 		Assert.NotNull(accepted.Headers.Location);
-		Assert.Equal($"lojas/agendamentos/{body.Id}/status", accepted.Headers.Location!.OriginalString);
+		Assert.Equal(
+			$"lojas/agendamentos/{body.Id}/Loja%20Agendada%20%2F%20Sul%3F%23/status",
+			accepted.Headers.Location!.OriginalString);
+	}
+
+	[Fact]
+	public async Task Accepted_com_problema_preserva_status_e_nao_emite_Location()
+	{
+		using var app = new DemoApiFactory();
+		using var client = app.CreateClient();
+		await app.ResetDatabaseAsync();
+
+		var response = await client.PostAsJsonAsync("/lojas/agendamentos", new
+		{
+			Nome = "",
+			Endereco = ""
+		});
+
+		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+		Assert.Null(response.Headers.Location);
 	}
 
 	[Fact]

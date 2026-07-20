@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using RoyalCode.SmartCommands.EntityFramework.Adapters;
 using RoyalCode.SmartCommands.EntityFramework.Options;
 
@@ -28,14 +29,16 @@ public sealed class SqliteDatabase : IDisposable
         TransactionInterceptor.ResetCounters();
     }
 
-    public TestDbContext CreateContext()
+    public TestDbContext CreateContext(params IInterceptor[] interceptors)
     {
-        var options = new DbContextOptionsBuilder<TestDbContext>()
+        var builder = new DbContextOptionsBuilder<TestDbContext>()
             .UseSqlite(Connection)
-            .AddInterceptors(SaveInterceptor, TransactionInterceptor)
-            .Options;
+            .AddInterceptors(SaveInterceptor, TransactionInterceptor);
 
-        return new TestDbContext(options);
+        if (interceptors.Length > 0)
+            builder.AddInterceptors(interceptors);
+
+        return new TestDbContext(builder.Options);
     }
 
     public DbContextAccessor<TestDbContext> CreateAccessor(TestDbContext db, bool beginTransactions)
